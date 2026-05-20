@@ -1,0 +1,14 @@
+{
+  "name": "financial-request-management-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Full-stack financial request management and tracking system for the Faculty of Engineering, University of Ruhuna.",
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "build": "npm --prefix server run build && npm --prefix client run build",
+    "seed": "npm --prefix server run seed",
+    "test": "npm --prefix server test"
+  }
+}
