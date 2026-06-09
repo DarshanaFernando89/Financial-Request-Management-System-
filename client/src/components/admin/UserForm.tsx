@@ -1,5 +1,6 @@
 import { Save } from 'lucide-react';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
+import { adminApi } from '../../api/adminApi';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
@@ -30,8 +31,18 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
     address: initial?.address || '',
     roles: initial?.roles || ['REQUESTER']
   });
+  const [availableRoles, setAvailableRoles] = useState<Array<{ code: string; displayName: string; isActive: boolean }>>(
+    ROLES.map((role) => ({ code: role, displayName: roleLabel(role), isActive: true }))
+  );
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    adminApi
+      .roles()
+      .then((roles) => setAvailableRoles(roles.filter((role) => role.isActive)))
+      .catch(() => setAvailableRoles(ROLES.map((role) => ({ code: role, displayName: roleLabel(role), isActive: true }))));
+  }, []);
 
   function setValue(key: string, value: unknown) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -88,10 +99,10 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
         <div>
           <p className="mb-2 text-sm font-semibold text-slate-700">Roles</p>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {ROLES.map((role) => (
-              <label key={role} className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm">
-                <input type="checkbox" checked={(form.roles as Role[]).includes(role)} onChange={() => toggleRole(role)} />
-                <span>{roleLabel(role)}</span>
+            {availableRoles.map((role) => (
+              <label key={role.code} className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm">
+                <input type="checkbox" checked={(form.roles as Role[]).includes(role.code)} onChange={() => toggleRole(role.code)} />
+                <span>{role.displayName || roleLabel(role.code)}</span>
               </label>
             ))}
           </div>

@@ -1,4 +1,4 @@
-import { Bell, LogOut, Menu, UserCircle } from 'lucide-react';
+import { Bell, LogOut, Menu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -21,18 +21,34 @@ export function Header({ onMenu }: { onMenu: () => void }) {
   return (
     <header className="sticky top-0 z-30 border-b border-yellow-300 bg-university-gold shadow-sm">
       <div className="flex min-h-[76px] items-center gap-4 px-4 lg:px-6">
-        <Button aria-label="Open menu" variant="ghost" className="h-10 w-10 px-0 lg:hidden" icon={<Menu size={21} />} onClick={onMenu} />
+        <Button aria-label="Open menu" variant="ghost" className="h-11 min-h-11 w-11 px-0 lg:hidden" icon={<Menu size={23} />} onClick={onMenu} />
         <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-university-maroon sm:flex">UoR</div>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-bold text-university-ink md:text-xl">{systemTitle}</h1>
           <p className="truncate text-xs font-semibold text-university-maroon md:text-sm">{facultyName}</p>
         </div>
-        <Button aria-label="Notifications" variant="ghost" className="relative h-10 w-10 px-0" icon={<Bell size={20} />} onClick={() => navigate('/notifications')}>
-          {unreadCount > 0 && <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-600" />}
+        <Button
+          aria-label="Notifications"
+          variant="outline"
+          className="relative h-12 min-h-12 w-12 shrink-0 rounded-full border-yellow-600/50 bg-white/85 px-0 text-university-maroon shadow-sm hover:bg-white"
+          icon={<Bell size={24} strokeWidth={2.5} />}
+          onClick={() => navigate('/notifications')}
+        >
+          {unreadCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-bold leading-none text-white ring-2 ring-university-gold">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
         </Button>
         <details className="relative">
           <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1.5 hover:bg-yellow-200">
-            <UserCircle size={28} className="text-university-maroon" />
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-university-maroon text-sm font-bold text-white shadow-sm">
+              {user?.profileImageUrl ? (
+                <img src={user.profileImageUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                user?.nameWithInitials?.slice(0, 2).toUpperCase() || 'U'
+              )}
+            </span>
             <span className="hidden text-left sm:block">
               <span className="block max-w-40 truncate text-sm font-bold text-slate-900">{user?.nameWithInitials}</span>
               <Badge tone="maroon">{roleLabel(user?.activeRole)}</Badge>

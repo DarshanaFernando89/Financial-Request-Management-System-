@@ -4,11 +4,14 @@ import {
   activateRequestType,
   adminDashboard,
   createApprovalRule,
+  createRole,
   createRequestType,
   deactivateApprovalRule,
   deactivateRequestType,
   listApprovalRules,
+  listRoles,
   listRequestTypes,
+  updateRole,
   updateApprovalRule,
   updateRequestType
 } from '../controllers/adminController.js';
@@ -20,6 +23,9 @@ const router = Router();
 
 router.use(authMiddleware, requireActiveRole, requireRoles(ROLES.ADMIN));
 router.get('/dashboard', adminDashboard);
+router.get('/roles', listRoles);
+router.post('/roles', createRole);
+router.put('/roles/:id', updateRole);
 router.get('/approval-rules', listApprovalRules);
 router.post('/approval-rules', createApprovalRule);
 router.put('/approval-rules/:id', updateApprovalRule);

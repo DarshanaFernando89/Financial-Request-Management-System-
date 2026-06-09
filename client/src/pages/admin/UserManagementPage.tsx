@@ -25,6 +25,7 @@ export function UserManagementPage() {
   }, [search]);
 
   async function toggleActive(user: User) {
+    if (user.roles.includes('ADMIN')) return;
     if (user.isActive) await userApi.deactivate(user._id);
     else await userApi.activate(user._id);
     await load();
@@ -57,12 +58,22 @@ export function UserManagementPage() {
             {
               key: 'actions',
               header: 'Actions',
-              render: (row) => (
-                <div className="flex gap-2">
-                  <Button variant="outline" className="h-9 min-h-9 px-2" icon={row.isActive ? <ToggleRight size={16} /> : <ToggleLeft size={16} />} onClick={() => void toggleActive(row)} />
-                  <Button variant="outline" className="h-9 min-h-9 px-2" icon={<RotateCcw size={16} />} onClick={() => void reset(row)} />
-                </div>
-              )
+              render: (row) => {
+                const isAdmin = row.roles.includes('ADMIN');
+                return (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      className="h-9 min-h-9 px-2"
+                      icon={row.isActive ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                      disabled={isAdmin}
+                      title={isAdmin ? 'Admin accounts cannot be deactivated' : row.isActive ? 'Deactivate user' : 'Activate user'}
+                      onClick={() => void toggleActive(row)}
+                    />
+                    <Button variant="outline" className="h-9 min-h-9 px-2" icon={<RotateCcw size={16} />} onClick={() => void reset(row)} />
+                  </div>
+                );
+              }
             }
           ]}
         />

@@ -3,6 +3,7 @@ import { RequestTypeModel } from '../models/RequestType.js';
 import { RequestModel } from '../models/Request.js';
 import { UserModel } from '../models/User.js';
 import { AccountRequestModel } from '../models/AccountRequest.js';
+import { CustomRoleModel } from '../models/CustomRole.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ROLES } from '../utils/constants.js';
@@ -112,5 +113,45 @@ export const activateRequestType = asyncHandler(async (req, res) => {
 export const deactivateRequestType = asyncHandler(async (req, res) => {
   const item = await RequestTypeModel.findByIdAndUpdate(String(req.params.id), { isActive: false }, { new: true });
   if (!item) throw new ApiError(404, 'Request type not found.');
+  res.json(item);
+});
+
+export const listRoles = asyncHandler(async (_req, res) => {
+  const customRoles = await CustomRoleModel.find().sort({ displayName: 1 });
+  const systemRoles = Object.values(ROLES).map((code) => ({
+    _id: `system-${code}`,
+    code,
+    displayName: code
+      .toLowerCase()
+      .split('_')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' '),
+    description: 'System role',
+    isActive: true,
+    isSystem: true
+  }));
+  res.json({ items: [...systemRoles, ...customRoles.map((role) => ({ ...role.toObject(), isSystem: false }))] });
+});
+
+export const createRole = asyncHandler(async (req, res) => {
+  const code = String(req.body.code || req.body.displayName || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  if (!code || !req.body.displayName) throw new ApiError(400, 'Role code and display name are required.');
+  if (Object.values(ROLES).includes(code as any)) throw new ApiError(409, 'This system role already exists.');
+  const item = await CustomRoleModel.create({
+    code,
+    displayName: req.body.displayName,
+    description: req.body.description,
+    isActive: req.body.isActive ?? true
+  });
+  res.status(201).json(item);
+});
+
+export const updateRole = asyncHandler(async (req, res) => {
+  const item = await CustomRoleModel.findByIdAndUpdate(String(req.params.id), req.body, { new: true, runValidators: true });
+  if (!item) throw new ApiError(404, 'Role not found.');
   res.json(item);
 });

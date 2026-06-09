@@ -7,6 +7,25 @@ export const adminApi = {
     const { data } = await apiClient.get('/admin/dashboard');
     return data;
   },
+  async roles() {
+    const { data } = await apiClient.get('/admin/roles');
+    return data.items as Array<{
+      _id: string;
+      code: string;
+      displayName: string;
+      description?: string;
+      isActive: boolean;
+      isSystem?: boolean;
+    }>;
+  },
+  async createRole(payload: Record<string, unknown>) {
+    const { data } = await apiClient.post('/admin/roles', payload);
+    return data;
+  },
+  async updateRole(id: string, payload: Record<string, unknown>) {
+    const { data } = await apiClient.put(`/admin/roles/${id}`, payload);
+    return data;
+  },
   async rules() {
     const { data } = await apiClient.get<{ items: ApprovalRule[] }>('/admin/approval-rules');
     return data.items;

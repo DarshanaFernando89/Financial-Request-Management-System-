@@ -278,6 +278,8 @@ const approvalRules: any[] = [
   }
 ];
 
+const customRoles: any[] = [];
+
 function steps(roles: string[], pendingIndex: number) {
   return [...roles, ROLES.FINANCE_OFFICER].map((role, index) => ({
     _id: `step-${role}-${index}`,
@@ -488,7 +490,7 @@ const auditLogs: any[] = [
 ];
 
 function demoOnly(req: any, res: any, next: any) {
-  if (!req.app.locals.demoMode) return next();
+  if (!req.app.locals.demoMode) return next('router');
   return next();
 }
 
@@ -596,6 +598,20 @@ router.post('/auth/forgot-password', (_req, res) => {
 router.post('/auth/request-account', (req, res) => {
   const item = { _id: `account-request-${Date.now()}`, status: ACCOUNT_REQUEST_STATUSES.PENDING, createdAt: new Date().toISOString(), ...req.body };
   accountRequests.unshift(item);
+  users
+    .filter((user) => user.roles.includes(ROLES.ADMIN))
+    .forEach((admin) => {
+      notifications.unshift({
+        _id: `notification-${Date.now()}-${admin._id}`,
+        user: admin._id,
+        title: 'New account request',
+        message: `${item.fullName} requested access as ${item.requestedRole}.`,
+        type: 'ADMIN',
+        isRead: false,
+        relatedRequest: undefined,
+        createdAt: new Date().toISOString()
+      });
+    });
   res.status(201).json({ message: 'Account request submitted successfully.', accountRequest: item });
 });
 
@@ -812,8 +828,15 @@ router.post('/finance/:requestId/reject', (req, res) => {
 
 router.get('/users/me/profile', (req, res) => res.json(currentUser(req)));
 router.put('/users/me/profile', (req, res) => {
-  Object.assign(currentUser(req), req.body);
-  res.json(currentUser(req));
+  const sessionUser = currentUser(req);
+  const storedUser = users.find((user) => user._id === sessionUser._id);
+  if (!storedUser) return res.status(404).json({ message: 'User not found.' });
+  Object.assign(storedUser, {
+    contactNo: req.body.contactNo,
+    address: req.body.address,
+    profileImageUrl: req.body.profileImageUrl
+  });
+  res.json(publicUser(storedUser, sessionUser.activeRole));
 });
 
 router.get('/users', (req, res) => {
@@ -852,6 +875,7 @@ router.patch('/users/:id/activate', (req, res) => {
 router.patch('/users/:id/deactivate', (req, res) => {
   const user = users.find((item) => item._id === req.params.id);
   if (!user) return res.status(404).json({ message: 'User not found.' });
+  if (user.roles.includes(ROLES.ADMIN)) return res.status(403).json({ message: 'Admin accounts cannot be deactivated.' });
   user.isActive = false;
   res.json(user);
 });
@@ -867,6 +891,52 @@ router.get('/admin/dashboard', (_req, res) => {
     pendingPayments: requests.filter((request) => request.status === REQUEST_STATUSES.PAYMENT_PENDING).length,
     statusCounts
   });
+});
+
+router.get('/admin/roles', (_req, res) => {
+  const systemRoles = Object.values(ROLES).map((code) => ({
+    _id: `system-${code}`,
+    code,
+    displayName: code
+      .toLowerCase()
+      .split('_')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' '),
+    description: 'System role',
+    isActive: true,
+    isSystem: true
+  }));
+  res.json({ items: [...systemRoles, ...customRoles] });
+});
+
+router.post('/admin/roles', (req, res) => {
+  const code = String(req.body.code || req.body.displayName || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  if (!code || !req.body.displayName) return res.status(400).json({ message: 'Role code and display name are required.' });
+  if (Object.values(ROLES).includes(code as any) || customRoles.some((role) => role.code === code)) {
+    return res.status(409).json({ message: 'Role already exists.' });
+  }
+  const item = {
+    _id: `role-${Date.now()}`,
+    code,
+    displayName: req.body.displayName,
+    description: req.body.description,
+    isActive: true,
+    isSystem: false,
+    createdAt: new Date().toISOString()
+  };
+  customRoles.unshift(item);
+  res.status(201).json(item);
+});
+
+router.put('/admin/roles/:id', (req, res) => {
+  const item = customRoles.find((role) => role._id === req.params.id);
+  if (!item) return res.status(404).json({ message: 'Role not found.' });
+  Object.assign(item, req.body);
+  res.json(item);
 });
 
 router.get('/admin/approval-rules', (_req, res) => res.json({ items: approvalRules }));

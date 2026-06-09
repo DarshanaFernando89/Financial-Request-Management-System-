@@ -18,10 +18,10 @@ const items: NavItem[] = [
   { to: '/finance/pending-payments', label: 'Pending Payments', icon: <CreditCard size={18} />, roles: FINANCE_ROLES },
   { to: '/finance/payment-history', label: 'Payment History', icon: <History size={18} />, roles: FINANCE_ROLES },
   { to: '/admin/users', label: 'Users', icon: <UserCog size={18} />, roles: ADMIN_ROLES },
+  { to: '/admin/roles', label: 'Roles', icon: <ShieldCheck size={18} />, roles: ADMIN_ROLES },
   { to: '/admin/approval-rules', label: 'Approval Rules', icon: <ListChecks size={18} />, roles: ADMIN_ROLES },
   { to: '/admin/request-types', label: 'Request Types', icon: <Settings size={18} />, roles: ADMIN_ROLES },
   { to: '/admin/account-requests', label: 'Account Requests', icon: <ShieldCheck size={18} />, roles: ADMIN_ROLES },
-  { to: '/admin/audit-logs', label: 'Audit Logs', icon: <ShieldCheck size={18} />, roles: ADMIN_ROLES },
   { to: '/admin/reports', label: 'Reports', icon: <BarChart3 size={18} />, roles: ADMIN_ROLES },
   { to: '/notifications', label: 'Notifications', icon: <Bell size={18} /> },
   { to: '/profile', label: 'Profile', icon: <UserCircle size={18} /> }
@@ -54,10 +54,19 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </nav>
       <div className="border-t border-slate-200 p-4">
-        <div className="rounded-lg bg-slate-50 p-3">
-          <p className="truncate text-sm font-bold text-slate-900">{user?.nameWithInitials}</p>
-          <p className="truncate text-xs text-slate-500">{user?.department}</p>
-          <Badge tone="gold" className="mt-2">{roleLabel(user?.activeRole)}</Badge>
+        <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-university-maroon text-sm font-bold text-white">
+            {user?.profileImageUrl ? (
+              <img src={user.profileImageUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              user?.nameWithInitials?.slice(0, 2).toUpperCase() || 'U'
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-slate-900">{user?.nameWithInitials}</p>
+            <p className="truncate text-xs text-slate-500">{user?.department}</p>
+            <Badge tone="gold" className="mt-2">{roleLabel(user?.activeRole)}</Badge>
+          </div>
         </div>
       </div>
     </aside>

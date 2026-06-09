@@ -15,7 +15,7 @@ const userSchema = new Schema(
     contactNo: { type: String, trim: true },
     address: { type: String, trim: true },
     profileImageUrl: { type: String, trim: true },
-    roles: [{ type: String, enum: ROLE_VALUES, required: true }],
+    roles: [{ type: String, required: true }],
     isActive: { type: Boolean, default: true }
   },
   {

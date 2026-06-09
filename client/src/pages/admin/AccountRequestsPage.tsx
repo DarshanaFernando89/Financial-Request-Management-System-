@@ -43,6 +43,7 @@ export function AccountRequestsPage() {
           { key: 'email', header: 'Email', render: (row) => row.email },
           { key: 'department', header: 'Department', render: (row) => row.department },
           { key: 'role', header: 'Requested Role', render: (row) => roleLabel(row.requestedRole) },
+          { key: 'message', header: 'Message', render: (row) => <span className="block max-w-sm whitespace-normal text-sm text-slate-600">{row.message || '-'}</span> },
           { key: 'status', header: 'Status', render: (row) => <Badge tone={row.status === 'PENDING' ? 'gold' : row.status === 'APPROVED' ? 'green' : 'red'}>{row.status}</Badge> },
           {
             key: 'actions',

@@ -1,6 +1,6 @@
 import type { Role } from '../types/auth';
 
-export const roleLabels: Record<Role, string> = {
+export const roleLabels: Record<string, string> = {
   REQUESTER: 'Requester / Staff Member',
   LECTURER: 'Lecturer',
   DEPARTMENT_COORDINATOR: 'Department Coordinator',

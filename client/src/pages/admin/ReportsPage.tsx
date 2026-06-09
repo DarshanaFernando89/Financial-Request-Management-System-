@@ -23,9 +23,6 @@ export function ReportsPage() {
         <StatusCard title="Statuses" value={summary?.statusCounts?.length || 0} tone="green" />
       </div>
       <div className="flex gap-3">
-        <a href={reportApi.exportUrl('pdf')} target="_blank" rel="noreferrer">
-          <Button variant="outline" icon={<Download size={16} />}>Export PDF</Button>
-        </a>
         <a href={reportApi.exportUrl('excel')} target="_blank" rel="noreferrer">
           <Button variant="outline" icon={<Download size={16} />}>Export Excel</Button>
         </a>

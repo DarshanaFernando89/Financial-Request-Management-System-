@@ -24,6 +24,7 @@ import { PaymentReviewPage } from '../pages/finance/PaymentReviewPage';
 import { PaymentHistoryPage } from '../pages/finance/PaymentHistoryPage';
 import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage';
 import { UserManagementPage } from '../pages/admin/UserManagementPage';
+import { RoleManagementPage } from '../pages/admin/RoleManagementPage';
 import { CreateUserPage } from '../pages/admin/CreateUserPage';
 import { EditUserPage } from '../pages/admin/EditUserPage';
 import { RoleAssignmentPage } from '../pages/admin/RoleAssignmentPage';
@@ -34,7 +35,6 @@ import { RequestTypesPage } from '../pages/admin/RequestTypesPage';
 import { CreateRequestTypePage } from '../pages/admin/CreateRequestTypePage';
 import { EditRequestTypePage } from '../pages/admin/EditRequestTypePage';
 import { ReportsPage } from '../pages/admin/ReportsPage';
-import { AuditLogsPage } from '../pages/admin/AuditLogsPage';
 import { AccountRequestsPage } from '../pages/admin/AccountRequestsPage';
 import { ProfilePage } from '../pages/shared/ProfilePage';
 import { NotificationsPage } from '../pages/shared/NotificationsPage';
@@ -93,6 +93,7 @@ export function AppRoutes() {
 
           <Route element={<RoleGuard roles={ADMIN_ROLES} />}>
             <Route path="admin/users" element={<UserManagementPage />} />
+            <Route path="admin/roles" element={<RoleManagementPage />} />
             <Route path="admin/users/create" element={<CreateUserPage />} />
             <Route path="admin/users/:id/edit" element={<EditUserPage />} />
             <Route path="admin/role-assignment" element={<RoleAssignmentPage />} />
@@ -103,7 +104,6 @@ export function AppRoutes() {
             <Route path="admin/request-types/create" element={<CreateRequestTypePage />} />
             <Route path="admin/request-types/:id/edit" element={<EditRequestTypePage />} />
             <Route path="admin/reports" element={<ReportsPage />} />
-            <Route path="admin/audit-logs" element={<AuditLogsPage />} />
             <Route path="admin/account-requests" element={<AccountRequestsPage />} />
           </Route>
 

@@ -3,6 +3,7 @@ import { UserModel } from '../models/User.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { writeAuditLog } from '../services/auditService.js';
+import { ROLES } from '../utils/constants.js';
 
 function buildUserFilter(query: any) {
   const filter: any = {};
@@ -109,6 +110,11 @@ export const activateUser = asyncHandler(async (req, res) => {
 });
 
 export const deactivateUser = asyncHandler(async (req, res) => {
+  const existing = await UserModel.findById(req.params.id);
+  if (!existing) throw new ApiError(404, 'User not found.');
+  if (existing.roles.includes(ROLES.ADMIN)) {
+    throw new ApiError(403, 'Admin accounts cannot be deactivated.');
+  }
   const user = await UserModel.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
   if (!user) throw new ApiError(404, 'User not found.');
   res.json(user);

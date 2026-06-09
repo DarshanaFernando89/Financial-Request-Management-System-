@@ -1,14 +1,4 @@
-export type Role =
-  | 'REQUESTER'
-  | 'LECTURER'
-  | 'DEPARTMENT_COORDINATOR'
-  | 'HOD'
-  | 'ASSOCIATE_DEAN'
-  | 'DEAN'
-  | 'FINANCE_DIVISION'
-  | 'APPROVING_AUTHORITY'
-  | 'FINANCE_OFFICER'
-  | 'ADMIN';
+export type Role = string;
 
 export type StaffCategory = 'ACADEMIC' | 'NON_ACADEMIC';
 
