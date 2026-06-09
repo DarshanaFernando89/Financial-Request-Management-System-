@@ -1,0 +1,33 @@
+import { useEffect, useState } from 'react';
+import { financeApi } from '../../api/financeApi';
+import { Table } from '../../components/ui/Table';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { formatCurrency } from '../../utils/formatCurrency';
+import { formatDate } from '../../utils/formatDate';
+import type { Payment } from '../../types/finance';
+
+export function PaymentHistoryPage() {
+  const [payments, setPayments] = useState<Payment[]>([]);
+  useEffect(() => {
+    financeApi.paymentHistory().then(setPayments).catch(() => setPayments([]));
+  }, []);
+  return (
+    <div className="space-y-5">
+      <h1 className="text-2xl font-bold text-slate-900">Payment History</h1>
+      {payments.length ? (
+        <Table
+          rows={payments}
+          columns={[
+            { key: 'request', header: 'Request', render: (row) => row.request?.requestId || '-' },
+            { key: 'amount', header: 'Amount', render: (row) => formatCurrency(row.amount) },
+            { key: 'ref', header: 'Reference', render: (row) => row.referenceNo },
+            { key: 'date', header: 'Paid Date', render: (row) => formatDate(row.paidAt) },
+            { key: 'remarks', header: 'Remarks', render: (row) => row.remarks || '-' }
+          ]}
+        />
+      ) : (
+        <EmptyState title="No payment records found" />
+      )}
+    </div>
+  );
+}

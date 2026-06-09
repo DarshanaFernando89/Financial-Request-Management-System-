@@ -9,6 +9,10 @@ connectDB()
     });
   })
   .catch((error) => {
-    console.error('Failed to start server:', error);
-    process.exit(1);
+    app.locals.demoMode = true;
+    console.warn('MongoDB unavailable. Starting FRMS API in demo mode.');
+    console.warn(error?.message || error);
+    app.listen(env.port, () => {
+      console.log(`FRMS API demo mode running on http://localhost:${env.port}`);
+    });
   });
