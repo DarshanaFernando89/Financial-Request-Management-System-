@@ -1,84 +1,24 @@
-import { Bell, LogOut, Menu } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Menu } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
-import { useAuth } from '../../hooks/useAuth';
-import { useNotifications } from '../../hooks/useNotifications';
-import { roleLabel } from '../../utils/roleLabels';
 import { facultyName, systemTitle } from '../../utils/constants';
-import type { Role } from '../../types/auth';
+import facultyLogo from '../../assets/logos/faculty-logo.png';
+import universityLogo from '../../assets/logos/university-logo.png';
 
 export function Header({ onMenu }: { onMenu: () => void }) {
-  const { user, logout, switchRole } = useAuth();
-  const { unreadCount } = useNotifications();
-  const navigate = useNavigate();
-
-  async function handleSwitch(role: Role) {
-    await switchRole(role);
-    navigate('/');
-  }
+  const displayFacultyName = facultyName.replace(', ', ',');
 
   return (
-    <header className="sticky top-0 z-30 border-b border-yellow-300 bg-university-gold shadow-sm">
-      <div className="flex min-h-[76px] items-center gap-4 px-4 lg:px-6">
-        <Button aria-label="Open menu" variant="ghost" className="h-11 min-h-11 w-11 px-0 lg:hidden" icon={<Menu size={23} />} onClick={onMenu} />
-        <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-university-maroon sm:flex">UoR</div>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-bold text-university-ink md:text-xl">{systemTitle}</h1>
-          <p className="truncate text-xs font-semibold text-university-maroon md:text-sm">{facultyName}</p>
+    <header className="sticky top-0 z-30 border-b border-[#d7a41b] bg-[#f6c235] shadow-sm">
+      <div className="grid min-h-[120px] grid-cols-[auto_minmax(0,1fr)] items-center gap-3 px-3 py-3 md:min-h-[154px] md:grid-cols-[120px_minmax(0,1fr)_120px] md:gap-6 md:px-8">
+        <div className="flex items-center gap-2">
+          <Button aria-label="Open menu" variant="ghost" className="h-11 min-h-11 w-11 px-0 lg:hidden" icon={<Menu size={23} />} onClick={onMenu} />
+          <img src={universityLogo} alt="University of Ruhuna logo" className="hidden h-[132px] w-auto object-contain lg:block" />
         </div>
-        <Button
-          aria-label="Notifications"
-          variant="outline"
-          className="relative h-12 min-h-12 w-12 shrink-0 rounded-full border-yellow-600/50 bg-white/85 px-0 text-university-maroon shadow-sm hover:bg-white"
-          icon={<Bell size={24} strokeWidth={2.5} />}
-          onClick={() => navigate('/notifications')}
-        >
-          {unreadCount > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-bold leading-none text-white ring-2 ring-university-gold">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          )}
-        </Button>
-        <details className="relative">
-          <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1.5 hover:bg-yellow-200">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-university-maroon text-sm font-bold text-white shadow-sm">
-              {user?.profileImageUrl ? (
-                <img src={user.profileImageUrl} alt="" className="h-full w-full object-cover" />
-              ) : (
-                user?.nameWithInitials?.slice(0, 2).toUpperCase() || 'U'
-              )}
-            </span>
-            <span className="hidden text-left sm:block">
-              <span className="block max-w-40 truncate text-sm font-bold text-slate-900">{user?.nameWithInitials}</span>
-              <Badge tone="maroon">{roleLabel(user?.activeRole)}</Badge>
-            </span>
-          </summary>
-          <div className="absolute right-0 mt-2 w-72 rounded-lg border border-slate-200 bg-white p-3 shadow-xl">
-            <p className="font-semibold text-slate-900">{user?.fullName}</p>
-            <p className="text-sm text-slate-500">{user?.email}</p>
-            {user && user.roles.length > 1 && (
-              <div className="mt-3 space-y-1 border-t border-slate-100 pt-3">
-                {user.roles.map((role) => (
-                  <button
-                    key={role}
-                    className="block w-full rounded-md px-2 py-2 text-left text-sm hover:bg-slate-50 disabled:font-semibold disabled:text-university-maroon"
-                    disabled={role === user.activeRole}
-                    onClick={() => void handleSwitch(role)}
-                  >
-                    {roleLabel(role)}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="mt-3 border-t border-slate-100 pt-3">
-              <Button variant="outline" className="w-full justify-start" icon={<LogOut size={16} />} onClick={() => void logout()}>
-                Logout
-              </Button>
-            </div>
-          </div>
-        </details>
-        <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-university-maroon md:flex">FoE</div>
+        <div className="min-w-0 text-center text-black">
+          <h1 className="text-xl font-normal leading-tight sm:text-[28px] xl:text-[34px]">{systemTitle}</h1>
+          <p className="mt-1 text-sm font-normal leading-tight sm:text-lg xl:text-[22px]">{displayFacultyName}</p>
+        </div>
+        <img src={facultyLogo} alt="Faculty of Engineering logo" className="hidden h-[132px] w-auto justify-self-end object-contain lg:block" />
       </div>
     </header>
   );
