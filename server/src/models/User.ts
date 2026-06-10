@@ -12,7 +12,19 @@ const userSchema = new Schema(
     staffCategory: { type: String, enum: Object.values(STAFF_CATEGORIES), required: true },
     department: { type: String, required: true, trim: true },
     faculty: { type: String, required: true, trim: true },
-    contactNo: { type: String, trim: true },
+    contactNo: {
+      type: String,
+      trim: true,
+      validate: {
+        validator(value: unknown) {
+          if (!value) return true;
+          const normalized = String(value).trim();
+          const digits = (normalized.match(/\d/g) || []).length;
+          return digits >= 7 && digits <= 15 && /^[+]?[-()\s\d]+$/.test(normalized);
+        },
+        message: 'Contact number must be a valid phone number.'
+      }
+    },
     address: { type: String, trim: true },
     profileImageUrl: { type: String, trim: true },
     roles: [{ type: String, required: true }],

@@ -18,9 +18,21 @@ import { errorMiddleware, notFoundMiddleware } from './middleware/errorMiddlewar
 
 const app = express();
 
+const allowedOrigins = [env.clientUrl];
+const localOrigin = env.clientUrl?.replace('localhost', '127.0.0.1');
+if (localOrigin && localOrigin !== env.clientUrl) {
+  allowedOrigins.push(localOrigin);
+}
+
 app.use(
   cors({
-    origin: env.clientUrl,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS policy does not allow access from origin ${origin}`));
+      }
+    },
     credentials: true
   })
 );

@@ -143,6 +143,6 @@ export const getProfile = asyncHandler(async (req, res) => {
 export const updateProfile = asyncHandler(async (req, res) => {
   const allowed = ['contactNo', 'address', 'profileImageUrl'];
   const updates = Object.fromEntries(Object.entries(req.body).filter(([key]) => allowed.includes(key)));
-  const user = await UserModel.findByIdAndUpdate((req as any).user.userId, updates, { new: true });
+  const user = await UserModel.findByIdAndUpdate((req as any).user.userId, updates, { new: true, runValidators: true });
   res.json(user);
 });
