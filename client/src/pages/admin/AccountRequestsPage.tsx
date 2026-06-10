@@ -1,5 +1,6 @@
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { adminApi } from '../../api/adminApi';
 import { Button } from '../../components/ui/Button';
 import { Table } from '../../components/ui/Table';
@@ -19,6 +20,8 @@ type AccountRequest = {
 
 export function AccountRequestsPage() {
   const [items, setItems] = useState<AccountRequest[]>([]);
+  const [searchParams] = useSearchParams();
+  const focusId = searchParams.get('focus');
   async function load() {
     setItems(await adminApi.accountRequests());
   }
@@ -36,6 +39,11 @@ export function AccountRequestsPage() {
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold text-slate-900">Account Requests</h1>
+      {focusId && items.some((item) => item._id === focusId && item.status === 'PENDING') && (
+        <div className="rounded-md border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm font-medium text-yellow-900">
+          The account request from your notification is pending below. Use the approve or reject action to complete the review.
+        </div>
+      )}
       <Table
         rows={items}
         columns={[

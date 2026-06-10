@@ -8,8 +8,8 @@ import { PasswordInput } from '../../components/ui/PasswordInput';
 import { useAuth } from '../../hooks/useAuth';
 
 export function LoginPage() {
-  const [email, setEmail] = useState('admin@uor.lk');
-  const [password, setPassword] = useState('Password123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();

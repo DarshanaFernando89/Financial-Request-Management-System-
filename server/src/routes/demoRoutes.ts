@@ -12,6 +12,7 @@ import {
   STEP_STATUSES,
   STEP_TYPES
 } from '../utils/constants.js';
+import { getAccountRequestValidationError, normalizeAccountRequestPayload } from '../utils/accountRequestValidation.js';
 
 const router = Router();
 const defaultPassword = 'Password123!';
@@ -596,7 +597,17 @@ router.post('/auth/forgot-password', (_req, res) => {
 });
 
 router.post('/auth/request-account', (req, res) => {
-  const item = { _id: `account-request-${Date.now()}`, status: ACCOUNT_REQUEST_STATUSES.PENDING, createdAt: new Date().toISOString(), ...req.body };
+  const payload = normalizeAccountRequestPayload(req.body);
+  const validationError = getAccountRequestValidationError(payload);
+  if (validationError) return res.status(400).json({ message: validationError });
+  if (users.some((user) => user.email === payload.email)) {
+    return res.status(409).json({ message: 'An account already exists for this email address.' });
+  }
+  if (accountRequests.some((request) => request.email === payload.email && request.status === ACCOUNT_REQUEST_STATUSES.PENDING)) {
+    return res.status(409).json({ message: 'An account request for this email address is already pending review.' });
+  }
+
+  const item = { _id: `account-request-${Date.now()}`, status: ACCOUNT_REQUEST_STATUSES.PENDING, createdAt: new Date().toISOString(), ...payload };
   accountRequests.unshift(item);
   users
     .filter((user) => user.roles.includes(ROLES.ADMIN))
@@ -606,9 +617,9 @@ router.post('/auth/request-account', (req, res) => {
         user: admin._id,
         title: 'New account request',
         message: `${item.fullName} requested access as ${item.requestedRole}.`,
-        type: 'ADMIN',
+        type: 'ACCOUNT_REQUEST',
         isRead: false,
-        relatedRequest: undefined,
+        relatedAccountRequest: item._id,
         createdAt: new Date().toISOString()
       });
     });

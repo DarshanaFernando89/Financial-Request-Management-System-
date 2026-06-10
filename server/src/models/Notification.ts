@@ -9,6 +9,7 @@ const notificationSchema = new Schema(
     message: { type: String, required: true },
     type: { type: String, default: 'INFO' },
     relatedRequest: { type: Schema.Types.ObjectId, ref: 'Request' },
+    relatedAccountRequest: { type: Schema.Types.ObjectId, ref: 'AccountRequest' },
     isRead: { type: Boolean, default: false }
   },
   { timestamps: true }

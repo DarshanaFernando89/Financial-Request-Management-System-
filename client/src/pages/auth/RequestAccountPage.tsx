@@ -8,6 +8,7 @@ import { Select } from '../../components/ui/Select';
 import { Textarea } from '../../components/ui/Textarea';
 import { ROLES } from '../../utils/constants';
 import { roleLabel } from '../../utils/roleLabels';
+import { accountRequestEmailMessage, isAccountRequestEmail } from '../../utils/validation';
 
 export function RequestAccountPage() {
   const [form, setForm] = useState({
@@ -28,8 +29,24 @@ export function RequestAccountPage() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError('');
+    setMessage('');
+
+    const payload = {
+      ...form,
+      fullName: form.fullName.trim(),
+      email: form.email.trim().toLowerCase(),
+      department: form.department.trim(),
+      faculty: form.faculty.trim(),
+      message: form.message.trim()
+    };
+
+    if (!isAccountRequestEmail(payload.email)) {
+      setError(accountRequestEmailMessage);
+      return;
+    }
+
     try {
-      await authApi.requestAccount(form);
+      await authApi.requestAccount(payload);
       setMessage('Account request submitted successfully.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit account request.');
@@ -42,7 +59,15 @@ export function RequestAccountPage() {
       <form className="mt-5 space-y-4" onSubmit={(event) => void submit(event)}>
         <div className="grid gap-4 md:grid-cols-2">
           <Input label="Full name" required value={form.fullName} onChange={(event) => setValue('fullName', event.target.value)} />
-          <Input label="Email" type="email" required value={form.email} onChange={(event) => setValue('email', event.target.value)} />
+          <Input
+            label="Email"
+            type="email"
+            required
+            pattern="[A-Za-z0-9._%+-]+@uor\.lk"
+            title={accountRequestEmailMessage}
+            value={form.email}
+            onChange={(event) => setValue('email', event.target.value)}
+          />
           <Input label="Department" required value={form.department} onChange={(event) => setValue('department', event.target.value)} />
           <Input label="Faculty" required value={form.faculty} onChange={(event) => setValue('faculty', event.target.value)} />
           <Select

@@ -1,15 +1,26 @@
 import axios from 'axios';
 
 export const TOKEN_KEY = 'frms_token';
+let authToken: string | null = null;
+
+function clearLegacyStoredTokens() {
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // Auth is intentionally in memory only; blocked storage should not break the app.
+  }
+}
+
+clearLegacyStoredTokens();
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (authToken) {
+    config.headers.Authorization = `Bearer ${authToken}`;
   }
   return config;
 });
@@ -23,10 +34,11 @@ apiClient.interceptors.response.use(
 );
 
 export function setAuthToken(token?: string) {
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
+  authToken = token || null;
+  clearLegacyStoredTokens();
 }
 
 export function getAuthToken() {
-  return localStorage.getItem(TOKEN_KEY);
+  clearLegacyStoredTokens();
+  return authToken;
 }

@@ -8,13 +8,14 @@ export const listNotifications = asyncHandler(async (req, res) => {
     $or: [{ user: session.userId }, { role: { $in: session.roles } }]
   })
     .populate('relatedRequest')
+    .populate('relatedAccountRequest')
     .sort({ createdAt: -1 })
     .limit(100);
   res.json({ items });
 });
 
 export const getNotification = asyncHandler(async (req, res) => {
-  const item = await NotificationModel.findById(req.params.id).populate('relatedRequest');
+  const item = await NotificationModel.findById(req.params.id).populate('relatedRequest').populate('relatedAccountRequest');
   if (!item) throw new ApiError(404, 'Notification not found.');
   res.json(item);
 });

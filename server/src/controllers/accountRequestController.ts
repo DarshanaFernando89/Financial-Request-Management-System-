@@ -4,6 +4,7 @@ import { UserModel } from '../models/User.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ACCOUNT_REQUEST_STATUSES, STAFF_CATEGORIES } from '../utils/constants.js';
+import { submitAccountRequest } from '../services/accountRequestService.js';
 
 export const listAccountRequests = asyncHandler(async (req, res) => {
   const filter: any = {};
@@ -23,7 +24,7 @@ export const getAccountRequest = asyncHandler(async (req, res) => {
 });
 
 export const createAccountRequest = asyncHandler(async (req, res) => {
-  const item = await AccountRequestModel.create(req.body);
+  const item = await submitAccountRequest(req.body);
   res.status(201).json(item);
 });
 

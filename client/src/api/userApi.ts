@@ -27,7 +27,7 @@ export const userApi = {
     return data;
   },
   async resetPassword(id: string, password = 'Password123!') {
-    const { data } = await apiClient.patch(`/users/${id}/reset-password`, { password });
+    const { data } = await apiClient.patch<{ message: string }>(`/users/${id}/reset-password`, { password });
     return data;
   },
   async profile() {

@@ -20,5 +20,6 @@ const accountRequestSchema = new Schema(
 );
 
 accountRequestSchema.index({ status: 1, createdAt: -1 });
+accountRequestSchema.index({ email: 1, status: 1 });
 
 export const AccountRequestModel = mongoose.model('AccountRequest', accountRequestSchema);

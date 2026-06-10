@@ -1,12 +1,11 @@
 import bcrypt from 'bcryptjs';
-import { AccountRequestModel } from '../models/AccountRequest.js';
 import { UserModel } from '../models/User.js';
 import { signAuthToken } from '../middleware/authMiddleware.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { notifyAdmins } from '../services/notificationService.js';
-import { ACCOUNT_REQUEST_STATUSES } from '../utils/constants.js';
 import { writeAuditLog } from '../services/auditService.js';
+import { submitAccountRequest } from '../services/accountRequestService.js';
 
 function userPayload(user: any, activeRole?: string) {
   return {
@@ -117,22 +116,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
 });
 
 export const requestAccount = asyncHandler(async (req, res) => {
-  const { fullName, email, department, faculty, requestedRole, message } = req.body;
-  if (!fullName || !email || !department || !faculty || !requestedRole) {
-    throw new ApiError(400, 'Full name, email, department, faculty, and requested role are required.');
-  }
-
-  const accountRequest = await AccountRequestModel.create({
-    fullName,
-    email,
-    department,
-    faculty,
-    requestedRole,
-    message,
-    status: ACCOUNT_REQUEST_STATUSES.PENDING
-  });
-
-  await notifyAdmins('New account request', `${fullName} requested access as ${requestedRole}.`);
+  const accountRequest = await submitAccountRequest(req.body);
   res.status(201).json({
     message: 'Account request submitted successfully.',
     accountRequest
