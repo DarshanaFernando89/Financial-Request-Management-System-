@@ -2,6 +2,7 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { signAuthToken } from '../middleware/authMiddleware.js';
 import { env } from '../config/env.js';
+import { upload } from '../middleware/uploadMiddleware.js';
 import {
   ACCOUNT_REQUEST_STATUSES,
   APPROVAL_ACTIONS,
@@ -522,6 +523,39 @@ function currentUser(req: any) {
   return req.demoUser;
 }
 
+function parseBodyBoolean(value: any) {
+  return value === true || value === 'true';
+}
+
+function normalizeBodyList(value: any) {
+  if (Array.isArray(value)) return value.map(String);
+  if (value === undefined || value === null) return [];
+  return [String(value)];
+}
+
+function parseRequestDataBody(value: any) {
+  if (!value) return {};
+  if (typeof value !== 'string') return value;
+  return JSON.parse(value);
+}
+
+function demoUploadedDocuments(req: any, user: any) {
+  const descriptions = normalizeBodyList(req.body.documentDescriptions);
+  const files = Array.isArray(req.files) ? req.files : [];
+  return files.map((file: any, index: number) => ({
+    _id: `document-${Date.now()}-${index}`,
+    filename: file.filename,
+    originalName: file.originalname,
+    fileUrl: `/uploads/${file.filename}`,
+    mimeType: file.mimetype,
+    size: file.size,
+    uploadedBy: user._id,
+    uploadedByRole: user.activeRole,
+    uploadedAt: new Date().toISOString(),
+    description: descriptions[index]
+  }));
+}
+
 function matchingRule(typeId: string, amount: number) {
   return approvalRules.find((rule) => {
     const hasType = rule.requestTypes.some((type: any) => type._id === typeId);
@@ -689,9 +723,25 @@ router.get('/requests', (req, res) => {
   res.json({ items, total: items.length, page: 1, pages: 1 });
 });
 
-router.post('/requests', (req, res) => {
+router.post('/requests', upload.array('files', 20), (req, res) => {
   const user = currentUser(req);
   const requestType = requestTypes.find((type) => type._id === req.body.requestType) || requestTypes[0];
+  const submit = parseBodyBoolean(req.body.submit);
+  const documents = demoUploadedDocuments(req, user);
+  const missingDocuments = submit
+    ? (requestType.requiredDocuments || []).filter((documentName: string) => !documents.some((document: any) => document.description === documentName))
+    : [];
+  if (missingDocuments.length) {
+    return res.status(400).json({ message: `Please upload required documents: ${missingDocuments.join(', ')}.` });
+  }
+
+  let requestData = {};
+  try {
+    requestData = parseRequestDataBody(req.body.requestData);
+  } catch {
+    return res.status(400).json({ message: 'Request data must be valid JSON.' });
+  }
+
   const request = {
     _id: `request-${Date.now()}`,
     requestId: String(12000000 + requests.length + 1),
@@ -702,9 +752,9 @@ router.post('/requests', (req, res) => {
     description: req.body.description,
     amount: Number(req.body.amount),
     currency: 'LKR',
-    requestData: req.body.requestData || {},
-    documents: [],
-    status: req.body.submit ? REQUEST_STATUSES.SUBMITTED : REQUEST_STATUSES.DRAFT,
+    requestData,
+    documents,
+    status: submit ? REQUEST_STATUSES.SUBMITTED : REQUEST_STATUSES.DRAFT,
     currentStepIndex: -1,
     workflowSteps: [],
     approvalHistory: [],
@@ -712,9 +762,9 @@ router.post('/requests', (req, res) => {
     revisionNo: 0,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    submittedAt: req.body.submit ? new Date().toISOString() : undefined
+    submittedAt: submit ? new Date().toISOString() : undefined
   };
-  if (req.body.submit) routeRequest(request);
+  if (submit) routeRequest(request);
   requests.unshift(request);
   res.status(201).json(request);
 });

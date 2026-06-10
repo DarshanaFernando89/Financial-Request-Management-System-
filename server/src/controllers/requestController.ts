@@ -45,6 +45,46 @@ function attachUploadedFile(req: any, request: any, description?: string) {
   });
 }
 
+function normalizeUploadedFiles(req: any) {
+  if (Array.isArray(req.files)) return req.files;
+  return req.file ? [req.file] : [];
+}
+
+function normalizeBodyList(value: unknown) {
+  if (Array.isArray(value)) return value.map(String);
+  if (value === undefined || value === null) return [];
+  return [String(value)];
+}
+
+function uploadedDocuments(req: any) {
+  const descriptions = normalizeBodyList(req.body.documentDescriptions);
+  return normalizeUploadedFiles(req).map((file: any, index: number) => ({
+    filename: file.filename,
+    originalName: file.originalname,
+    fileUrl: `/uploads/${file.filename}`,
+    mimeType: file.mimetype,
+    size: file.size,
+    uploadedBy: req.user.userId,
+    uploadedByRole: req.user.activeRole,
+    uploadedAt: new Date(),
+    description: descriptions[index]
+  }));
+}
+
+function parseRequestData(value: unknown) {
+  if (!value) return {};
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    throw new ApiError(400, 'Request data must be valid JSON.');
+  }
+}
+
+function parseBoolean(value: unknown) {
+  return value === true || value === 'true';
+}
+
 export const listRequests = asyncHandler(async (req, res) => {
   const session = (req as any).user;
   const page = Math.max(Number(req.query.page || 1), 1);
@@ -98,6 +138,14 @@ export const createRequest = asyncHandler(async (req, res) => {
   const type = await RequestTypeModel.findById(requestType);
   if (!type || !type.isActive) throw new ApiError(422, 'Request type is inactive or unavailable.');
 
+  const documents = uploadedDocuments(req);
+  const missingDocuments = parseBoolean(submit)
+    ? (type.requiredDocuments || []).filter((documentName) => !documents.some((document) => document.description === documentName))
+    : [];
+  if (missingDocuments.length) {
+    throw new ApiError(400, `Please upload required documents: ${missingDocuments.join(', ')}.`);
+  }
+
   const request = await createRequestForUser({
     userId: session.userId,
     activeRole: session.activeRole,
@@ -105,8 +153,9 @@ export const createRequest = asyncHandler(async (req, res) => {
     title,
     description,
     amount: Number(amount),
-    requestData,
-    submit: Boolean(submit)
+    requestData: parseRequestData(requestData),
+    documents,
+    submit: parseBoolean(submit)
   });
 
   if (request.currentAssignedRole) {
@@ -121,10 +170,10 @@ export const createRequest = asyncHandler(async (req, res) => {
   await writeAuditLog({
     actor: session.userId,
     actorRole: session.activeRole,
-    action: submit ? 'SUBMIT_REQUEST' : 'CREATE_DRAFT',
+    action: parseBoolean(submit) ? 'SUBMIT_REQUEST' : 'CREATE_DRAFT',
     entityType: 'Request',
     entityId: request._id.toString(),
-    description: `${request.requestId} ${submit ? 'submitted' : 'saved as draft'}.`
+    description: `${request.requestId} ${parseBoolean(submit) ? 'submitted' : 'saved as draft'}.`
   });
 
   res.status(201).json(request);
