@@ -19,3 +19,4 @@ client/src/assets/images/*
 !client/src/assets/images/.gitkeep
 client/src/assets/logos/*
 !client/src/assets/logos/.gitkeep
+*.log
