@@ -14,6 +14,7 @@ import {
   STEP_TYPES
 } from '../utils/constants.js';
 import { getAccountRequestValidationError, normalizeAccountRequestPayload } from '../utils/accountRequestValidation.js';
+import { deleteUploadedFiles } from '../services/fileService.js';
 
 const router = Router();
 const defaultPassword = 'Password123!';
@@ -792,10 +793,31 @@ router.post('/requests/:id/resubmit', (req, res) => {
   res.json(request);
 });
 
-router.post('/requests/:id/respond-clarification', (req, res) => {
+router.post('/requests/:id/respond-clarification', upload.array('files', 20), async (req, res) => {
   const user = currentUser(req);
   const request = requests.find((item) => item._id === req.params.id);
   if (!request) return res.status(404).json({ message: 'Request not found.' });
+  if (request.requester !== user._id) return res.status(403).json({ message: 'Only the requester can respond to clarification.' });
+  if (request.status !== REQUEST_STATUSES.INFO_REQUESTED) return res.status(422).json({ message: 'This request is not waiting for clarification.' });
+
+  let removeDocumentIds: string[] = [];
+  try {
+    const parsed = req.body.removeDocumentIds ? JSON.parse(req.body.removeDocumentIds) : [];
+    removeDocumentIds = Array.isArray(parsed) ? parsed.map(String) : [String(parsed)];
+  } catch {
+    return res.status(400).json({ message: 'Removed document IDs must be a valid list.' });
+  }
+  const existingIds = new Set(request.documents.map((document: any) => String(document._id)));
+  if (removeDocumentIds.some((id) => !existingIds.has(id))) {
+    return res.status(400).json({ message: 'One or more selected documents no longer exist. Refresh the request and try again.' });
+  }
+  const removedIds = new Set(removeDocumentIds);
+  const removedDocuments = request.documents
+    .filter((document: any) => removedIds.has(String(document._id)))
+    .map((document: any) => ({ filename: document.filename }));
+  request.documents = request.documents.filter((document: any) => !removedIds.has(String(document._id)));
+  request.documents.push(...demoUploadedDocuments(req, user));
+
   const step = request.workflowSteps.find((item: any) => item.stepIndex === request.currentStepIndex);
   if (step) step.status = STEP_STATUSES.PENDING;
   request.currentAssignedRole = request.previousAssignedRoleWhenInfoRequested || step?.role;
@@ -807,6 +829,7 @@ router.post('/requests/:id/respond-clarification', (req, res) => {
     remarks: req.body.remarks,
     createdAt: new Date().toISOString()
   });
+  await deleteUploadedFiles(removedDocuments);
   res.json(request);
 });
 

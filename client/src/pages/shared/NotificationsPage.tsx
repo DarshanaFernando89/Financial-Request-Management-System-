@@ -4,15 +4,22 @@ import { notificationApi } from '../../api/notificationApi';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { useNotifications } from '../../hooks/useNotifications';
+import { notifyNotificationsChanged, useNotifications } from '../../hooks/useNotifications';
 import { formatDate } from '../../utils/formatDate';
 import { getNotificationAction } from '../../utils/notificationActions';
+import { useAuth } from '../../hooks/useAuth';
 
 export function NotificationsPage() {
-  const { notifications, refresh } = useNotifications();
+  const { notifications } = useNotifications();
+  const { user } = useAuth();
   async function readAll() {
     await notificationApi.readAll();
-    await refresh();
+    notifyNotificationsChanged();
+  }
+  async function readNotification(id: string, isRead: boolean) {
+    if (isRead) return;
+    await notificationApi.read(id);
+    notifyNotificationsChanged();
   }
   return (
     <div className="space-y-5">
@@ -23,18 +30,18 @@ export function NotificationsPage() {
       {notifications.length ? (
         <div className="space-y-3">
           {notifications.map((item) => {
-            const action = getNotificationAction(item);
+            const action = getNotificationAction(item, user?.activeRole);
             return (
               <Card key={item._id} className={item.isRead ? 'shadow-none' : 'border-blue-200 bg-blue-50'}>
                 <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
-                  <Link className="min-w-0 flex-1" to={`/notifications/${item._id}`}>
+                  <Link className="min-w-0 flex-1" to={`/notifications/${item._id}`} onClick={() => void readNotification(item._id, item.isRead)}>
                     <h2 className="font-semibold text-slate-900 hover:text-university-maroon">{item.title}</h2>
                     <p className="mt-1 text-sm text-slate-600">{item.message}</p>
                   </Link>
                   <div className="flex shrink-0 flex-col items-start gap-3 md:items-end">
                     <span className="text-xs text-slate-500">{formatDate(item.createdAt)}</span>
                     {action && (
-                      <Link to={action.to}>
+                      <Link to={action.to} onClick={() => void readNotification(item._id, item.isRead)}>
                         <Button className="min-h-9 px-3 py-1.5" variant="outline" icon={<UserCheck size={16} />}>
                           {action.label}
                         </Button>

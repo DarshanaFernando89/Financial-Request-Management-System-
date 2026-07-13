@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router-dom';
-import facultyLogo from '../../assets/logos/faculty-logo.png';
-import universityLogo from '../../assets/logos/university-logo.png';
+import facultyLogo from '../../assets/images/faculty-logo.png';
+import universityLogo from '../../assets/images/university-logo.png';
 import { facultyName, systemTitle } from '../../utils/constants';
 
 export function AuthLayout() {

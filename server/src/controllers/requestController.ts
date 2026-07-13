@@ -13,6 +13,7 @@ import {
 } from '../services/workflowService.js';
 import { notifyRole, notifyUser } from '../services/notificationService.js';
 import { writeAuditLog } from '../services/auditService.js';
+import { deleteUploadedFiles } from '../services/fileService.js';
 
 function requestFilterFromQuery(query: any) {
   const filter: any = {};
@@ -53,6 +54,20 @@ function normalizeUploadedFiles(req: any) {
 function normalizeBodyList(value: unknown) {
   if (Array.isArray(value)) return value.map(String);
   if (value === undefined || value === null) return [];
+  return [String(value)];
+}
+
+function parseDocumentIds(value: unknown) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map(String);
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed.map(String) : [String(parsed)];
+    } catch {
+      return [value];
+    }
+  }
   return [String(value)];
 }
 
@@ -260,13 +275,29 @@ export const respondClarification = asyncHandler(async (req, res) => {
   const request = await RequestModel.findById(req.params.id);
   if (!request) throw new ApiError(404, 'Request not found.');
   if (request.requester.toString() !== session.userId) throw new ApiError(403, 'Only the requester can respond to clarification.');
-  attachUploadedFile(req, request, req.body.documentDescription);
+  if (request.status !== REQUEST_STATUSES.INFO_REQUESTED) throw new ApiError(422, 'This request is not waiting for clarification.');
+
+  const removeDocumentIds = new Set(parseDocumentIds(req.body.removeDocumentIds));
+  const existingIds = new Set(request.documents.map((document: any) => document._id.toString()));
+  const unknownIds = [...removeDocumentIds].filter((id) => !existingIds.has(id));
+  if (unknownIds.length) throw new ApiError(400, 'One or more selected documents no longer exist. Refresh the request and try again.');
+
+  const removedDocuments = request.documents
+    .filter((document: any) => removeDocumentIds.has(document._id.toString()))
+    .map((document: any) => ({ filename: document.filename }));
+  if (removeDocumentIds.size) {
+    request.documents = request.documents.filter((document: any) => !removeDocumentIds.has(document._id.toString())) as any;
+  }
+  request.documents.push(...uploadedDocuments(req) as any);
+
   const updated = await returnFromClarification({
     request,
     userId: session.userId,
     activeRole: session.activeRole,
     remarks: req.body.remarks || 'Clarification response submitted.'
   });
+
+  await deleteUploadedFiles(removedDocuments);
 
   if (updated.currentAssignedRole) {
     await notifyRole({

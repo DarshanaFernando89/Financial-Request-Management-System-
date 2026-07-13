@@ -35,7 +35,7 @@ router.put('/:id', updateRequest);
 router.post('/:id/submit', submitRequest);
 router.post('/:id/resubmit', resubmitRequest);
 router.post('/:id/upload-document', upload.single('file'), uploadDocument);
-router.post('/:id/respond-clarification', upload.single('file'), respondClarification);
+router.post('/:id/respond-clarification', upload.array('files', 20), respondClarification);
 router.get('/:id/summary', downloadRequestSummary);
 router.delete('/:id/cancel-draft', cancelDraft);
 
