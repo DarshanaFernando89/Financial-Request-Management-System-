@@ -26,5 +26,23 @@ export const financeApi = {
   async reject(id: string, remarks: string) {
     const { data } = await apiClient.post<FinancialRequest>(`/finance/${id}/reject`, { remarks });
     return data;
+  },
+  async downloadPaymentReceipt(id: string) {
+    const response = await apiClient.get(`/finance/${id}/payment-receipt`, { responseType: 'blob' });
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `payment-receipt-${id}.pdf`;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  },
+  async printPaymentReceipt(id: string) {
+    const response = await apiClient.get(`/finance/${id}/payment-receipt`, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+    const printWindow = window.open(url);
+    if (printWindow) {
+      printWindow.onload = () => printWindow.print();
+    }
   }
 };

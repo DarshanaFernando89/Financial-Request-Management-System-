@@ -15,7 +15,7 @@ export const reportApi = {
     return data.items;
   },
   exportUrl(type: 'pdf' | 'excel') {
-    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+    const base = import.meta.env.VITE_API_BASE_URL || '/api';
     return `${base}/reports/export/${type}`;
   }
 };

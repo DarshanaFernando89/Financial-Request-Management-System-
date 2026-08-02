@@ -6,6 +6,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { getCurrentStep, rejectRequest, requestMoreInfo } from '../services/workflowService.js';
 import { notifyUser } from '../services/notificationService.js';
 import { writeAuditLog } from '../services/auditService.js';
+import { buildPaymentReceiptPdfBuffer } from '../services/reportService.js';
 
 export const pendingPayments = asyncHandler(async (_req, res) => {
   const items = await RequestModel.find({
@@ -150,4 +151,18 @@ export const financeReject = asyncHandler(async (req, res) => {
     relatedRequest: updated._id.toString()
   });
   res.json(updated);
+});
+
+export const exportPaymentReceipt = asyncHandler(async (req, res) => {
+  const requestId = String(req.params.requestId);
+  const request = await RequestModel.findOne(
+    requestId.match(/^[a-f\d]{24}$/i) ? { _id: requestId } : { requestId }
+  ).populate('requestType requester', '-passwordHash');
+  if (!request) throw new ApiError(404, 'Request not found.');
+
+  const documents = request.documents || [];
+  const buffer = await buildPaymentReceiptPdfBuffer(request, documents);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="payment-receipt-${request.requestId}.pdf"`);
+  res.send(buffer);
 });
