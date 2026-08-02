@@ -1,18 +1,15 @@
 import axios from 'axios';
 
 export const TOKEN_KEY = 'frms_token';
-let authToken: string | null = null;
+let authToken: string | null = readStoredToken();
 
-function clearLegacyStoredTokens() {
+function readStoredToken() {
   try {
-    localStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(TOKEN_KEY);
+    return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
   } catch {
-    // Auth is intentionally in memory only; blocked storage should not break the app.
+    return null;
   }
 }
-
-clearLegacyStoredTokens();
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
@@ -35,10 +32,17 @@ apiClient.interceptors.response.use(
 
 export function setAuthToken(token?: string) {
   authToken = token || null;
-  clearLegacyStoredTokens();
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else {
+      localStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(TOKEN_KEY);
+    }
+  } catch {
+    // In-memory auth still works if browser storage is blocked.
+  }
 }
 
 export function getAuthToken() {
-  clearLegacyStoredTokens();
   return authToken;
 }

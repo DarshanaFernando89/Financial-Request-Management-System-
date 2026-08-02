@@ -26,6 +26,10 @@ export const userApi = {
     const { data } = await apiClient.patch<User>(`/users/${id}/deactivate`);
     return data;
   },
+  async delete(id: string) {
+    const { data } = await apiClient.delete<{ message: string }>(`/users/${id}`);
+    return data;
+  },
   async resetPassword(id: string, password = 'Password123!') {
     const { data } = await apiClient.patch<{ message: string }>(`/users/${id}/reset-password`, { password });
     return data;
