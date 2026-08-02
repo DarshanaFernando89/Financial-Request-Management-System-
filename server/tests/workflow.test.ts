@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildWorkflowSteps } from '../src/services/workflowService.js';
+import { buildWorkflowSteps, validateClarificationResponse } from '../src/services/workflowService.js';
 import { ROLES, STEP_STATUSES, STEP_TYPES } from '../src/utils/constants.js';
 
 describe('workflowService', () => {
@@ -23,5 +23,9 @@ describe('workflowService', () => {
 
     expect(steps[0].stepType).toBe(STEP_TYPES.VERIFICATION);
     expect(steps[1].stepType).toBe(STEP_TYPES.APPROVAL);
+  });
+
+  it('requires at least one document when returning from clarification', () => {
+    expect(() => validateClarificationResponse({ documents: [] })).toThrowError(/At least one supporting document/i);
   });
 });

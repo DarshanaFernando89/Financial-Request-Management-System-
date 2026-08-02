@@ -100,6 +100,13 @@ export function addHistory(request: any, entry: any) {
   });
 }
 
+export function validateClarificationResponse(input: { documents: any[]; remarks?: string }, minDocuments = 1) {
+  const hasSupportingDocuments = Array.isArray(input.documents) && input.documents.length >= minDocuments;
+  if (!hasSupportingDocuments) {
+    throw new ApiError(400, 'At least one supporting document is required when responding to clarification.');
+  }
+}
+
 export async function completeCurrentStep(input: {
   request: any;
   userId: string;

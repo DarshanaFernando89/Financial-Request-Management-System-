@@ -9,7 +9,8 @@ import {
   getRequestByIdOrRequestId,
   initializeWorkflow,
   restartWorkflowForResubmission,
-  returnFromClarification
+  returnFromClarification,
+  validateClarificationResponse
 } from '../services/workflowService.js';
 import { notifyRole, notifyUser } from '../services/notificationService.js';
 import { writeAuditLog } from '../services/auditService.js';
@@ -288,7 +289,14 @@ export const respondClarification = asyncHandler(async (req, res) => {
   if (removeDocumentIds.size) {
     request.documents = request.documents.filter((document: any) => !removeDocumentIds.has(document._id.toString())) as any;
   }
-  request.documents.push(...uploadedDocuments(req) as any);
+
+  const newlyUploadedDocuments = uploadedDocuments(req);
+  validateClarificationResponse({
+    documents: newlyUploadedDocuments,
+    remarks: req.body.remarks
+  });
+
+  request.documents.push(...newlyUploadedDocuments as any);
 
   const updated = await returnFromClarification({
     request,
