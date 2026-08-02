@@ -90,7 +90,6 @@ export function RoleManagementPage() {
               <Button
                 type="button"
                 variant="secondary"
-                size="sm"
                 icon={<Trash2 size={14} />}
                 disabled={row.isSystem}
                 onClick={() => void handleDelete(row)}

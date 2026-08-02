@@ -43,7 +43,7 @@ export function ApprovalRulesPage() {
             key: 'actions',
             header: 'Actions',
             render: (row) => (
-              <Button type="button" variant="secondary" size="sm" icon={<Trash2 size={14} />} onClick={() => void handleDelete(row)}>
+              <Button type="button" variant="secondary" icon={<Trash2 size={14} />} onClick={() => void handleDelete(row)}>
                 Delete
               </Button>
             )

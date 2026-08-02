@@ -22,7 +22,6 @@ const items: NavItem[] = [
   { to: '/admin/users', label: 'Users', icon: <UserCog size={18} />, roles: ADMIN_ROLES },
   { to: '/admin/roles', label: 'Roles', icon: <ShieldCheck size={18} />, roles: ADMIN_ROLES },
   { to: '/admin/approval-rules', label: 'Approval Rules', icon: <ListChecks size={18} />, roles: ADMIN_ROLES },
-  { to: '/admin/account-requests', label: 'Account Requests', icon: <ShieldCheck size={18} />, roles: ADMIN_ROLES },
   { to: '/admin/reports', label: 'Reports', icon: <BarChart3 size={18} />, roles: ADMIN_ROLES },
   { to: '/notifications', label: 'Notifications', icon: <Bell size={18} /> },
   { to: '/profile', label: 'Profile', icon: <UserCircle size={18} /> }
