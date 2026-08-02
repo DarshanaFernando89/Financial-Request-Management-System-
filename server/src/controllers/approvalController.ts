@@ -20,7 +20,7 @@ export const pendingApprovals = asyncHandler(async (req, res) => {
     status: { $in: activeReviewStatuses }
   })
     .populate('requestType requester', '-passwordHash')
-    .sort({ submittedAt: 1, createdAt: 1 });
+    .sort({ submittedAt: -1, createdAt: -1 });
   res.json({ items });
 });
 
