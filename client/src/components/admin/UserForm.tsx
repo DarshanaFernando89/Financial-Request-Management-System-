@@ -31,7 +31,8 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
     faculty: initial?.faculty || 'Faculty of Engineering, University of Ruhuna',
     contactNo: initial?.contactNo || '',
     address: initial?.address || '',
-    roles: initial?.roles || ['REQUESTER']
+    roles: initial?.roles || ['REQUESTER'],
+    approvalRolePasswords: {}
   });
   const [availableRoles, setAvailableRoles] = useState<Array<{ code: string; displayName: string; isActive: boolean }>>(
     ROLES.map((role) => ({ code: role, displayName: roleLabel(role), isActive: true }))
@@ -57,6 +58,15 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
       else roles.add(role);
       return { ...current, roles: Array.from(roles) };
     });
+  }
+  function setApprovalRolePassword(role: Role, value: string) {
+    setForm((current) => ({
+      ...current,
+      approvalRolePasswords: {
+        ...(current.approvalRolePasswords || {}),
+        [role]: value
+      }
+    }));
   }
 
   async function submit(event: FormEvent) {
