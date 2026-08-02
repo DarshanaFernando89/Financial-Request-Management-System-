@@ -12,10 +12,9 @@ export function AdminDashboardPage() {
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold text-slate-900">Admin Dashboard</h1>
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <StatusCard title="Users" value={data.users || 0} tone="blue" onClick={() => navigate('/admin/users')} />
         <StatusCard title="Requests" value={data.requests || 0} tone="gold" onClick={() => navigate('/admin/reports')} />
-        <StatusCard title="Account Requests" value={data.pendingAccountRequests || 0} tone="red" onClick={() => navigate('/admin/account-requests')} />
         <StatusCard title="Pending Payments" value={data.pendingPayments || 0} tone="green" onClick={() => navigate('/admin/reports?status=PAYMENT_PENDING')} />
       </div>
     </div>

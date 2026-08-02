@@ -57,8 +57,6 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/uploads', express.static(path.resolve(env.uploadDir)));
 
-app.use('/api', demoRoutes);
-
 app.use('/api/auth', authRoutes);
 app.use('/api/account-requests', accountRequestRoutes);
 app.use('/api/users', userRoutes);
@@ -69,6 +67,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/audit-logs', auditRoutes);
+app.use('/api', demoRoutes);
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);

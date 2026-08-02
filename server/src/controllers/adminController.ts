@@ -88,6 +88,12 @@ export const deactivateApprovalRule = asyncHandler(async (req, res) => {
   res.json(item);
 });
 
+export const deleteApprovalRule = asyncHandler(async (req, res) => {
+  const item = await ApprovalRuleModel.findByIdAndDelete(String(req.params.id));
+  if (!item) throw new ApiError(404, 'Approval rule not found.');
+  res.status(200).json({ success: true, message: 'Approval rule deleted.' });
+});
+
 export const listRequestTypes = asyncHandler(async (_req, res) => {
   const items = await RequestTypeModel.find().sort({ name: 1 });
   res.json({ items });
@@ -154,4 +160,10 @@ export const updateRole = asyncHandler(async (req, res) => {
   const item = await CustomRoleModel.findByIdAndUpdate(String(req.params.id), req.body, { new: true, runValidators: true });
   if (!item) throw new ApiError(404, 'Role not found.');
   res.json(item);
+});
+
+export const deleteRole = asyncHandler(async (req, res) => {
+  const item = await CustomRoleModel.findByIdAndDelete(String(req.params.id));
+  if (!item) throw new ApiError(404, 'Role not found.');
+  res.status(200).json({ success: true, message: 'Role deleted.' });
 });
