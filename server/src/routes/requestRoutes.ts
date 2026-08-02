@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   cancelDraft,
   createRequest,
+  downloadDocument,
   downloadRequestSummary,
   getRequest,
   listMyRequests,
@@ -30,6 +31,7 @@ router.get(
 router.get('/my', listMyRequests);
 router.get('/', listRequests);
 router.post('/', upload.array('files', 20), createRequest);
+router.get('/documents/:documentId', downloadDocument);
 router.get('/:id', getRequest);
 router.put('/:id', updateRequest);
 router.post('/:id/submit', submitRequest);

@@ -13,7 +13,7 @@ import {
 } from '../services/workflowService.js';
 import { notifyRole, notifyUser } from '../services/notificationService.js';
 import { writeAuditLog } from '../services/auditService.js';
-import { deleteUploadedFiles } from '../services/fileService.js';
+import { buildStoredDocumentData, deleteUploadedFiles } from '../services/fileService.js';
 
 function requestFilterFromQuery(query: any) {
   const filter: any = {};
@@ -33,17 +33,9 @@ function requestFilterFromQuery(query: any) {
 
 function attachUploadedFile(req: any, request: any, description?: string) {
   if (!req.file) return;
-  request.documents.push({
-    filename: req.file.filename,
-    originalName: req.file.originalname,
-    fileUrl: `${process.env.UPLOAD_URL_BASE || '/uploads'}/${req.file.filename}`,
-    mimeType: req.file.mimetype,
-    size: req.file.size,
-    uploadedBy: req.user.userId,
-    uploadedByRole: req.user.activeRole,
-    uploadedAt: new Date(),
-    description
-  });
+  const documentId = `${req.user.userId}-${Date.now()}-${Math.round(Math.random() * 100000)}`;
+  const storedDocument = buildStoredDocumentData(req.file, documentId, req.user, description);
+  request.documents.push(storedDocument);
 }
 
 function normalizeUploadedFiles(req: any) {
@@ -73,17 +65,10 @@ function parseDocumentIds(value: unknown) {
 
 function uploadedDocuments(req: any) {
   const descriptions = normalizeBodyList(req.body.documentDescriptions);
-  return normalizeUploadedFiles(req).map((file: any, index: number) => ({
-    filename: file.filename,
-    originalName: file.originalname,
-    fileUrl: `${process.env.UPLOAD_URL_BASE || '/uploads'}/${file.filename}`,
-    mimeType: file.mimetype,
-    size: file.size,
-    uploadedBy: req.user.userId,
-    uploadedByRole: req.user.activeRole,
-    uploadedAt: new Date(),
-    description: descriptions[index]
-  }));
+  return normalizeUploadedFiles(req).map((file: any, index: number) => {
+    const documentId = `${req.user.userId}-${Date.now()}-${Math.round(Math.random() * 100000)}-${index}`;
+    return buildStoredDocumentData(file, documentId, req.user, descriptions[index]);
+  });
 }
 
 function parseRequestData(value: unknown) {
@@ -142,6 +127,18 @@ export const getRequest = asyncHandler(async (req, res) => {
   const request = await getRequestByIdOrRequestId(String(req.params.id));
   if (!request) throw new ApiError(404, 'Request not found.');
   res.json(request);
+});
+
+export const downloadDocument = asyncHandler(async (req, res) => {
+  const request = await RequestModel.findOne({ 'documents._id': req.params.documentId });
+  if (!request) throw new ApiError(404, 'Document not found.');
+
+  const document = request.documents.find((item: any) => item._id.toString() === req.params.documentId);
+  if (!document || !document.fileBuffer) throw new ApiError(404, 'Document content is unavailable.');
+
+  res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
+  res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(document.originalName || document.filename || 'document')}"`);
+  res.send(document.fileBuffer);
 });
 
 export const createRequest = asyncHandler(async (req, res) => {
@@ -284,7 +281,7 @@ export const respondClarification = asyncHandler(async (req, res) => {
 
   const removedDocuments = request.documents
     .filter((document: any) => removeDocumentIds.has(document._id.toString()))
-    .map((document: any) => ({ filename: document.filename }));
+    .map((document: any) => ({ filename: document.filename, storageType: document.storageType }));
   if (removeDocumentIds.size) {
     request.documents = request.documents.filter((document: any) => !removeDocumentIds.has(document._id.toString())) as any;
   }

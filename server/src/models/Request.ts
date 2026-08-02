@@ -18,7 +18,9 @@ const documentSchema = new Schema(
     uploadedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     uploadedByRole: { type: String, enum: ROLE_VALUES },
     uploadedAt: { type: Date, default: Date.now },
-    description: String
+    description: String,
+    storageType: { type: String, enum: ['db', 'disk'], default: 'db' },
+    fileBuffer: { type: Buffer, default: undefined }
   },
   { _id: true }
 );
