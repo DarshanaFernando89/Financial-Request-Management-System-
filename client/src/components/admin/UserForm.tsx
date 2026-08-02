@@ -76,6 +76,19 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
       setError('Contact number must be a valid phone number.');
       return;
     }
+    const selectedRoles = form.roles as Role[];
+    if (selectedRoles.length > 1) {
+      const missingApprovalRole = selectedRoles.find(
+        (role) =>
+          APPROVER_ROLES.includes(role) &&
+          !initial?.approvalRolePasswordConfiguredRoles?.includes(role) &&
+          !String(form.approvalRolePasswords?.[role] || '').trim()
+      );
+      if (missingApprovalRole) {
+        setError(`Approval password is required for ${roleLabel(missingApprovalRole)}.`);
+        return;
+      }
+    }
     setSaving(true);
     try {
       const payload = { ...form };
