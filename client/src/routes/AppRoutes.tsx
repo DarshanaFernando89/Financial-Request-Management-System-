@@ -31,9 +31,6 @@ import { RoleAssignmentPage } from '../pages/admin/RoleAssignmentPage';
 import { ApprovalRulesPage } from '../pages/admin/ApprovalRulesPage';
 import { CreateApprovalRulePage } from '../pages/admin/CreateApprovalRulePage';
 import { EditApprovalRulePage } from '../pages/admin/EditApprovalRulePage';
-import { RequestTypesPage } from '../pages/admin/RequestTypesPage';
-import { CreateRequestTypePage } from '../pages/admin/CreateRequestTypePage';
-import { EditRequestTypePage } from '../pages/admin/EditRequestTypePage';
 import { ReportsPage } from '../pages/admin/ReportsPage';
 import { AccountRequestsPage } from '../pages/admin/AccountRequestsPage';
 import { ProfilePage } from '../pages/shared/ProfilePage';
@@ -100,9 +97,6 @@ export function AppRoutes() {
             <Route path="admin/approval-rules" element={<ApprovalRulesPage />} />
             <Route path="admin/approval-rules/create" element={<CreateApprovalRulePage />} />
             <Route path="admin/approval-rules/:id/edit" element={<EditApprovalRulePage />} />
-            <Route path="admin/request-types" element={<RequestTypesPage />} />
-            <Route path="admin/request-types/create" element={<CreateRequestTypePage />} />
-            <Route path="admin/request-types/:id/edit" element={<EditRequestTypePage />} />
             <Route path="admin/reports" element={<ReportsPage />} />
             <Route path="admin/account-requests" element={<AccountRequestsPage />} />
           </Route>
