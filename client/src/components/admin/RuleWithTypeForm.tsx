@@ -38,10 +38,14 @@ export function RuleWithTypeForm({
 
   function toggleWorkflowRole(role: Role) {
     setForm((current) => {
-      const roles = new Set(current.workflowRoles);
-      if (roles.has(role)) roles.delete(role);
-      else roles.add(role);
-      return { ...current, workflowRoles: Array.from(roles) as Role[] };
+      const roles = [...current.workflowRoles];
+      const index = roles.indexOf(role);
+      if (index >= 0) {
+        roles.splice(index, 1);
+        return { ...current, workflowRoles: roles };
+      }
+
+      return { ...current, workflowRoles: [...roles, role] };
     });
   }
 
@@ -103,14 +107,44 @@ export function RuleWithTypeForm({
         </div>
         <div>
           <p className="mb-2 text-sm font-semibold text-slate-700">Workflow role sequence</p>
+          <p className="mb-3 text-xs text-slate-500">Select roles in the order they should appear in the workflow. The order is shown with numbers automatically.</p>
           <div className="grid gap-2 md:grid-cols-2">
-            {workflowRoles.map((role) => (
-              <label key={role} className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm">
-                <input type="checkbox" checked={form.workflowRoles.includes(role)} onChange={() => toggleWorkflowRole(role)} />
-                <span>{roleLabel(role)}</span>
-              </label>
-            ))}
+            {workflowRoles.map((role) => {
+              const selectedIndex = form.workflowRoles.indexOf(role);
+              const isSelected = selectedIndex >= 0;
+
+              return (
+                <label key={role} className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm">
+                  <input type="checkbox" checked={isSelected} onChange={() => toggleWorkflowRole(role)} />
+                  <span className="flex items-center gap-2">
+                    <span
+                      className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ${
+                        isSelected ? 'bg-slate-900 text-white' : 'border border-slate-300 text-slate-400'
+                      }`}
+                    >
+                      {isSelected ? selectedIndex + 1 : '•'}
+                    </span>
+                    <span>{roleLabel(role)}</span>
+                  </span>
+                </label>
+              );
+            })}
           </div>
+          {form.workflowRoles.length > 0 && (
+            <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Selected order</p>
+              <ol className="mt-2 space-y-1">
+                {form.workflowRoles.map((role, index) => (
+                  <li key={role} className="flex items-center gap-2 text-sm text-slate-700">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-[11px] font-semibold text-white">
+                      {index + 1}
+                    </span>
+                    <span>{roleLabel(role)}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
         </div>
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
         <div className="flex justify-end">
