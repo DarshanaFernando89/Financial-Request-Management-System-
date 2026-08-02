@@ -30,5 +30,9 @@ export const reportApi = {
     link.click();
     link.remove();
     window.URL.revokeObjectURL(url);
+  },
+  exportUrl(type: 'pdf' | 'excel') {
+    const base = import.meta.env.VITE_API_BASE_URL || '/api';
+    return `${base}/reports/export/${type}`;
   }
 };

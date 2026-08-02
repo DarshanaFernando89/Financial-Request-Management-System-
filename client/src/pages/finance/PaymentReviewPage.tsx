@@ -1,4 +1,4 @@
-import { CheckCircle2, RotateCcw, XCircle } from 'lucide-react';
+import { CheckCircle2, FileDown, RotateCcw, XCircle } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { financeApi } from '../../api/financeApi';
@@ -86,6 +86,7 @@ export function PaymentReviewPage() {
               {error && <p className="text-sm font-medium text-red-600">{error}</p>}
               <div className="grid gap-2">
                 <Button type="submit" icon={<CheckCircle2 size={16} />}>Mark as Paid</Button>
+                <Button variant="secondary" icon={<FileDown size={16} />} onClick={() => void financeApi.downloadPaymentReceipt(request._id)}>Download Payment Receipt PDF</Button>
                 <Button variant="secondary" icon={<RotateCcw size={16} />} onClick={() => void sideAction('info')}>Request More Info</Button>
                 <Button variant="danger" icon={<XCircle size={16} />} onClick={() => void sideAction('reject')}>Reject</Button>
               </div>

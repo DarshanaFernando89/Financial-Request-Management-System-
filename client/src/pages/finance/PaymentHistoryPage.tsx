@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { financeApi } from '../../api/financeApi';
 import { Table } from '../../components/ui/Table';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -18,7 +19,21 @@ export function PaymentHistoryPage() {
         <Table
           rows={payments}
           columns={[
-            { key: 'request', header: 'Request', render: (row) => row.request?.requestId || '-' },
+            {
+              key: 'request',
+              header: 'Request',
+              render: (row) => {
+                const requestId = row.request?.requestId || row.request?._id || '-';
+                const targetId = row.request?._id || row.request?.requestId || '';
+                return targetId ? (
+                  <Link to={`/requests/${targetId}`} className="font-semibold text-university-maroon hover:underline">
+                    {requestId}
+                  </Link>
+                ) : (
+                  <span>{requestId}</span>
+                );
+              }
+            },
             { key: 'amount', header: 'Amount', render: (row) => formatCurrency(row.amount) },
             { key: 'ref', header: 'Reference', render: (row) => row.referenceNo },
             { key: 'date', header: 'Paid Date', render: (row) => formatDate(row.paidAt) },

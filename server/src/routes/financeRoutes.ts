@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  exportPaymentReceipt,
   financeReject,
   financeRequestDetails,
   financeRequestInfo,
@@ -17,6 +18,7 @@ router.use(authMiddleware, requireActiveRole, requireRoles(ROLES.FINANCE_OFFICER
 router.get('/pending-payments', pendingPayments);
 router.get('/payment-history', paymentHistory);
 router.get('/:requestId', financeRequestDetails);
+router.get('/:requestId/payment-receipt', exportPaymentReceipt);
 router.post('/:requestId/mark-paid', markPaid);
 router.post('/:requestId/request-info', financeRequestInfo);
 router.post('/:requestId/reject', financeReject);

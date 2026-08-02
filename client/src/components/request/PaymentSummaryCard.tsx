@@ -1,10 +1,14 @@
-import { CreditCard } from 'lucide-react';
+import { CreditCard, FileDown, Printer } from 'lucide-react';
+import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDate } from '../../utils/formatDate';
+import { financeApi } from '../../api/financeApi';
 import type { FinancialRequest } from '../../types/request';
 
 export function PaymentSummaryCard({ request }: { request: FinancialRequest }) {
+  const requestId = request._id;
+
   return (
     <Card>
       <div className="flex items-center gap-2">
@@ -29,6 +33,14 @@ export function PaymentSummaryCard({ request }: { request: FinancialRequest }) {
           <dd className="font-semibold text-slate-900">{request.payment?.remarks || '-'}</dd>
         </div>
       </dl>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button variant="secondary" icon={<FileDown size={16} />} onClick={() => void financeApi.downloadPaymentReceipt(requestId)}>
+          Download Payment Receipt
+        </Button>
+        <Button variant="outline" icon={<Printer size={16} />} onClick={() => void financeApi.printPaymentReceipt(requestId)}>
+          Print Payment Receipt
+        </Button>
+      </div>
     </Card>
   );
 }
