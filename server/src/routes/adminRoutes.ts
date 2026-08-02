@@ -8,6 +8,8 @@ import {
   createRequestType,
   deactivateApprovalRule,
   deactivateRequestType,
+  deleteApprovalRule,
+  deleteRole,
   listApprovalRules,
   listRoles,
   listRequestTypes,
@@ -26,9 +28,11 @@ router.get('/dashboard', adminDashboard);
 router.get('/roles', listRoles);
 router.post('/roles', createRole);
 router.put('/roles/:id', updateRole);
+router.delete('/roles/:id', deleteRole);
 router.get('/approval-rules', listApprovalRules);
 router.post('/approval-rules', createApprovalRule);
 router.put('/approval-rules/:id', updateApprovalRule);
+router.delete('/approval-rules/:id', deleteApprovalRule);
 router.patch('/approval-rules/:id/activate', activateApprovalRule);
 router.patch('/approval-rules/:id/deactivate', deactivateApprovalRule);
 router.get('/request-types', listRequestTypes);
