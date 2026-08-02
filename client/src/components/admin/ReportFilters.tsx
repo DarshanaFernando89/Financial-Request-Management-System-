@@ -50,7 +50,7 @@ export function ReportFilters({ onApply }: { onApply: (filters: Record<string, s
           <Input label="Department" value={filters.department || ''} onChange={(event) => setValue('department', event.target.value)} />
         </div>
         <div className="mt-4 flex justify-end">
-          <Button type="submit" icon={<Search size={16} />}>Generate Report</Button>
+          <Button type="submit" icon={<Search size={16} />}>Filter</Button>
         </div>
       </Card>
     </form>
