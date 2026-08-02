@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import { notificationApi } from '../api/notificationApi';
 import type { Notification } from '../types/notification';
 
+const notificationsChangedEvent = 'frms:notifications-changed';
+
+export function notifyNotificationsChanged() {
+  window.dispatchEvent(new Event(notificationsChangedEvent));
+}
+
 export function useNotifications(pollMs = 10000) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -17,11 +23,15 @@ export function useNotifications(pollMs = 10000) {
 
   useEffect(() => {
     void refresh();
-    if (!pollMs) return undefined;
-    const interval = window.setInterval(() => {
+    const handleNotificationsChanged = () => void refresh();
+    window.addEventListener(notificationsChangedEvent, handleNotificationsChanged);
+    const interval = pollMs ? window.setInterval(() => {
       void refresh();
-    }, pollMs);
-    return () => window.clearInterval(interval);
+    }, pollMs) : undefined;
+    return () => {
+      if (interval) window.clearInterval(interval);
+      window.removeEventListener(notificationsChangedEvent, handleNotificationsChanged);
+    };
   }, [pollMs]);
 
   return {

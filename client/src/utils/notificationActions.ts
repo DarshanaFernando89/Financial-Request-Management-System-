@@ -1,4 +1,6 @@
 import type { Notification } from '../types/notification';
+import type { Role } from '../types/auth';
+import { APPROVER_ROLES, FINANCE_ROLES, REQUESTER_ROLES } from './constants';
 
 type NotificationAction = {
   label: string;
@@ -10,10 +12,43 @@ function getTargetId(target: Notification['relatedAccountRequest']) {
   return typeof target === 'string' ? target : target._id;
 }
 
-export function getNotificationAction(notification: Notification): NotificationAction | undefined {
+export function getNotificationAction(notification: Notification, activeRole?: Role): NotificationAction | undefined {
   if (notification.relatedRequest?._id) {
+    const request = notification.relatedRequest;
+
+    if (
+      activeRole &&
+      APPROVER_ROLES.includes(activeRole) &&
+      request.currentAssignedRole === activeRole &&
+      ['SUBMITTED', 'UNDER_VERIFICATION', 'UNDER_REVIEW'].includes(request.status)
+    ) {
+      return {
+        label: 'Review Request',
+        to: `/approvals/review/${request._id}`
+      };
+    }
+
+    if (
+      activeRole &&
+      FINANCE_ROLES.includes(activeRole) &&
+      request.currentAssignedRole === activeRole &&
+      request.status === 'PAYMENT_PENDING'
+    ) {
+      return {
+        label: 'Process Payment',
+        to: `/finance/review/${request._id}`
+      };
+    }
+
+    if (activeRole && REQUESTER_ROLES.includes(activeRole) && request.status === 'INFO_REQUESTED') {
+      return {
+        label: 'Respond to Clarification',
+        to: `/requests/${request._id}/respond-clarification`
+      };
+    }
+
     return {
-      label: 'Open Request',
+      label: 'View Request',
       to: `/requests/${notification.relatedRequest._id}`
     };
   }
@@ -27,7 +62,7 @@ export function getNotificationAction(notification: Notification): NotificationA
   if (!isAccountRequest) return undefined;
 
   return {
-    label: 'Review Account Request',
-    to: accountRequestId ? `/admin/account-requests?focus=${accountRequestId}` : '/admin/account-requests'
+    label: 'Open Admin Dashboard',
+    to: '/'
   };
 }

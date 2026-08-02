@@ -13,6 +13,7 @@ import {
 } from '../services/workflowService.js';
 import { notifyRole, notifyUser } from '../services/notificationService.js';
 import { writeAuditLog } from '../services/auditService.js';
+import { deleteUploadedFiles } from '../services/fileService.js';
 
 function requestFilterFromQuery(query: any) {
   const filter: any = {};
@@ -43,6 +44,60 @@ function attachUploadedFile(req: any, request: any, description?: string) {
     uploadedAt: new Date(),
     description
   });
+}
+
+function normalizeUploadedFiles(req: any) {
+  if (Array.isArray(req.files)) return req.files;
+  return req.file ? [req.file] : [];
+}
+
+function normalizeBodyList(value: unknown) {
+  if (Array.isArray(value)) return value.map(String);
+  if (value === undefined || value === null) return [];
+  return [String(value)];
+}
+
+function parseDocumentIds(value: unknown) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map(String);
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed.map(String) : [String(parsed)];
+    } catch {
+      return [value];
+    }
+  }
+  return [String(value)];
+}
+
+function uploadedDocuments(req: any) {
+  const descriptions = normalizeBodyList(req.body.documentDescriptions);
+  return normalizeUploadedFiles(req).map((file: any, index: number) => ({
+    filename: file.filename,
+    originalName: file.originalname,
+    fileUrl: `/uploads/${file.filename}`,
+    mimeType: file.mimetype,
+    size: file.size,
+    uploadedBy: req.user.userId,
+    uploadedByRole: req.user.activeRole,
+    uploadedAt: new Date(),
+    description: descriptions[index]
+  }));
+}
+
+function parseRequestData(value: unknown) {
+  if (!value) return {};
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    throw new ApiError(400, 'Request data must be valid JSON.');
+  }
+}
+
+function parseBoolean(value: unknown) {
+  return value === true || value === 'true';
 }
 
 export const listRequests = asyncHandler(async (req, res) => {
@@ -98,6 +153,14 @@ export const createRequest = asyncHandler(async (req, res) => {
   const type = await RequestTypeModel.findById(requestType);
   if (!type || !type.isActive) throw new ApiError(422, 'Request type is inactive or unavailable.');
 
+  const documents = uploadedDocuments(req);
+  const missingDocuments = parseBoolean(submit)
+    ? (type.requiredDocuments || []).filter((documentName) => !documents.some((document) => document.description === documentName))
+    : [];
+  if (missingDocuments.length) {
+    throw new ApiError(400, `Please upload required documents: ${missingDocuments.join(', ')}.`);
+  }
+
   const request = await createRequestForUser({
     userId: session.userId,
     activeRole: session.activeRole,
@@ -105,8 +168,9 @@ export const createRequest = asyncHandler(async (req, res) => {
     title,
     description,
     amount: Number(amount),
-    requestData,
-    submit: Boolean(submit)
+    requestData: parseRequestData(requestData),
+    documents,
+    submit: parseBoolean(submit)
   });
 
   if (request.currentAssignedRole) {
@@ -121,10 +185,10 @@ export const createRequest = asyncHandler(async (req, res) => {
   await writeAuditLog({
     actor: session.userId,
     actorRole: session.activeRole,
-    action: submit ? 'SUBMIT_REQUEST' : 'CREATE_DRAFT',
+    action: parseBoolean(submit) ? 'SUBMIT_REQUEST' : 'CREATE_DRAFT',
     entityType: 'Request',
     entityId: request._id.toString(),
-    description: `${request.requestId} ${submit ? 'submitted' : 'saved as draft'}.`
+    description: `${request.requestId} ${parseBoolean(submit) ? 'submitted' : 'saved as draft'}.`
   });
 
   res.status(201).json(request);
@@ -211,13 +275,29 @@ export const respondClarification = asyncHandler(async (req, res) => {
   const request = await RequestModel.findById(req.params.id);
   if (!request) throw new ApiError(404, 'Request not found.');
   if (request.requester.toString() !== session.userId) throw new ApiError(403, 'Only the requester can respond to clarification.');
-  attachUploadedFile(req, request, req.body.documentDescription);
+  if (request.status !== REQUEST_STATUSES.INFO_REQUESTED) throw new ApiError(422, 'This request is not waiting for clarification.');
+
+  const removeDocumentIds = new Set(parseDocumentIds(req.body.removeDocumentIds));
+  const existingIds = new Set(request.documents.map((document: any) => document._id.toString()));
+  const unknownIds = [...removeDocumentIds].filter((id) => !existingIds.has(id));
+  if (unknownIds.length) throw new ApiError(400, 'One or more selected documents no longer exist. Refresh the request and try again.');
+
+  const removedDocuments = request.documents
+    .filter((document: any) => removeDocumentIds.has(document._id.toString()))
+    .map((document: any) => ({ filename: document.filename }));
+  if (removeDocumentIds.size) {
+    request.documents = request.documents.filter((document: any) => !removeDocumentIds.has(document._id.toString())) as any;
+  }
+  request.documents.push(...uploadedDocuments(req) as any);
+
   const updated = await returnFromClarification({
     request,
     userId: session.userId,
     activeRole: session.activeRole,
     remarks: req.body.remarks || 'Clarification response submitted.'
   });
+
+  await deleteUploadedFiles(removedDocuments);
 
   if (updated.currentAssignedRole) {
     await notifyRole({

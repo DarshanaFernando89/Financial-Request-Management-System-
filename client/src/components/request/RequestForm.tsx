@@ -1,10 +1,11 @@
-import { Save, Send } from 'lucide-react';
+import { FileText, Save, Send, X } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { requestApi } from '../../api/requestApi';
 import type { RequestField, RequestType } from '../../types/request';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { FileUpload } from '../ui/FileUpload';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
@@ -47,6 +48,8 @@ export function RequestForm() {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [requestData, setRequestData] = useState<Record<string, string>>({});
+  const [requiredFiles, setRequiredFiles] = useState<Record<number, File | undefined>>({});
+  const [additionalFiles, setAdditionalFiles] = useState<File[]>([]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
@@ -66,19 +69,57 @@ export function RequestForm() {
     setRequestData((current) => ({ ...current, [name]: value }));
   }
 
-  async function submit(event: FormEvent, shouldSubmit: boolean) {
-    event.preventDefault();
-    setError('');
-    setSaving(true);
-    try {
-      const created = await requestApi.create({
+  function updateRequiredFile(index: number, file?: File) {
+    setRequiredFiles((current) => ({ ...current, [index]: file }));
+  }
+
+  function buildPayload(shouldSubmit: boolean) {
+    const requiredDocuments = selectedType?.requiredDocuments || [];
+    const files = [
+      ...requiredDocuments
+        .map((documentName, index) => ({ file: requiredFiles[index], description: documentName }))
+        .filter((item): item is { file: File; description: string } => Boolean(item.file)),
+      ...additionalFiles.map((file) => ({ file, description: 'Additional supporting document' }))
+    ];
+
+    if (!files.length) {
+      return {
         requestType,
         title,
         description,
         amount: Number(amount),
         requestData,
         submit: shouldSubmit
-      });
+      };
+    }
+
+    const formData = new FormData();
+    formData.append('requestType', requestType);
+    formData.append('title', title);
+    formData.append('description', description);
+    formData.append('amount', String(Number(amount)));
+    formData.append('requestData', JSON.stringify(requestData));
+    formData.append('submit', String(shouldSubmit));
+    files.forEach(({ file, description }) => {
+      formData.append('files', file);
+      formData.append('documentDescriptions', description);
+    });
+    return formData;
+  }
+
+  async function submit(event: FormEvent, shouldSubmit: boolean) {
+    event.preventDefault();
+    setError('');
+    if (shouldSubmit && selectedType?.requiredDocuments?.length) {
+      const missingDocuments = selectedType.requiredDocuments.filter((_, index) => !requiredFiles[index]);
+      if (missingDocuments.length) {
+        setError(`Please upload required documents: ${missingDocuments.join(', ')}.`);
+        return;
+      }
+    }
+    setSaving(true);
+    try {
+      const created = await requestApi.create(buildPayload(shouldSubmit));
       navigate(`/requests/${created._id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save request.');
@@ -98,6 +139,8 @@ export function RequestForm() {
             onChange={(event) => {
               setRequestType(event.target.value);
               setRequestData({});
+              setRequiredFiles({});
+              setAdditionalFiles([]);
             }}
             options={types.map((type) => ({ label: type.name, value: type._id }))}
           />
@@ -121,8 +164,48 @@ export function RequestForm() {
             ))}
           </div>
           {selectedType.requiredDocuments?.length > 0 && (
-            <div className="mt-4 rounded-md bg-yellow-50 p-3 text-sm text-yellow-900">
-              Required documents: {selectedType.requiredDocuments.join(', ')}
+            <div className="mt-5 space-y-3">
+              <div className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-900">
+                Required documents: {selectedType.requiredDocuments.join(', ')}
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {selectedType.requiredDocuments.map((documentName, index) => (
+                  <div key={`${documentName}-${index}`} className="rounded-md border border-slate-200 p-3">
+                    <div className="mb-3 flex min-h-9 items-start gap-2">
+                      <FileText size={18} className="mt-0.5 shrink-0 text-university-maroon" />
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">{documentName}</p>
+                        {requiredFiles[index] && <p className="text-xs text-slate-500">{requiredFiles[index]?.name}</p>}
+                      </div>
+                    </div>
+                    <FileUpload
+                      label={requiredFiles[index] ? 'Replace file' : 'Choose file'}
+                      description="PDF, image, Word, or Excel up to 10 MB"
+                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx"
+                      onChange={(event) => updateRequiredFile(index, event.target.files?.[0])}
+                    />
+                  </div>
+                ))}
+              </div>
+              <FileUpload
+                label="Add other supporting documents"
+                description="Optional"
+                accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx"
+                multiple
+                onChange={(event) => setAdditionalFiles(Array.from(event.target.files || []))}
+              />
+              {additionalFiles.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {additionalFiles.map((file) => (
+                    <span key={`${file.name}-${file.lastModified}`} className="inline-flex max-w-full items-center gap-2 rounded-md bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                      <span className="truncate">{file.name}</span>
+                      <button type="button" className="text-slate-500 hover:text-slate-900" onClick={() => setAdditionalFiles((current) => current.filter((item) => item !== file))} aria-label={`Remove ${file.name}`}>
+                        <X size={14} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </Card>

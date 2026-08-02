@@ -1,4 +1,4 @@
-import { Plus, Save } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { adminApi } from '../../api/adminApi';
 import { Badge } from '../../components/ui/Badge';
@@ -42,6 +42,17 @@ export function RoleManagementPage() {
     }
   }
 
+  async function handleDelete(role: ManagedRole) {
+    if (role.isSystem) return;
+    if (!window.confirm(`Delete role "${role.displayName}"?`)) return;
+    try {
+      await adminApi.deleteRole(role._id);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete role.');
+    }
+  }
+
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold text-slate-900">Role Management</h1>
@@ -70,6 +81,21 @@ export function RoleManagementPage() {
             header: 'Status',
             render: (row) => (
               <Badge tone={row.isActive ? 'green' : 'gray'}>{row.isActive ? 'Active' : 'Inactive'}</Badge>
+            )
+          },
+          {
+            key: 'actions',
+            header: 'Actions',
+            render: (row) => (
+              <Button
+                type="button"
+                variant="secondary"
+                icon={<Trash2 size={14} />}
+                disabled={row.isSystem}
+                onClick={() => void handleDelete(row)}
+              >
+                Delete
+              </Button>
             )
           }
         ]}

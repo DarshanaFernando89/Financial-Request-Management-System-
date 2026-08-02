@@ -6,18 +6,25 @@ import { Card } from '../../components/ui/Card';
 import { formatDate } from '../../utils/formatDate';
 import { getNotificationAction } from '../../utils/notificationActions';
 import type { Notification } from '../../types/notification';
+import { useAuth } from '../../hooks/useAuth';
+import { notifyNotificationsChanged } from '../../hooks/useNotifications';
 
 export function NotificationDetailsPage() {
   const { id = '' } = useParams();
+  const { user } = useAuth();
   const [notification, setNotification] = useState<Notification | null>(null);
   useEffect(() => {
     notificationApi.get(id).then(async (item) => {
       setNotification(item);
-      if (!item.isRead) await notificationApi.read(item._id);
+      if (!item.isRead) {
+        const updated = await notificationApi.read(item._id);
+        setNotification({ ...item, ...updated, relatedRequest: item.relatedRequest, relatedAccountRequest: item.relatedAccountRequest });
+        notifyNotificationsChanged();
+      }
     });
   }, [id]);
   if (!notification) return null;
-  const action = getNotificationAction(notification);
+  const action = getNotificationAction(notification, user?.activeRole);
   return (
     <div className="space-y-5">
       <Card>

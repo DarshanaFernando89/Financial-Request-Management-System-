@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   activateUser,
   createUser,
+  deleteUser,
   deactivateUser,
   getProfile,
   getUser,
@@ -27,6 +28,7 @@ router.get('/', listUsers);
 router.get('/:id', getUser);
 router.post('/', createUser);
 router.put('/:id', updateUser);
+router.delete('/:id', deleteUser);
 router.patch('/:id/activate', activateUser);
 router.patch('/:id/deactivate', deactivateUser);
 router.patch('/:id/roles', updateRoles);

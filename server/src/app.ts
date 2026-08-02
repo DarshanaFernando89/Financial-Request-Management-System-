@@ -18,9 +18,21 @@ import { errorMiddleware, notFoundMiddleware } from './middleware/errorMiddlewar
 
 const app = express();
 
+const allowedOrigins = [env.clientUrl];
+const localOrigin = env.clientUrl?.replace('localhost', '127.0.0.1');
+if (localOrigin && localOrigin !== env.clientUrl) {
+  allowedOrigins.push(localOrigin);
+}
+
 app.use(
   cors({
-    origin: env.clientUrl,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS policy does not allow access from origin ${origin}`));
+      }
+    },
     credentials: true
   })
 );
@@ -45,8 +57,6 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/uploads', express.static(path.resolve(env.uploadDir)));
 
-app.use('/api', demoRoutes);
-
 app.use('/api/auth', authRoutes);
 app.use('/api/account-requests', accountRequestRoutes);
 app.use('/api/users', userRoutes);
@@ -57,6 +67,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/audit-logs', auditRoutes);
+app.use('/api', demoRoutes);
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);

@@ -7,6 +7,7 @@ import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
 import { ROLES } from '../../utils/constants';
+import { isPhoneNumber } from '../../utils/validation';
 import { roleLabel } from '../../utils/roleLabels';
 import type { Role, User } from '../../types/auth';
 
@@ -60,6 +61,10 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError('');
+    if (form.contactNo && !isPhoneNumber(form.contactNo)) {
+      setError('Contact number must be a valid phone number.');
+      return;
+    }
     setSaving(true);
     try {
       const payload = { ...form };
@@ -91,7 +96,14 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
               { label: 'Non-academic', value: 'NON_ACADEMIC' }
             ]}
           />
-          <Input label="Contact number" value={form.contactNo} onChange={(event) => setValue('contactNo', event.target.value)} />
+          <Input
+            label="Contact number"
+            type="tel"
+            inputMode="tel"
+            pattern="\+?[0-9\s\-()]{7,25}"
+            value={form.contactNo}
+            onChange={(event) => setValue('contactNo', event.target.value)}
+          />
           <Input label="Department" value={form.department} onChange={(event) => setValue('department', event.target.value)} />
           <Input label="Faculty" value={form.faculty} onChange={(event) => setValue('faculty', event.target.value)} />
         </div>

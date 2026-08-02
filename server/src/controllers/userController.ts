@@ -120,6 +120,25 @@ export const deactivateUser = asyncHandler(async (req, res) => {
   res.json(user);
 });
 
+export const deleteUser = asyncHandler(async (req, res) => {
+  const existing = await UserModel.findById(req.params.id);
+  if (!existing) throw new ApiError(404, 'User not found.');
+  if (existing.roles.includes(ROLES.ADMIN)) {
+    throw new ApiError(403, 'Admin accounts cannot be deleted.');
+  }
+
+  await UserModel.findByIdAndDelete(req.params.id);
+  await writeAuditLog({
+    actor: (req as any).user?.userId,
+    actorRole: (req as any).user?.activeRole,
+    action: 'DELETE_USER',
+    entityType: 'User',
+    entityId: existing._id.toString(),
+    description: `Deleted user ${existing.email}.`
+  });
+  res.json({ message: 'User deleted successfully.' });
+});
+
 export const updateRoles = asyncHandler(async (req, res) => {
   if (!req.body.roles?.length) throw new ApiError(400, 'At least one role is required.');
   const user = await UserModel.findByIdAndUpdate(req.params.id, { roles: req.body.roles }, { new: true, runValidators: true });
@@ -143,6 +162,6 @@ export const getProfile = asyncHandler(async (req, res) => {
 export const updateProfile = asyncHandler(async (req, res) => {
   const allowed = ['contactNo', 'address', 'profileImageUrl'];
   const updates = Object.fromEntries(Object.entries(req.body).filter(([key]) => allowed.includes(key)));
-  const user = await UserModel.findByIdAndUpdate((req as any).user.userId, updates, { new: true });
+  const user = await UserModel.findByIdAndUpdate((req as any).user.userId, updates, { new: true, runValidators: true });
   res.json(user);
 });

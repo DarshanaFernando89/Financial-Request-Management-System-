@@ -1,4 +1,4 @@
-import { KeyRound, Plus, ToggleLeft, ToggleRight } from 'lucide-react';
+import { KeyRound, Plus, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { userApi } from '../../api/userApi';
@@ -19,9 +19,11 @@ export function UserManagementPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState('');
   const [resetUser, setResetUser] = useState<User | null>(null);
+  const [deleteUser, setDeleteUser] = useState<User | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isResetting, setIsResetting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   async function load() {
     const data = await userApi.list({ search });
@@ -54,6 +56,28 @@ export function UserManagementPage() {
       setError(resetError instanceof Error ? resetError.message : 'Password reset failed.');
     } finally {
       setIsResetting(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteUser || isDeleting) return;
+    if (deleteUser.roles.includes('ADMIN')) {
+      setError('Admin accounts cannot be deleted.');
+      setDeleteUser(null);
+      return;
+    }
+    setIsDeleting(true);
+    setMessage('');
+    setError('');
+    try {
+      await userApi.delete(deleteUser._id);
+      setMessage(`${deleteUser.nameWithInitials} was deleted.`);
+      setDeleteUser(null);
+      await load();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'User delete failed.');
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -106,6 +130,19 @@ export function UserManagementPage() {
                         setResetUser(row);
                       }}
                     />
+                    <Button
+                      variant="outline"
+                      className="h-9 min-h-9 px-2 border-red-200 text-red-700 hover:bg-red-50"
+                      icon={<Trash2 size={16} />}
+                      disabled={isAdmin}
+                      title={isAdmin ? 'Admin accounts cannot be deleted' : 'Delete user'}
+                      aria-label={`Delete ${row.nameWithInitials}`}
+                      onClick={() => {
+                        setMessage('');
+                        setError('');
+                        setDeleteUser(row);
+                      }}
+                    />
                   </div>
                 );
               }
@@ -126,6 +163,21 @@ export function UserManagementPage() {
         onConfirm={() => void confirmReset()}
         onClose={() => {
           if (!isResetting) setResetUser(null);
+        }}
+      />
+      <ConfirmDialog
+        open={Boolean(deleteUser)}
+        title="Delete User"
+        message={
+          deleteUser
+            ? `Delete ${deleteUser.nameWithInitials}? This cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete"
+        tone="danger"
+        onConfirm={() => void confirmDelete()}
+        onClose={() => {
+          if (!isDeleting) setDeleteUser(null);
         }}
       />
     </div>

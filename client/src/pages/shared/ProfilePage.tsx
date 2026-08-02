@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Textarea } from '../../components/ui/Textarea';
+import { isPhoneNumber } from '../../utils/validation';
 import { roleLabel } from '../../utils/roleLabels';
 import type { User } from '../../types/auth';
 import { useAuth } from '../../hooks/useAuth';
@@ -14,6 +15,7 @@ export function ProfilePage() {
   const [profile, setProfile] = useState<User | null>(null);
   const [form, setForm] = useState({ contactNo: '', address: '', profileImageUrl: '' });
   const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
   const { refreshUser } = useAuth();
 
   useEffect(() => {
@@ -25,6 +27,12 @@ export function ProfilePage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    setError('');
+    setMessage('');
+    if (form.contactNo && !isPhoneNumber(form.contactNo)) {
+      setError('Contact number must be a valid phone number.');
+      return;
+    }
     const updated = await userApi.updateProfile(form);
     setProfile(updated);
     await refreshUser();
@@ -87,8 +95,16 @@ export function ProfilePage() {
       </Card>
       <form onSubmit={(event) => void submit(event)}>
         <Card className="space-y-4">
-          <Input label="Contact number" value={form.contactNo} onChange={(event) => setForm({ ...form, contactNo: event.target.value })} />
+          <Input
+            label="Contact number"
+            type="tel"
+            inputMode="tel"
+            pattern="\+?[0-9\s\-()]{7,25}"
+            value={form.contactNo}
+            onChange={(event) => setForm({ ...form, contactNo: event.target.value })}
+          />
           <Textarea label="Address" value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} />
+          {error && <p className="text-sm font-medium text-red-600">{error}</p>}
           {message && <p className="text-sm font-medium text-green-700">{message}</p>}
           <Button type="submit" icon={<Save size={16} />}>Save Profile</Button>
         </Card>

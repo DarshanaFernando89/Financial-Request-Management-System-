@@ -2,6 +2,7 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { signAuthToken } from '../middleware/authMiddleware.js';
 import { env } from '../config/env.js';
+import { upload } from '../middleware/uploadMiddleware.js';
 import {
   ACCOUNT_REQUEST_STATUSES,
   APPROVAL_ACTIONS,
@@ -13,6 +14,7 @@ import {
   STEP_TYPES
 } from '../utils/constants.js';
 import { getAccountRequestValidationError, normalizeAccountRequestPayload } from '../utils/accountRequestValidation.js';
+import { deleteUploadedFiles } from '../services/fileService.js';
 
 const router = Router();
 const defaultPassword = 'Password123!';
@@ -522,6 +524,39 @@ function currentUser(req: any) {
   return req.demoUser;
 }
 
+function parseBodyBoolean(value: any) {
+  return value === true || value === 'true';
+}
+
+function normalizeBodyList(value: any) {
+  if (Array.isArray(value)) return value.map(String);
+  if (value === undefined || value === null) return [];
+  return [String(value)];
+}
+
+function parseRequestDataBody(value: any) {
+  if (!value) return {};
+  if (typeof value !== 'string') return value;
+  return JSON.parse(value);
+}
+
+function demoUploadedDocuments(req: any, user: any) {
+  const descriptions = normalizeBodyList(req.body.documentDescriptions);
+  const files = Array.isArray(req.files) ? req.files : [];
+  return files.map((file: any, index: number) => ({
+    _id: `document-${Date.now()}-${index}`,
+    filename: file.filename,
+    originalName: file.originalname,
+    fileUrl: `/uploads/${file.filename}`,
+    mimeType: file.mimetype,
+    size: file.size,
+    uploadedBy: user._id,
+    uploadedByRole: user.activeRole,
+    uploadedAt: new Date().toISOString(),
+    description: descriptions[index]
+  }));
+}
+
 function matchingRule(typeId: string, amount: number) {
   return approvalRules.find((rule) => {
     const hasType = rule.requestTypes.some((type: any) => type._id === typeId);
@@ -689,9 +724,25 @@ router.get('/requests', (req, res) => {
   res.json({ items, total: items.length, page: 1, pages: 1 });
 });
 
-router.post('/requests', (req, res) => {
+router.post('/requests', upload.array('files', 20), (req, res) => {
   const user = currentUser(req);
   const requestType = requestTypes.find((type) => type._id === req.body.requestType) || requestTypes[0];
+  const submit = parseBodyBoolean(req.body.submit);
+  const documents = demoUploadedDocuments(req, user);
+  const missingDocuments = submit
+    ? (requestType.requiredDocuments || []).filter((documentName: string) => !documents.some((document: any) => document.description === documentName))
+    : [];
+  if (missingDocuments.length) {
+    return res.status(400).json({ message: `Please upload required documents: ${missingDocuments.join(', ')}.` });
+  }
+
+  let requestData = {};
+  try {
+    requestData = parseRequestDataBody(req.body.requestData);
+  } catch {
+    return res.status(400).json({ message: 'Request data must be valid JSON.' });
+  }
+
   const request = {
     _id: `request-${Date.now()}`,
     requestId: String(12000000 + requests.length + 1),
@@ -702,9 +753,9 @@ router.post('/requests', (req, res) => {
     description: req.body.description,
     amount: Number(req.body.amount),
     currency: 'LKR',
-    requestData: req.body.requestData || {},
-    documents: [],
-    status: req.body.submit ? REQUEST_STATUSES.SUBMITTED : REQUEST_STATUSES.DRAFT,
+    requestData,
+    documents,
+    status: submit ? REQUEST_STATUSES.SUBMITTED : REQUEST_STATUSES.DRAFT,
     currentStepIndex: -1,
     workflowSteps: [],
     approvalHistory: [],
@@ -712,9 +763,9 @@ router.post('/requests', (req, res) => {
     revisionNo: 0,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    submittedAt: req.body.submit ? new Date().toISOString() : undefined
+    submittedAt: submit ? new Date().toISOString() : undefined
   };
-  if (req.body.submit) routeRequest(request);
+  if (submit) routeRequest(request);
   requests.unshift(request);
   res.status(201).json(request);
 });
@@ -742,10 +793,31 @@ router.post('/requests/:id/resubmit', (req, res) => {
   res.json(request);
 });
 
-router.post('/requests/:id/respond-clarification', (req, res) => {
+router.post('/requests/:id/respond-clarification', upload.array('files', 20), async (req, res) => {
   const user = currentUser(req);
   const request = requests.find((item) => item._id === req.params.id);
   if (!request) return res.status(404).json({ message: 'Request not found.' });
+  if (request.requester !== user._id) return res.status(403).json({ message: 'Only the requester can respond to clarification.' });
+  if (request.status !== REQUEST_STATUSES.INFO_REQUESTED) return res.status(422).json({ message: 'This request is not waiting for clarification.' });
+
+  let removeDocumentIds: string[] = [];
+  try {
+    const parsed = req.body.removeDocumentIds ? JSON.parse(req.body.removeDocumentIds) : [];
+    removeDocumentIds = Array.isArray(parsed) ? parsed.map(String) : [String(parsed)];
+  } catch {
+    return res.status(400).json({ message: 'Removed document IDs must be a valid list.' });
+  }
+  const existingIds = new Set(request.documents.map((document: any) => String(document._id)));
+  if (removeDocumentIds.some((id) => !existingIds.has(id))) {
+    return res.status(400).json({ message: 'One or more selected documents no longer exist. Refresh the request and try again.' });
+  }
+  const removedIds = new Set(removeDocumentIds);
+  const removedDocuments = request.documents
+    .filter((document: any) => removedIds.has(String(document._id)))
+    .map((document: any) => ({ filename: document.filename }));
+  request.documents = request.documents.filter((document: any) => !removedIds.has(String(document._id)));
+  request.documents.push(...demoUploadedDocuments(req, user));
+
   const step = request.workflowSteps.find((item: any) => item.stepIndex === request.currentStepIndex);
   if (step) step.status = STEP_STATUSES.PENDING;
   request.currentAssignedRole = request.previousAssignedRoleWhenInfoRequested || step?.role;
@@ -757,6 +829,7 @@ router.post('/requests/:id/respond-clarification', (req, res) => {
     remarks: req.body.remarks,
     createdAt: new Date().toISOString()
   });
+  await deleteUploadedFiles(removedDocuments);
   res.json(request);
 });
 

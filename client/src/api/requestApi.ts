@@ -18,7 +18,7 @@ export const requestApi = {
     const { data } = await apiClient.get<FinancialRequest>(`/requests/${id}`);
     return data;
   },
-  async create(payload: Record<string, unknown>) {
+  async create(payload: Record<string, unknown> | FormData) {
     const { data } = await apiClient.post<FinancialRequest>('/requests', payload);
     return data;
   },
