@@ -14,8 +14,21 @@ export const reportApi = {
     const { data } = await apiClient.get('/reports/monthly-summary', { params });
     return data.items;
   },
-  exportUrl(type: 'pdf' | 'excel') {
-    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-    return `${base}/reports/export/${type}`;
+  async exportFile(type: 'pdf' | 'excel', params?: Record<string, unknown>) {
+    const response = await apiClient.get(`/reports/export/${type}`, {
+      params,
+      responseType: 'blob'
+    });
+
+    const contentType = typeof response.headers['content-type'] === 'string' ? response.headers['content-type'] : 'application/octet-stream';
+    const blob = new Blob([response.data], { type: contentType });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `financial-request-report.${type === 'pdf' ? 'pdf' : 'xlsx'}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   }
 };
