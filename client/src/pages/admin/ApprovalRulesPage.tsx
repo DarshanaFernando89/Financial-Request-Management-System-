@@ -17,7 +17,7 @@ export function ApprovalRulesPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-slate-900">Approval Rules</h1>
-        <Link to="/admin/approval-rules/create"><Button icon={<Plus size={16} />}>Create Rule</Button></Link>
+        <Link to="/admin/approval-rules/create"><Button icon={<Plus size={16} />}>Create Rule / Type</Button></Link>
       </div>
       <Table
         rows={rules}
