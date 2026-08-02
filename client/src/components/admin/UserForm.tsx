@@ -6,10 +6,11 @@ import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
-import { ROLES } from '../../utils/constants';
+import { APPROVER_ROLES, ROLES } from '../../utils/constants';
 import { isPhoneNumber } from '../../utils/validation';
 import { roleLabel } from '../../utils/roleLabels';
 import type { Role, User } from '../../types/auth';
+import { PasswordInput } from '../ui/PasswordInput';
 
 type UserFormProps = {
   initial?: Partial<User>;
@@ -30,7 +31,8 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
     faculty: initial?.faculty || 'Faculty of Engineering, University of Ruhuna',
     contactNo: initial?.contactNo || '',
     address: initial?.address || '',
-    roles: initial?.roles || ['REQUESTER']
+    roles: initial?.roles || ['REQUESTER'],
+    approvalRolePasswords: {}
   });
   const [availableRoles, setAvailableRoles] = useState<Array<{ code: string; displayName: string; isActive: boolean }>>(
     ROLES.map((role) => ({ code: role, displayName: roleLabel(role), isActive: true }))
@@ -58,6 +60,16 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
     });
   }
 
+  function setApprovalRolePassword(role: Role, value: string) {
+    setForm((current) => ({
+      ...current,
+      approvalRolePasswords: {
+        ...(current.approvalRolePasswords || {}),
+        [role]: value
+      }
+    }));
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError('');
@@ -65,10 +77,26 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
       setError('Contact number must be a valid phone number.');
       return;
     }
+    const selectedRoles = form.roles as Role[];
+    if (selectedRoles.length > 1) {
+      const missingApprovalRole = selectedRoles.find(
+        (role) =>
+          APPROVER_ROLES.includes(role) &&
+          !initial?.approvalRolePasswordConfiguredRoles?.includes(role) &&
+          !String(form.approvalRolePasswords?.[role] || '').trim()
+      );
+      if (missingApprovalRole) {
+        setError(`Approval password is required for ${roleLabel(missingApprovalRole)}.`);
+        return;
+      }
+    }
     setSaving(true);
     try {
       const payload = { ...form };
       if (!includePassword) delete payload.password;
+      payload.approvalRolePasswords = Object.fromEntries(
+        Object.entries(form.approvalRolePasswords || {}).filter(([, value]) => String(value || '').trim())
+      );
       await onSubmit(payload);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save user.');
@@ -119,6 +147,27 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
             ))}
           </div>
         </div>
+        {(form.roles as Role[]).some((role) => APPROVER_ROLES.includes(role)) && (
+          <div>
+            <p className="mb-2 text-sm font-semibold text-slate-700">Approving role passwords</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              {(form.roles as Role[])
+                .filter((role) => APPROVER_ROLES.includes(role))
+                .map((role) => {
+                  const configured = initial?.approvalRolePasswordConfiguredRoles?.includes(role);
+                  return (
+                    <PasswordInput
+                      key={role}
+                      label={`${roleLabel(role)} password${configured ? ' (set)' : ''}`}
+                      placeholder={configured ? 'Leave blank to keep current' : 'Required for multi-role users'}
+                      value={form.approvalRolePasswords[role] || ''}
+                      onChange={(event) => setApprovalRolePassword(role, event.target.value)}
+                    />
+                  );
+                })}
+            </div>
+          </div>
+        )}
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
         <div className="flex justify-end">
           <Button type="submit" icon={<Save size={16} />} disabled={saving}>Save User</Button>
