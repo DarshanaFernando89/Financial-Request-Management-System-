@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { adminApi } from '../../api/adminApi';
@@ -13,6 +13,18 @@ export function ApprovalRulesPage() {
   useEffect(() => {
     adminApi.rules().then(setRules);
   }, []);
+
+  async function handleDelete(rule: ApprovalRule) {
+    if (!window.confirm(`Delete approval rule "${rule.name}"?`)) return;
+    try {
+      await adminApi.deleteRule(rule._id);
+      setRules((current) => current.filter((item) => item._id !== rule._id));
+    } catch (error) {
+      console.error(error);
+      window.alert('Failed to delete approval rule.');
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
@@ -26,7 +38,16 @@ export function ApprovalRulesPage() {
           { key: 'range', header: 'Amount Range', render: (row) => `${row.minAmount} - ${row.maxAmount ?? 'No upper limit'}` },
           { key: 'types', header: 'Request Types', render: (row) => row.requestTypes?.map((type) => type.name).join(', ') },
           { key: 'roles', header: 'Workflow', render: (row) => row.workflowRoles.map(roleLabel).join(' -> ') },
-          { key: 'status', header: 'Status', render: (row) => <Badge tone={row.isActive ? 'green' : 'gray'}>{row.isActive ? 'Active' : 'Inactive'}</Badge> }
+          { key: 'status', header: 'Status', render: (row) => <Badge tone={row.isActive ? 'green' : 'gray'}>{row.isActive ? 'Active' : 'Inactive'}</Badge> },
+          {
+            key: 'actions',
+            header: 'Actions',
+            render: (row) => (
+              <Button type="button" variant="secondary" size="sm" icon={<Trash2 size={14} />} onClick={() => void handleDelete(row)}>
+                Delete
+              </Button>
+            )
+          }
         ]}
       />
     </div>

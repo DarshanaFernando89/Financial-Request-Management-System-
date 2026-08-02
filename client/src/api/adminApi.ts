@@ -26,6 +26,10 @@ export const adminApi = {
     const { data } = await apiClient.put(`/admin/roles/${id}`, payload);
     return data;
   },
+  async deleteRole(id: string) {
+    const { data } = await apiClient.delete(`/admin/roles/${id}`);
+    return data;
+  },
   async rules() {
     const { data } = await apiClient.get<{ items: ApprovalRule[] }>('/admin/approval-rules');
     return data.items;
@@ -36,6 +40,10 @@ export const adminApi = {
   },
   async updateRule(id: string, payload: Record<string, unknown>) {
     const { data } = await apiClient.put<ApprovalRule>(`/admin/approval-rules/${id}`, payload);
+    return data;
+  },
+  async deleteRule(id: string) {
+    const { data } = await apiClient.delete(`/admin/approval-rules/${id}`);
     return data;
   },
   async requestTypes() {
