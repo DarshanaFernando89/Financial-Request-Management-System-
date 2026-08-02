@@ -42,7 +42,8 @@ function attachUploadedFile(req: any, request: any, description?: string) {
     uploadedBy: req.user.userId,
     uploadedByRole: req.user.activeRole,
     uploadedAt: new Date(),
-    description
+    description,
+    source: 'MANUAL_UPLOAD'
   });
 }
 
@@ -71,7 +72,10 @@ function parseDocumentIds(value: unknown) {
   return [String(value)];
 }
 
-function uploadedDocuments(req: any) {
+function uploadedDocuments(
+  req: any,
+  options: { source?: 'INITIAL_SUBMISSION' | 'MANUAL_UPLOAD' | 'CLARIFICATION_RESPONSE'; clarificationRound?: number; clarificationRespondedAt?: Date } = {}
+) {
   const descriptions = normalizeBodyList(req.body.documentDescriptions);
   return normalizeUploadedFiles(req).map((file: any, index: number) => ({
     filename: file.filename,
@@ -82,7 +86,10 @@ function uploadedDocuments(req: any) {
     uploadedBy: req.user.userId,
     uploadedByRole: req.user.activeRole,
     uploadedAt: new Date(),
-    description: descriptions[index]
+    description: descriptions[index],
+    source: options.source || 'INITIAL_SUBMISSION',
+    clarificationRound: options.clarificationRound,
+    clarificationRespondedAt: options.clarificationRespondedAt
   }));
 }
 
@@ -288,7 +295,14 @@ export const respondClarification = asyncHandler(async (req, res) => {
   if (removeDocumentIds.size) {
     request.documents = request.documents.filter((document: any) => !removeDocumentIds.has(document._id.toString())) as any;
   }
-  request.documents.push(...uploadedDocuments(req) as any);
+  const clarificationRound =
+    request.clarificationHistory.filter((entry: any) => entry.action === APPROVAL_ACTIONS.REQUEST_INFO).length || 1;
+  const clarificationRespondedAt = new Date();
+  request.documents.push(...uploadedDocuments(req, {
+    source: 'CLARIFICATION_RESPONSE',
+    clarificationRound,
+    clarificationRespondedAt
+  }) as any);
 
   const updated = await returnFromClarification({
     request,

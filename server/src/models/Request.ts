@@ -18,7 +18,10 @@ const documentSchema = new Schema(
     uploadedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     uploadedByRole: { type: String, enum: ROLE_VALUES },
     uploadedAt: { type: Date, default: Date.now },
-    description: String
+    description: String,
+    source: { type: String, enum: ['INITIAL_SUBMISSION', 'MANUAL_UPLOAD', 'CLARIFICATION_RESPONSE'], default: 'INITIAL_SUBMISSION' },
+    clarificationRound: Number,
+    clarificationRespondedAt: Date
   },
   { _id: true }
 );
