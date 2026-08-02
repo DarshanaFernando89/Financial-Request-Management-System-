@@ -33,6 +33,15 @@ export function RoleManagementPage() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError('');
+    const requestedCode = String(form.code || form.displayName)
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    if (requestedCode === 'ADMIN') {
+      setError('Admin role already exists and cannot be created.');
+      return;
+    }
     try {
       await adminApi.createRole(form);
       setForm({ displayName: '', code: '', description: '' });
@@ -43,7 +52,7 @@ export function RoleManagementPage() {
   }
 
   async function handleDelete(role: ManagedRole) {
-    if (role.isSystem) return;
+    if (role.code === 'ADMIN') return;
     if (!window.confirm(`Delete role "${role.displayName}"?`)) return;
     try {
       await adminApi.deleteRole(role._id);
@@ -86,17 +95,21 @@ export function RoleManagementPage() {
           {
             key: 'actions',
             header: 'Actions',
-            render: (row) => (
-              <Button
-                type="button"
-                variant="secondary"
-                icon={<Trash2 size={14} />}
-                disabled={row.isSystem}
-                onClick={() => void handleDelete(row)}
-              >
-                Delete
-              </Button>
-            )
+            render: (row) => {
+              const isAdminRole = row.code === 'ADMIN';
+              return (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  icon={<Trash2 size={14} />}
+                  disabled={isAdminRole}
+                  title={isAdminRole ? 'Admin role cannot be deleted' : 'Delete role'}
+                  onClick={() => void handleDelete(row)}
+                >
+                  Delete
+                </Button>
+              );
+            }
           }
         ]}
       />

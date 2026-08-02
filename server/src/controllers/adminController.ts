@@ -6,7 +6,7 @@ import { AccountRequestModel } from '../models/AccountRequest.js';
 import { CustomRoleModel } from '../models/CustomRole.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
-import { ROLES } from '../utils/constants.js';
+import { ROLE_LABELS, ROLES } from '../utils/constants.js';
 
 export const adminDashboard = asyncHandler(async (_req, res) => {
   const [users, requests, pendingAccountRequests, pendingPayments, statusCounts] = await Promise.all([
@@ -122,31 +122,79 @@ export const deactivateRequestType = asyncHandler(async (req, res) => {
   res.json(item);
 });
 
-export const listRoles = asyncHandler(async (_req, res) => {
-  const customRoles = await CustomRoleModel.find().sort({ displayName: 1 });
-  const systemRoles = Object.values(ROLES).map((code) => ({
-    _id: `system-${code}`,
-    code,
-    displayName: code
-      .toLowerCase()
-      .split('_')
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' '),
-    description: 'System role',
-    isActive: true,
-    isSystem: true
-  }));
-  res.json({ items: [...systemRoles, ...customRoles.map((role) => ({ ...role.toObject(), isSystem: false }))] });
-});
+const SYSTEM_ROLE_CODES = Object.values(ROLES);
 
-export const createRole = asyncHandler(async (req, res) => {
-  const code = String(req.body.code || req.body.displayName || '')
+function normalizeRoleCode(value: string) {
+  return value
     .trim()
     .toUpperCase()
     .replace(/[^A-Z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
+}
+
+function defaultRoleLabel(code: string) {
+  return (
+    ROLE_LABELS[code] ||
+    code
+      .toLowerCase()
+      .split('_')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ')
+  );
+}
+
+function isSystemRoleCode(code: string) {
+  return SYSTEM_ROLE_CODES.includes(code as any);
+}
+
+export const listRoles = asyncHandler(async (_req, res) => {
+  const customRoles = await CustomRoleModel.find().sort({ displayName: 1 });
+  const customRoleByCode = new Map(customRoles.map((role: any) => [role.code, role]));
+
+  const systemRoles = SYSTEM_ROLE_CODES.flatMap((code) => {
+    const override = customRoleByCode.get(code);
+
+    if (code !== ROLES.ADMIN && override?.isActive === false) return [];
+
+    return [
+      {
+        _id: `system-${code}`,
+        code,
+        displayName: override?.displayName || defaultRoleLabel(code),
+        description: override?.description || 'System role',
+        isActive: true,
+        isSystem: true
+      }
+    ];
+  });
+
+  const customOnlyRoles = customRoles
+    .filter((role: any) => !isSystemRoleCode(role.code) && role.isActive !== false)
+    .map((role: any) => ({ ...role.toObject(), isSystem: false }));
+
+  res.json({ items: [...systemRoles, ...customOnlyRoles] });
+});
+
+export const createRole = asyncHandler(async (req, res) => {
+  const code = normalizeRoleCode(String(req.body.code || req.body.displayName || ''));
   if (!code || !req.body.displayName) throw new ApiError(400, 'Role code and display name are required.');
-  if (Object.values(ROLES).includes(code as any)) throw new ApiError(409, 'This system role already exists.');
+  if (code === ROLES.ADMIN) throw new ApiError(403, 'Admin role already exists and cannot be created.');
+
+  if (isSystemRoleCode(code)) {
+    const item = await CustomRoleModel.findOneAndUpdate(
+      { code },
+      {
+        code,
+        displayName: req.body.displayName,
+        description: req.body.description || 'System role',
+        isActive: true
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true }
+    );
+    res.status(201).json(item);
+    return;
+  }
+
   const item = await CustomRoleModel.create({
     code,
     displayName: req.body.displayName,
@@ -163,7 +211,36 @@ export const updateRole = asyncHandler(async (req, res) => {
 });
 
 export const deleteRole = asyncHandler(async (req, res) => {
-  const item = await CustomRoleModel.findByIdAndDelete(String(req.params.id));
+  const id = String(req.params.id);
+
+  if (id === `system-${ROLES.ADMIN}` || normalizeRoleCode(id) === ROLES.ADMIN) {
+    throw new ApiError(403, 'Admin role cannot be deleted.');
+  }
+
+  if (id.startsWith('system-')) {
+    const code = normalizeRoleCode(id.replace(/^system-/, ''));
+    if (!isSystemRoleCode(code)) throw new ApiError(404, 'Role not found.');
+    if (code === ROLES.ADMIN) throw new ApiError(403, 'Admin role cannot be deleted.');
+
+    await CustomRoleModel.findOneAndUpdate(
+      { code },
+      {
+        code,
+        displayName: defaultRoleLabel(code),
+        description: 'System role',
+        isActive: false
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true }
+    );
+
+    res.status(200).json({ success: true, message: 'Role deleted.' });
+    return;
+  }
+
+  const existing = await CustomRoleModel.findById(id);
+  if (existing?.code === ROLES.ADMIN) throw new ApiError(403, 'Admin role cannot be deleted.');
+
+  const item = existing ? await CustomRoleModel.findByIdAndDelete(id) : null;
   if (!item) throw new ApiError(404, 'Role not found.');
   res.status(200).json({ success: true, message: 'Role deleted.' });
 });
