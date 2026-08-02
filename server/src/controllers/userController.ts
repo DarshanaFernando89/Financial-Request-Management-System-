@@ -3,7 +3,46 @@ import { UserModel } from '../models/User.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { writeAuditLog } from '../services/auditService.js';
-import { ROLES } from '../utils/constants.js';
+import { APPROVER_ROLES, ROLES } from '../utils/constants.js';
+
+function configuredApprovalRolePasswords(user: any) {
+  const hashes = user.approvalRolePasswordHashes as Map<string, string> | undefined;
+  return hashes ? Array.from(hashes.keys()).filter((role) => APPROVER_ROLES.includes(role as any)) : [];
+}
+
+function publicUser(user: any) {
+  const object = typeof user.toObject === 'function' ? user.toObject() : { ...user };
+  delete object.passwordHash;
+  delete object.approvalRolePasswordHashes;
+  delete object.__v;
+  object.approvalRolePasswordConfiguredRoles = configuredApprovalRolePasswords(user);
+  return object;
+}
+
+async function buildApprovalRolePasswordHashes(input: {
+  roles: string[];
+  approvalRolePasswords?: Record<string, unknown>;
+  existingHashes?: Map<string, string>;
+}) {
+  const nextHashes = new Map<string, string>();
+  const selectedApprovalRoles = input.roles.filter((role) => APPROVER_ROLES.includes(role as any));
+
+  for (const role of selectedApprovalRoles) {
+    const rawPassword = input.approvalRolePasswords?.[role];
+    const password = typeof rawPassword === 'string' ? rawPassword.trim() : '';
+    const existingHash = input.existingHashes?.get(role);
+
+    if (password) {
+      nextHashes.set(role, await bcrypt.hash(password, 10));
+    } else if (existingHash) {
+      nextHashes.set(role, existingHash);
+    } else if (input.roles.length > 1) {
+      throw new ApiError(400, `Approval password is required for ${role}.`);
+    }
+  }
+
+  return nextHashes;
+}
 
 function buildUserFilter(query: any) {
   const filter: any = {};
@@ -32,9 +71,9 @@ export const listUsers = asyncHandler(async (req, res) => {
 });
 
 export const getUser = asyncHandler(async (req, res) => {
-  const user = await UserModel.findById(req.params.id);
+  const user = await UserModel.findById(req.params.id).select('+approvalRolePasswordHashes');
   if (!user) throw new ApiError(404, 'User not found.');
-  res.json(user);
+  res.json(publicUser(user));
 });
 
 export const createUser = asyncHandler(async (req, res) => {
@@ -51,7 +90,8 @@ export const createUser = asyncHandler(async (req, res) => {
     contactNo,
     address,
     profileImageUrl,
-    roles
+    roles,
+    approvalRolePasswords
   } = req.body;
 
   if (!nameWithInitials || !fullName || !email || !password || !staffCategory || !department || !faculty || !roles?.length) {
@@ -59,6 +99,7 @@ export const createUser = asyncHandler(async (req, res) => {
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
+  const approvalRolePasswordHashes = await buildApprovalRolePasswordHashes({ roles, approvalRolePasswords });
   const user = await UserModel.create({
     nameWithInitials,
     fullName,
@@ -73,6 +114,7 @@ export const createUser = asyncHandler(async (req, res) => {
     address,
     profileImageUrl,
     roles,
+    approvalRolePasswordHashes,
     isActive: req.body.isActive ?? true
   });
 
@@ -85,13 +127,27 @@ export const createUser = asyncHandler(async (req, res) => {
     description: `Created user ${user.email}.`
   });
 
-  res.status(201).json(user);
+  res.status(201).json(publicUser(user));
 });
 
 export const updateUser = asyncHandler(async (req, res) => {
-  const blocked = ['password', 'passwordHash', '_id', 'createdAt', 'updatedAt'];
+  const blocked = ['password', 'passwordHash', 'approvalRolePasswordHashes', '_id', 'createdAt', 'updatedAt'];
   const updates = Object.fromEntries(Object.entries(req.body).filter(([key]) => !blocked.includes(key)));
-  const user = await UserModel.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
+  const existing = (await UserModel.findById(req.params.id).select('+approvalRolePasswordHashes')) as any;
+  if (!existing) throw new ApiError(404, 'User not found.');
+
+  const roles = (updates.roles as string[] | undefined) || existing.roles;
+  if (req.body.approvalRolePasswords || updates.roles) {
+    updates.approvalRolePasswordHashes = await buildApprovalRolePasswordHashes({
+      roles,
+      approvalRolePasswords: req.body.approvalRolePasswords,
+      existingHashes: existing.approvalRolePasswordHashes
+    });
+  }
+
+  const user = await UserModel.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true }).select(
+    '+approvalRolePasswordHashes'
+  );
   if (!user) throw new ApiError(404, 'User not found.');
   await writeAuditLog({
     actor: (req as any).user?.userId,
@@ -100,7 +156,7 @@ export const updateUser = asyncHandler(async (req, res) => {
     entityType: 'User',
     entityId: user._id.toString()
   });
-  res.json(user);
+  res.json(publicUser(user));
 });
 
 export const activateUser = asyncHandler(async (req, res) => {
@@ -141,9 +197,21 @@ export const deleteUser = asyncHandler(async (req, res) => {
 
 export const updateRoles = asyncHandler(async (req, res) => {
   if (!req.body.roles?.length) throw new ApiError(400, 'At least one role is required.');
-  const user = await UserModel.findByIdAndUpdate(req.params.id, { roles: req.body.roles }, { new: true, runValidators: true });
+  const existing = (await UserModel.findById(req.params.id).select('+approvalRolePasswordHashes')) as any;
+  if (!existing) throw new ApiError(404, 'User not found.');
+
+  const approvalRolePasswordHashes = await buildApprovalRolePasswordHashes({
+    roles: req.body.roles,
+    approvalRolePasswords: req.body.approvalRolePasswords,
+    existingHashes: existing.approvalRolePasswordHashes
+  });
+  const user = await UserModel.findByIdAndUpdate(
+    req.params.id,
+    { roles: req.body.roles, approvalRolePasswordHashes },
+    { new: true, runValidators: true }
+  ).select('+approvalRolePasswordHashes');
   if (!user) throw new ApiError(404, 'User not found.');
-  res.json(user);
+  res.json(publicUser(user));
 });
 
 export const resetPassword = asyncHandler(async (req, res) => {

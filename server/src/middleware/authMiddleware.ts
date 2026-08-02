@@ -3,12 +3,14 @@ import type { NextFunction, Request, Response } from 'express';
 import { env } from '../config/env.js';
 import { UserModel } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
+import { APPROVER_ROLES } from '../utils/constants.js';
 
 export type JwtPayload = {
   userId: string;
   email: string;
   roles: string[];
   activeRole?: string;
+  approvalRoleVerifiedAt?: number;
 };
 
 export function signAuthToken(payload: JwtPayload) {
@@ -30,6 +32,7 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
       email: user.email,
       roles: user.roles,
       activeRole: decoded.activeRole,
+      approvalRoleVerifiedAt: decoded.approvalRoleVerifiedAt,
       user
     };
     next();
@@ -41,5 +44,14 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
 export function requireActiveRole(req: Request, _res: Response, next: NextFunction) {
   const activeRole = (req as any).user?.activeRole;
   if (!activeRole) return next(new ApiError(403, 'Select an active role before continuing.'));
+  const session = (req as any).user;
+  if (session.roles.length > 1 && APPROVER_ROLES.includes(activeRole as any)) {
+    if (!session.approvalRoleVerifiedAt) {
+      return next(new ApiError(403, 'Approval role password verification is required.'));
+    }
+    if (session.approvalRoleVerifiedAt < session.user.updatedAt.getTime()) {
+      return next(new ApiError(403, 'Approval role password verification is expired.'));
+    }
+  }
   next();
 }

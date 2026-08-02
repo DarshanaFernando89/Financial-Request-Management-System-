@@ -3,11 +3,17 @@ import { UserModel } from '../models/User.js';
 import { signAuthToken } from '../middleware/authMiddleware.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
+import { APPROVER_ROLES } from '../utils/constants.js';
 import { notifyAdmins } from '../services/notificationService.js';
 import { writeAuditLog } from '../services/auditService.js';
 import { submitAccountRequest } from '../services/accountRequestService.js';
 
 function userPayload(user: any, activeRole?: string) {
+  const approvalRolePasswordHashes = user.approvalRolePasswordHashes as Map<string, string> | undefined;
+  const approvalRolePasswordConfiguredRoles = approvalRolePasswordHashes
+    ? Array.from(approvalRolePasswordHashes.keys()).filter((role) => APPROVER_ROLES.includes(role as any))
+    : undefined;
+
   return {
     _id: user._id,
     nameWithInitials: user.nameWithInitials,
@@ -22,9 +28,14 @@ function userPayload(user: any, activeRole?: string) {
     address: user.address,
     profileImageUrl: user.profileImageUrl,
     roles: user.roles,
+    approvalRolePasswordConfiguredRoles,
     activeRole,
     isActive: user.isActive
   };
+}
+
+function requiresApprovalRolePassword(roles: string[], role: string) {
+  return roles.length > 1 && APPROVER_ROLES.includes(role as any);
 }
 
 export const login = asyncHandler(async (req, res) => {
@@ -65,16 +76,34 @@ export const login = asyncHandler(async (req, res) => {
 });
 
 export const selectRole = asyncHandler(async (req, res) => {
-  const { role } = req.body;
+  const { role, approvalRolePassword } = req.body;
   const session = (req as any).user;
   if (!role) throw new ApiError(400, 'Role is required.');
   if (!session.roles.includes(role)) throw new ApiError(403, 'Selected role is not assigned to this user.');
+
+  let user = session.user;
+  let approvalRoleVerifiedAt: number | undefined;
+  if (requiresApprovalRolePassword(session.roles, role)) {
+    user = await UserModel.findById(session.userId).select('+approvalRolePasswordHashes');
+    if (!user) throw new ApiError(401, 'User account is inactive or unavailable.');
+
+    const approvalRolePasswordHash = (user as any).approvalRolePasswordHashes?.get(role);
+    if (!approvalRolePasswordHash) {
+      throw new ApiError(403, 'An administrator must set the approval password before this role can be selected.');
+    }
+    if (!approvalRolePassword) throw new ApiError(400, 'Approval role password is required.');
+
+    const isValid = await bcrypt.compare(String(approvalRolePassword), String(approvalRolePasswordHash));
+    if (!isValid) throw new ApiError(401, 'Invalid approval role password.');
+    approvalRoleVerifiedAt = Date.now();
+  }
 
   const token = signAuthToken({
     userId: session.userId,
     email: session.email,
     roles: session.roles,
-    activeRole: role
+    activeRole: role,
+    approvalRoleVerifiedAt
   });
 
   await writeAuditLog({
@@ -86,7 +115,7 @@ export const selectRole = asyncHandler(async (req, res) => {
     description: `Selected active role ${role}.`
   });
 
-  res.json({ token, user: userPayload(session.user, role) });
+  res.json({ token, user: userPayload(user, role) });
 });
 
 export const me = asyncHandler(async (req, res) => {

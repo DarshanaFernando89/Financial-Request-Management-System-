@@ -28,6 +28,12 @@ const userSchema = new Schema(
     address: { type: String, trim: true },
     profileImageUrl: { type: String, trim: true },
     roles: [{ type: String, required: true }],
+    approvalRolePasswordHashes: {
+      type: Map,
+      of: String,
+      select: false,
+      default: {}
+    },
     isActive: { type: Boolean, default: true }
   },
   {
@@ -35,6 +41,7 @@ const userSchema = new Schema(
     toJSON: {
       transform(_doc, ret) {
         delete ret.passwordHash;
+        delete ret.approvalRolePasswordHashes;
         delete ret.__v;
         return ret;
       }

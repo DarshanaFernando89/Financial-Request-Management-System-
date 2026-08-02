@@ -16,6 +16,7 @@ export type User = {
   address?: string;
   profileImageUrl?: string;
   roles: Role[];
+  approvalRolePasswordConfiguredRoles?: Role[];
   activeRole?: Role;
   isActive: boolean;
   createdAt?: string;

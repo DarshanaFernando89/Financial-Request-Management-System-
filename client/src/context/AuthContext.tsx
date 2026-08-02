@@ -8,8 +8,8 @@ type AuthContextValue = {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<LoginResponse>;
-  selectRole: (role: Role) => Promise<User>;
-  switchRole: (role: Role) => Promise<User>;
+  selectRole: (role: Role, approvalRolePassword?: string) => Promise<User>;
+  switchRole: (role: Role, approvalRolePassword?: string) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 };
@@ -54,8 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return response;
   }, []);
 
-  const selectRole = useCallback(async (role: Role) => {
-    const response = await authApi.selectRole(role);
+  const selectRole = useCallback(async (role: Role, approvalRolePassword?: string) => {
+    const response = await authApi.selectRole(role, approvalRolePassword);
     setAuthToken(response.token);
     setToken(response.token);
     setUser(response.user);
