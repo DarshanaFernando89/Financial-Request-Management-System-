@@ -6,10 +6,11 @@ import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
-import { ROLES } from '../../utils/constants';
+import { APPROVER_ROLES, ROLES } from '../../utils/constants';
 import { isPhoneNumber } from '../../utils/validation';
 import { roleLabel } from '../../utils/roleLabels';
 import type { Role, User } from '../../types/auth';
+import { PasswordInput } from '../ui/PasswordInput';
 
 type UserFormProps = {
   initial?: Partial<User>;
