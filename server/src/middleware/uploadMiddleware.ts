@@ -7,6 +7,7 @@ import { ApiError } from '../utils/ApiError.js';
 
 const uploadDir = path.resolve(env.uploadDir);
 fs.mkdirSync(uploadDir, { recursive: true });
+const uploadUrlBase = process.env.UPLOAD_URL_BASE || '/uploads';
 
 const allowedMimeTypes = new Set([
   'application/pdf',

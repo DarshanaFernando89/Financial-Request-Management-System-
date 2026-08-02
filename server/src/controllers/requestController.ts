@@ -36,7 +36,7 @@ function attachUploadedFile(req: any, request: any, description?: string) {
   request.documents.push({
     filename: req.file.filename,
     originalName: req.file.originalname,
-    fileUrl: `/uploads/${req.file.filename}`,
+    fileUrl: `${process.env.UPLOAD_URL_BASE || '/uploads'}/${req.file.filename}`,
     mimeType: req.file.mimetype,
     size: req.file.size,
     uploadedBy: req.user.userId,
@@ -76,7 +76,7 @@ function uploadedDocuments(req: any) {
   return normalizeUploadedFiles(req).map((file: any, index: number) => ({
     filename: file.filename,
     originalName: file.originalname,
-    fileUrl: `/uploads/${file.filename}`,
+    fileUrl: `${process.env.UPLOAD_URL_BASE || '/uploads'}/${file.filename}`,
     mimeType: file.mimetype,
     size: file.size,
     uploadedBy: req.user.userId,

@@ -70,9 +70,12 @@ JWT_SECRET=replace_with_secret
 JWT_EXPIRES_IN=7d
 CLIENT_URL=http://localhost:5173
 UPLOAD_DIR=uploads
+UPLOAD_URL_BASE=/uploads
 ENABLE_EMAIL_NOTIFICATIONS=false
 ENABLE_SMS_NOTIFICATIONS=false
 ```
+
+For shared multi-machine use, set UPLOAD_DIR to the same network-accessible folder on each server instance so uploaded documents are visible to all clients.
 
 Client default:
 
