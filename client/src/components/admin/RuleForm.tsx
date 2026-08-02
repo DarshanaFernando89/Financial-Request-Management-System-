@@ -26,7 +26,6 @@ export function RuleForm({
     minAmount: initial?.minAmount || 0,
     maxAmount: initial?.maxAmount ?? '',
     workflowRoles: initial?.workflowRoles || ['HOD'],
-    priority: initial?.priority || 100,
     isActive: initial?.isActive ?? true
   });
   const [error, setError] = useState('');
@@ -58,8 +57,7 @@ export function RuleForm({
       await onSubmit({
         ...form,
         minAmount: Number(form.minAmount),
-        maxAmount: form.maxAmount === '' ? null : Number(form.maxAmount),
-        priority: Number(form.priority)
+        maxAmount: form.maxAmount === '' ? null : Number(form.maxAmount)
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save rule.');
@@ -73,7 +71,6 @@ export function RuleForm({
           <Input label="Rule name" required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
           <Input label="Minimum amount" type="number" required value={form.minAmount} onChange={(event) => setForm({ ...form, minAmount: event.target.value })} />
           <Input label="Maximum amount" type="number" value={form.maxAmount} onChange={(event) => setForm({ ...form, maxAmount: event.target.value })} />
-          <Input label="Priority" type="number" value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })} />
         </div>
         <div>
           <p className="mb-2 text-sm font-semibold text-slate-700">Request types</p>

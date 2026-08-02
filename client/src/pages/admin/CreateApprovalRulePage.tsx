@@ -54,7 +54,6 @@ export function CreateApprovalRulePage() {
           minAmount: payload.minAmount,
           maxAmount: payload.maxAmount,
           workflowRoles: payload.workflowRoles,
-          priority: payload.priority,
           isActive: true
         });
         navigate('/admin/approval-rules');
