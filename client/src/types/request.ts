@@ -42,6 +42,9 @@ export type RequestDocument = {
   uploadedByRole?: Role;
   uploadedAt?: string;
   description?: string;
+  source?: 'INITIAL_SUBMISSION' | 'MANUAL_UPLOAD' | 'CLARIFICATION_RESPONSE';
+  clarificationRound?: number;
+  clarificationRespondedAt?: string;
 };
 
 export type WorkflowStep = {

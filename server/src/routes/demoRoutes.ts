@@ -545,7 +545,7 @@ function parseRequestDataBody(value: any) {
   return JSON.parse(value);
 }
 
-function demoUploadedDocuments(req: any, user: any) {
+function demoUploadedDocuments(req: any, user: any, options: { source?: string; clarificationRound?: number; clarificationRespondedAt?: string } = {}) {
   const descriptions = normalizeBodyList(req.body.documentDescriptions);
   const files = Array.isArray(req.files) ? req.files : [];
   return files.map((file: any, index: number) => ({
@@ -558,7 +558,10 @@ function demoUploadedDocuments(req: any, user: any) {
     uploadedBy: user._id,
     uploadedByRole: user.activeRole,
     uploadedAt: new Date().toISOString(),
-    description: descriptions[index]
+    description: descriptions[index],
+    source: options.source || 'INITIAL_SUBMISSION',
+    clarificationRound: options.clarificationRound,
+    clarificationRespondedAt: options.clarificationRespondedAt
   }));
 }
 
@@ -821,7 +824,13 @@ router.post('/requests/:id/respond-clarification', upload.array('files', 20), as
     .filter((document: any) => removedIds.has(String(document._id)))
     .map((document: any) => ({ filename: document.filename }));
   request.documents = request.documents.filter((document: any) => !removedIds.has(String(document._id)));
-  request.documents.push(...demoUploadedDocuments(req, user));
+  const clarificationRound = request.clarificationHistory.filter((entry: any) => entry.action === APPROVAL_ACTIONS.REQUEST_INFO).length || 1;
+  const clarificationRespondedAt = new Date().toISOString();
+  request.documents.push(...demoUploadedDocuments(req, user, {
+    source: 'CLARIFICATION_RESPONSE',
+    clarificationRound,
+    clarificationRespondedAt
+  }));
 
   const step = request.workflowSteps.find((item: any) => item.stepIndex === request.currentStepIndex);
   if (step) step.status = STEP_STATUSES.PENDING;
