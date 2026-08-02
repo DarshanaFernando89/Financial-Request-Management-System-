@@ -18,7 +18,6 @@ export type RuleWithTypePayload = {
   requiredDocuments: string;
   minAmount: number;
   maxAmount: number | null;
-  priority: number;
   workflowRoles: Role[];
 };
 
@@ -33,7 +32,6 @@ export function RuleWithTypeForm({
     requiredDocuments: '',
     minAmount: 0,
     maxAmount: null,
-    priority: 100,
     workflowRoles: ['HOD']
   });
   const [error, setError] = useState('');
@@ -61,8 +59,7 @@ export function RuleWithTypeForm({
         description: form.description.trim(),
         requiredDocuments: form.requiredDocuments.trim(),
         minAmount: Number(form.minAmount),
-        maxAmount: form.maxAmount === null ? null : Number(form.maxAmount),
-        priority: Number(form.priority)
+        maxAmount: form.maxAmount === null ? null : Number(form.maxAmount)
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save rule.');
@@ -93,7 +90,7 @@ export function RuleWithTypeForm({
           onChange={(event) => setForm({ ...form, requiredDocuments: event.target.value })}
           placeholder="Fuel receipt, approval note"
         />
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
           <Input
             label="Minimum amount"
             type="number"
@@ -106,12 +103,6 @@ export function RuleWithTypeForm({
             type="number"
             value={form.maxAmount ?? ''}
             onChange={(event) => setForm({ ...form, maxAmount: event.target.value === '' ? null : Number(event.target.value) })}
-          />
-          <Input
-            label="Priority"
-            type="number"
-            value={form.priority}
-            onChange={(event) => setForm({ ...form, priority: Number(event.target.value) })}
           />
         </div>
         <div>

@@ -58,8 +58,8 @@ export const adminApi = {
     const { data } = await apiClient.put<RequestType>(`/admin/request-types/${id}`, payload);
     return data;
   },
-  async accountRequests() {
-    const { data } = await apiClient.get('/account-requests');
+  async accountRequests(params?: Record<string, unknown>) {
+    const { data } = await apiClient.get('/account-requests', { params });
     return data.items;
   },
   async approveAccountRequest(id: string, payload: Record<string, unknown>) {

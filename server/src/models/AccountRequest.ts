@@ -4,9 +4,15 @@ import { ACCOUNT_REQUEST_STATUSES, ROLE_VALUES } from '../utils/constants.js';
 const accountRequestSchema = new Schema(
   {
     fullName: { type: String, required: true, trim: true },
+    nameWithInitials: { type: String, required: true, trim: true },
     email: { type: String, required: true, lowercase: true, trim: true },
+    employeeNo: { type: String, trim: true },
+    indexNo: { type: String, trim: true },
+    staffCategory: { type: String, required: true, trim: true },
     department: { type: String, required: true, trim: true },
     faculty: { type: String, required: true, trim: true },
+    contactNo: { type: String, trim: true },
+    address: { type: String, trim: true },
     requestedRole: { type: String, enum: ROLE_VALUES, required: true },
     message: { type: String, trim: true },
     status: {

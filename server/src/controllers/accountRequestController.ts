@@ -35,14 +35,17 @@ export const approveAccountRequest = asyncHandler(async (req, res) => {
 
   const password = req.body.password || 'Password123!';
   const user = await UserModel.create({
-    nameWithInitials: req.body.nameWithInitials || item.fullName,
+    nameWithInitials: item.nameWithInitials,
     fullName: item.fullName,
     email: item.email,
     passwordHash: await bcrypt.hash(password, 10),
-    employeeNo: req.body.employeeNo,
-    staffCategory: req.body.staffCategory || STAFF_CATEGORIES.NON_ACADEMIC,
+    employeeNo: item.employeeNo,
+    indexNo: item.indexNo,
+    staffCategory: item.staffCategory || STAFF_CATEGORIES.NON_ACADEMIC,
     department: item.department,
     faculty: item.faculty,
+    contactNo: item.contactNo,
+    address: item.address,
     roles: [item.requestedRole],
     isActive: true
   });

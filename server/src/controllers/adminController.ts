@@ -9,14 +9,87 @@ import { ApiError } from '../utils/ApiError.js';
 import { ROLES } from '../utils/constants.js';
 
 export const adminDashboard = asyncHandler(async (_req, res) => {
-  const [users, requests, pendingAccountRequests, pendingPayments, statusCounts] = await Promise.all([
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+  sixMonthsAgo.setDate(1);
+  sixMonthsAgo.setHours(0, 0, 0, 0);
+
+  const [
+    users,
+    activeUsers,
+    requests,
+    pendingAccountRequests,
+    pendingPayments,
+    statusCounts,
+    amountSummary,
+    monthlyTrend,
+    requestTypeBreakdown,
+    recentRequests
+  ] = await Promise.all([
     UserModel.countDocuments(),
+    UserModel.countDocuments({ isActive: true }),
     RequestModel.countDocuments(),
     AccountRequestModel.countDocuments({ status: 'PENDING' }),
     RequestModel.countDocuments({ status: 'PAYMENT_PENDING' }),
-    RequestModel.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }])
+    RequestModel.aggregate([
+      { $group: { _id: '$status', count: { $sum: 1 }, amount: { $sum: '$amount' } } },
+      { $sort: { count: -1 } }
+    ]),
+    RequestModel.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalAmount: { $sum: '$amount' },
+          averageAmount: { $avg: '$amount' },
+          paidAmount: { $sum: { $cond: [{ $eq: ['$status', 'PAID'] }, '$amount', 0] } },
+          pendingPaymentAmount: { $sum: { $cond: [{ $eq: ['$status', 'PAYMENT_PENDING'] }, '$amount', 0] } },
+          approvedAmount: { $sum: { $cond: [{ $eq: ['$status', 'APPROVED'] }, '$amount', 0] } }
+        }
+      }
+    ]),
+    RequestModel.aggregate([
+      { $match: { createdAt: { $gte: sixMonthsAgo } } },
+      {
+        $group: {
+          _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
+          count: { $sum: 1 },
+          amount: { $sum: '$amount' }
+        }
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1 } }
+    ]),
+    RequestModel.aggregate([
+      { $group: { _id: '$requestType', count: { $sum: 1 }, amount: { $sum: '$amount' } } },
+      { $sort: { count: -1 } },
+      { $limit: 5 },
+      { $lookup: { from: 'requesttypes', localField: '_id', foreignField: '_id', as: 'requestType' } },
+      { $unwind: { path: '$requestType', preserveNullAndEmptyArrays: true } },
+      { $project: { _id: 0, requestTypeId: '$_id', name: { $ifNull: ['$requestType.name', 'Unknown'] }, count: 1, amount: 1 } }
+    ]),
+    RequestModel.find()
+      .populate('requestType', 'name code')
+      .populate('requester', 'nameWithInitials department')
+      .sort({ createdAt: -1 })
+      .limit(5)
   ]);
-  res.json({ users, requests, pendingAccountRequests, pendingPayments, statusCounts });
+  res.json({
+    users,
+    activeUsers,
+    requests,
+    pendingAccountRequests,
+    pendingPayments,
+    statusCounts,
+    amountSummary: amountSummary[0] || {
+      totalAmount: 0,
+      averageAmount: 0,
+      paidAmount: 0,
+      pendingPaymentAmount: 0,
+      approvedAmount: 0
+    },
+    monthlyTrend,
+    requestTypeBreakdown,
+    recentRequests
+  });
 });
 
 async function assertNoConflictingRule(input: any, ignoreId?: string) {
