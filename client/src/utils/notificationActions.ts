@@ -62,7 +62,7 @@ export function getNotificationAction(notification: Notification, activeRole?: R
   if (!isAccountRequest) return undefined;
 
   return {
-    label: 'Open Admin Dashboard',
-    to: '/'
+    label: 'Review Account Request',
+    to: accountRequestId ? `/admin/users?accountRequest=${accountRequestId}` : '/admin/users'
   };
 }

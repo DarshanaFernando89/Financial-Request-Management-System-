@@ -582,9 +582,14 @@ async function seedNotificationsAndLogs(users: any[], requests: any[]) {
 
   await AccountRequestModel.create({
     fullName: 'Pending Staff Member',
+    nameWithInitials: 'P. S. Member',
     email: 'pending.staff@uor.lk',
+    employeeNo: 'EMP-PENDING',
+    staffCategory: STAFF_CATEGORIES.NON_ACADEMIC,
     department,
     faculty,
+    contactNo: '0712345678',
+    address: 'Faculty of Engineering, University of Ruhuna',
     requestedRole: ROLES.REQUESTER,
     message: 'Need access to submit reimbursements.',
     status: ACCOUNT_REQUEST_STATUSES.PENDING

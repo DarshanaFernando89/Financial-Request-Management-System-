@@ -471,9 +471,14 @@ const accountRequests: any[] = [
   {
     _id: 'account-request-1',
     fullName: 'Pending Staff Member',
+    nameWithInitials: 'P. S. Member',
     email: 'pending.staff@uor.lk',
+    employeeNo: 'EMP-PENDING',
+    staffCategory: STAFF_CATEGORIES.NON_ACADEMIC,
     department,
     faculty,
+    contactNo: '0712345678',
+    address: 'Faculty of Engineering, University of Ruhuna',
     requestedRole: ROLES.REQUESTER,
     message: 'Need access to submit reimbursements.',
     status: ACCOUNT_REQUEST_STATUSES.PENDING,
@@ -1051,12 +1056,36 @@ router.put('/admin/request-types/:id', (req, res) => {
   res.json(item);
 });
 
-router.get('/account-requests', (_req, res) => res.json({ items: accountRequests }));
+router.get('/account-requests', (req, res) => {
+  const items = req.query.status
+    ? accountRequests.filter((request) => request.status === req.query.status)
+    : accountRequests;
+  res.json({ items });
+});
 router.patch('/account-requests/:id/approve', (req, res) => {
   const item = accountRequests.find((request) => request._id === req.params.id);
   if (!item) return res.status(404).json({ message: 'Account request not found.' });
+  if (item.status !== ACCOUNT_REQUEST_STATUSES.PENDING) return res.status(422).json({ message: 'Account request has already been processed.' });
+  const user = {
+    _id: `user-${Date.now()}`,
+    nameWithInitials: item.nameWithInitials,
+    fullName: item.fullName,
+    email: item.email,
+    employeeNo: item.employeeNo,
+    indexNo: item.indexNo,
+    staffCategory: item.staffCategory,
+    department: item.department,
+    faculty: item.faculty,
+    contactNo: item.contactNo,
+    address: item.address,
+    roles: [item.requestedRole],
+    isActive: true,
+    createdAt: new Date().toISOString()
+  };
+  users.unshift(user);
   item.status = ACCOUNT_REQUEST_STATUSES.APPROVED;
-  res.json({ accountRequest: item });
+  item.adminRemarks = req.body.adminRemarks;
+  res.json({ accountRequest: item, user });
 });
 router.patch('/account-requests/:id/reject', (req, res) => {
   const item = accountRequests.find((request) => request._id === req.params.id);
