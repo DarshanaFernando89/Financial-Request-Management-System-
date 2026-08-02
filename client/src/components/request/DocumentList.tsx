@@ -7,19 +7,17 @@ import { Badge } from '../ui/Badge';
 export function DocumentList({ documents }: { documents: RequestDocument[] }) {
   if (!documents?.length) return <EmptyState title="No documents attached" />;
   const orderedDocuments = [...documents].sort((first, second) => {
-    if (first.source === 'CLARIFICATION_RESPONSE' && second.source !== 'CLARIFICATION_RESPONSE') return -1;
-    if (first.source !== 'CLARIFICATION_RESPONSE' && second.source === 'CLARIFICATION_RESPONSE') return 1;
-    return new Date(second.uploadedAt || 0).getTime() - new Date(first.uploadedAt || 0).getTime();
+    const firstTime = new Date(first.clarificationRespondedAt || first.uploadedAt || 0).getTime();
+    const secondTime = new Date(second.clarificationRespondedAt || second.uploadedAt || 0).getTime();
+    return secondTime - firstTime;
   });
 
   return (
     <div className="space-y-2">
-      {orderedDocuments.map((document) => (
+      {orderedDocuments.map((document, index) => (
         <a
           key={document._id || document.filename}
-          className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm hover:bg-slate-50 ${
-            document.source === 'CLARIFICATION_RESPONSE' ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-white'
-          }`}
+          className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50"
           href={document.fileUrl.startsWith('http') ? document.fileUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${document.fileUrl}`}
           target="_blank"
           rel="noreferrer"
@@ -32,9 +30,7 @@ export function DocumentList({ documents }: { documents: RequestDocument[] }) {
             </span>
           </span>
           <span className="flex shrink-0 items-center gap-2">
-            {document.source === 'CLARIFICATION_RESPONSE' && (
-              <Badge tone="blue">New clarification document{document.clarificationRound ? ` ${document.clarificationRound}` : ''}</Badge>
-            )}
+            <Badge tone="blue">#{orderedDocuments.length - index}</Badge>
             <span className="text-xs text-slate-500">{formatDate(document.clarificationRespondedAt || document.uploadedAt)}</span>
           </span>
         </a>
