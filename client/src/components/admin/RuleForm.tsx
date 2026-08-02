@@ -43,9 +43,8 @@ export function RuleForm({
 
       const values = [...(current.workflowRoles as string[])];
       const index = values.indexOf(value);
-      if (index >= 0) values.splice(index, 1);
-      else values.push(value);
-      return { ...current, workflowRoles: values };
+      if (index >= 0) return { ...current, workflowRoles: values.filter((item) => item !== value) };
+      return { ...current, workflowRoles: [...values, value] };
     });
   }
 
