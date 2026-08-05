@@ -6,7 +6,7 @@ export const authApi = {
     const { data } = await apiClient.post<LoginResponse>('/auth/login', { email, password });
     return data;
   },
-  async selectRole(role: Role, approvalRolePassword?: string) {
+    async selectRole(role: Role, approvalRolePassword?: string) {
     const { data } = await apiClient.post<{ token: string; user: User }>('/auth/select-role', { role, approvalRolePassword });
     return data;
   },
