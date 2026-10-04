@@ -1,7 +1,6 @@
 import type { Role } from '../types/auth';
 
 export const roleLabels: Record<string, string> = {
-  REQUESTER: 'Requester / Staff Member',
   LECTURER: 'Lecturer',
   HOD: 'Head of Department',
   DEAN: 'Dean',
@@ -9,6 +8,6 @@ export const roleLabels: Record<string, string> = {
   ADMIN: 'Admin'
 };
 
-export function roleLabel(role?: string) {
-  return role ? roleLabels[role as Role] || role : '';
+export function roleLabel(role?: string, labels?: Record<string, string>) {
+  return role && role !== 'REQUESTER' ? labels?.[role] || roleLabels[role as Role] || '' : '';
 }

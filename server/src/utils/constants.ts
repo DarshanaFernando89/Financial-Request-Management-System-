@@ -1,5 +1,4 @@
 export const ROLES = {
-  REQUESTER: 'REQUESTER',
   LECTURER: 'LECTURER',
   HOD: 'HOD',
   DEAN: 'DEAN',
@@ -10,7 +9,6 @@ export const ROLES = {
 export const ROLE_VALUES = Object.values(ROLES);
 
 export const ROLE_LABELS: Record<string, string> = {
-  [ROLES.REQUESTER]: 'Requester / Staff Member',
   [ROLES.LECTURER]: 'Lecturer',
   [ROLES.HOD]: 'Head of Department',
   [ROLES.DEAN]: 'Dean',
@@ -93,16 +91,18 @@ export const REQUEST_TYPE_CODES = {
   RESEARCH_ACADEMIC: 'RESEARCH_ACADEMIC'
 } as const;
 
-export const SUBMITTER_ROLES = [ROLES.REQUESTER, ROLES.LECTURER];
+export const SUBMITTER_ROLES = [ROLES.LECTURER];
 export const APPROVER_ROLES = [ROLES.HOD, ROLES.DEAN];
 export const FINANCE_ROLES = [ROLES.FINANCE_OFFICER];
 export const ADMIN_ROLES = [ROLES.ADMIN];
 
 export const DEFAULT_CURRENCY = 'LKR';
 
-export function sanitizeAssignedRoles(roles: string[] = []) {
-  const supportedRoles = new Set<string>(ROLE_VALUES);
-  const uniqueRoles = Array.from(new Set(roles.map(String).filter((role) => supportedRoles.has(role))));
-  if (uniqueRoles.length <= 1) return uniqueRoles;
-  return uniqueRoles.filter((role) => role !== ROLES.REQUESTER);
+export function sanitizeAssignedRoles(roles: string[] = [], availableRoles: string[] = ROLE_VALUES) {
+  const supportedRoles = new Set<string>(availableRoles.filter((role) => role !== 'REQUESTER'));
+  return Array.from(new Set(roles.map(String).filter((role) => supportedRoles.has(role))));
 }
+
+export const RETIRED_ROLE_CODES = ['REQUESTER'];
+// Accept old history records without making retired roles assignable again.
+export const HISTORICAL_ROLE_VALUES = [...ROLE_VALUES, ...RETIRED_ROLE_CODES];

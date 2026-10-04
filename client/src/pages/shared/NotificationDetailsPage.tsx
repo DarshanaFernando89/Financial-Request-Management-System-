@@ -24,7 +24,7 @@ export function NotificationDetailsPage() {
     });
   }, [id]);
   if (!notification) return null;
-  const action = getNotificationAction(notification, user?.activeRole);
+  const action = getNotificationAction(notification, user?.activeRole, user?.approvalRoles);
   return (
     <div className="space-y-5">
       <Card>

@@ -2,6 +2,7 @@ import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
 import { RequestModel } from '../models/Request.js';
 import { PaymentModel } from '../models/Payment.js';
+import { ROLE_LABELS } from '../utils/constants.js';
 
 export function buildReportFilter(query: any) {
   const filter: any = {};
@@ -136,7 +137,7 @@ export async function buildPaymentReceiptPdfBuffer(request: any, documents: any[
     workflow.forEach((step: any, index: number) => {
       const actedAt = step.actedAt ? new Date(step.actedAt).toLocaleString() : 'N/A';
       doc.fontSize(11).text(
-        `${index + 1}. ${step.role || 'Unknown role'} - ${step.stepType || 'Step'} - ${step.status || 'Unknown status'}`
+        `${index + 1}. ${ROLE_LABELS[step.role] || '-'} - ${step.stepType || 'Step'} - ${step.status || 'Unknown status'}`
       );
       doc.fontSize(10).fillColor('gray').text(`   Acted At: ${actedAt}`);
       if (step.remarks) doc.text(`   Remarks: ${step.remarks}`);
@@ -153,7 +154,7 @@ export async function buildPaymentReceiptPdfBuffer(request: any, documents: any[
     request.approvalHistory.forEach((entry: any, index: number) => {
       const createdAt = entry.createdAt ? new Date(entry.createdAt).toLocaleString() : 'N/A';
       doc.fontSize(11).text(
-        `${index + 1}. ${entry.role || 'Role'} - ${entry.action || 'Action'} - ${createdAt}`
+        `${index + 1}. ${ROLE_LABELS[entry.role] || '-'} - ${entry.action || 'Action'} - ${createdAt}`
       );
       if (entry.remarks) doc.fontSize(10).fillColor('gray').text(`   Remarks: ${entry.remarks}`);
       doc.moveDown(0.3);

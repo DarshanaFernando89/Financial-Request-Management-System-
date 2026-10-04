@@ -9,6 +9,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "seed": "tsx src/seed/seed.ts",
+    "migrate:remove-requester-role": "tsx src/scripts/removeRequesterRole.ts",
     "test": "vitest run"
   },
   "dependencies": {

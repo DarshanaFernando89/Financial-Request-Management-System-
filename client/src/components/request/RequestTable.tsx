@@ -4,11 +4,12 @@ import { EmptyState } from '../ui/EmptyState';
 import { Table } from '../ui/Table';
 import { RequestStatusBadge } from './RequestStatusBadge';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { formatDate } from '../../utils/formatDate';
-import { roleLabel } from '../../utils/roleLabels';
+import { useRoleLabel } from '../../hooks/useRoleLabel';
+import { formatDateTime } from '../../utils/formatDateTime';
 import type { FinancialRequest, RequestType } from '../../types/request';
 
 export function RequestTable({ requests, reviewBase = '/requests' }: { requests: FinancialRequest[]; reviewBase?: string }) {
+  const label = useRoleLabel();
   if (!requests.length) return <EmptyState title="No requests found" />;
   return (
     <Table
@@ -18,9 +19,9 @@ export function RequestTable({ requests, reviewBase = '/requests' }: { requests:
         { key: 'type', header: 'Type', render: (row) => (row.requestType as RequestType)?.name || '-' },
         { key: 'requester', header: 'Requester', render: (row) => row.requesterSnapshot?.name || '-' },
         { key: 'amount', header: 'Amount', render: (row) => formatCurrency(row.amount, row.currency) },
-        { key: 'date', header: 'Submitted', render: (row) => formatDate(row.submittedAt || row.createdAt) },
+        { key: 'date', header: 'Submitted', render: (row) => formatDateTime(row.submittedAt || row.createdAt) },
         { key: 'status', header: 'Status', render: (row) => <RequestStatusBadge status={row.status} /> },
-        { key: 'owner', header: 'Current Owner', render: (row) => roleLabel(row.currentAssignedRole) || '-' },
+        { key: 'owner', header: 'Current Owner', render: (row) => label(row.currentAssignedRole) || '-' },
         {
           key: 'actions',
           header: 'Actions',

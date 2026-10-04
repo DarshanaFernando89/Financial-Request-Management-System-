@@ -29,6 +29,7 @@ export type RequestType = {
   fields: RequestField[];
   requiredDocuments: string[];
   isActive: boolean;
+  isVisibleToRequester?: boolean;
 };
 
 export type RequestDocument = {
@@ -82,6 +83,7 @@ export type FinancialRequest = {
     roleAtSubmission: Role;
   };
   requestType: string | RequestType;
+  approvalRule?: string;
   title: string;
   description?: string;
   amount: number;

@@ -22,7 +22,7 @@ export function RequestAccountPage() {
     faculty: 'Faculty of Engineering, University of Ruhuna',
     contactNo: '',
     address: '',
-    requestedRole: 'REQUESTER',
+    requestedRole: '',
     message: ''
   });
   const [message, setMessage] = useState('');
@@ -75,7 +75,7 @@ export function RequestAccountPage() {
         faculty: 'Faculty of Engineering, University of Ruhuna',
         contactNo: '',
         address: '',
-        requestedRole: 'REQUESTER',
+        requestedRole: '',
         message: ''
       });
     } catch (err) {

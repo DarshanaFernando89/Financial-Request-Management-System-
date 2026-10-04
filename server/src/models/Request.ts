@@ -3,40 +3,42 @@ import {
   DEFAULT_CURRENCY,
   REQUEST_STATUS_VALUES,
   REQUEST_STATUSES,
-  ROLE_VALUES,
   STEP_STATUSES,
   STEP_TYPES
 } from '../utils/constants.js';
 
 const documentSchema = new Schema(
   {
+    _id: { type: String, required: true },
     filename: String,
     originalName: String,
     fileUrl: String,
     mimeType: String,
     size: Number,
     uploadedBy: { type: Schema.Types.ObjectId, ref: 'User' },
-    uploadedByRole: { type: String, enum: ROLE_VALUES },
+    uploadedByRole: { type: String },
     uploadedAt: { type: Date, default: Date.now },
     description: String,
     source: { type: String, enum: ['INITIAL_SUBMISSION', 'MANUAL_UPLOAD', 'CLARIFICATION_RESPONSE'], default: 'INITIAL_SUBMISSION' },
     clarificationRound: Number,
-    clarificationRespondedAt: Date
+    clarificationRespondedAt: Date,
+    storageType: { type: String, enum: ['db', 'disk'], default: 'db' },
+    fileBuffer: { type: Buffer, default: undefined }
   },
-  { _id: true }
+  { _id: false }
 );
 
 const workflowStepSchema = new Schema(
   {
     stepIndex: Number,
-    role: { type: String, enum: ROLE_VALUES, required: true },
+    role: { type: String, required: true },
     assignedUser: { type: Schema.Types.ObjectId, ref: 'User' },
     stepType: { type: String, enum: Object.values(STEP_TYPES), required: true },
     status: { type: String, enum: Object.values(STEP_STATUSES), default: STEP_STATUSES.WAITING },
     action: String,
     remarks: String,
     actedBy: { type: Schema.Types.ObjectId, ref: 'User' },
-    actedByRole: { type: String, enum: ROLE_VALUES },
+    actedByRole: { type: String },
     actedAt: Date
   },
   { _id: true }
@@ -45,7 +47,7 @@ const workflowStepSchema = new Schema(
 const historySchema = new Schema(
   {
     action: String,
-    role: { type: String, enum: ROLE_VALUES },
+    role: { type: String },
     user: { type: Schema.Types.ObjectId, ref: 'User' },
     remarks: String,
     fromStatus: String,
@@ -68,6 +70,7 @@ const requestSchema = new Schema(
       roleAtSubmission: String
     },
     requestType: { type: Schema.Types.ObjectId, ref: 'RequestType', required: true },
+    approvalRule: { type: Schema.Types.ObjectId, ref: 'ApprovalRule' },
     title: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
     amount: { type: Number, required: true, min: 0 },
@@ -77,9 +80,9 @@ const requestSchema = new Schema(
     status: { type: String, enum: REQUEST_STATUS_VALUES, default: REQUEST_STATUSES.DRAFT },
     currentStepIndex: { type: Number, default: -1 },
     workflowSteps: [workflowStepSchema],
-    currentAssignedRole: { type: String, enum: ROLE_VALUES },
+    currentAssignedRole: { type: String },
     currentAssignedUser: { type: Schema.Types.ObjectId, ref: 'User' },
-    previousAssignedRoleWhenInfoRequested: { type: String, enum: ROLE_VALUES },
+    previousAssignedRoleWhenInfoRequested: { type: String },
     approvalHistory: [historySchema],
     clarificationHistory: [historySchema],
     rejectionReason: String,

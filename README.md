@@ -15,6 +15,8 @@ The written specification is treated as the source of truth. Approval thresholds
 - Role-based dashboards for Lecturers, Approvers, Finance Officer, and Admin.
 - Dynamic request types with custom fields and required documents.
 - Configurable approval rules stored in MongoDB.
+- Approval rule creation and editing offer active custom roles from Role Management using their display names and preserve the selected workflow order.
+- Requester claim choices use the exact active approval rule names from the admin dashboard; rules with multiple request types offer a second selection for the claim form.
 - Sequential workflow engine with verification, approval, finance review, final approval, and payment steps.
 - Request More Info flow that returns to the same actor/role after requester response.
 - Rejection and resubmission with revision tracking.
@@ -23,6 +25,7 @@ The written specification is treated as the source of truth. Approval thresholds
 - In-app notifications plus email/SMS-ready service stubs.
 - Audit logging for important system actions.
 - Admin user, role, account request, approval rule, and request type management.
+- Admin can assign active system and custom roles when creating or editing users. Custom roles retain their display names in profiles and sessions and use the approver dashboard for claims assigned to them. Multi-role accounts require separate approval-role passwords for custom approver roles, as they do for HoD and Dean.
 - PDF and Excel report export.
 - Basic backend tests and TypeScript build verification.
 
@@ -69,9 +72,12 @@ JWT_SECRET=replace_with_secret
 JWT_EXPIRES_IN=7d
 CLIENT_URL=http://localhost:5173
 UPLOAD_DIR=uploads
+UPLOAD_URL_BASE=/uploads
 ENABLE_EMAIL_NOTIFICATIONS=false
 ENABLE_SMS_NOTIFICATIONS=false
 ```
+
+For shared multi-machine use, set UPLOAD_DIR to the same network-accessible folder on each server instance so uploaded documents are visible to all clients.
 
 Client default:
 
@@ -132,6 +138,19 @@ npm.cmd --prefix server test
 npm.cmd --prefix client run build
 ```
 
+## Existing Account Role Migration
+
+Available roles are Lecturer, Head of Department, Dean, Finance Officer, and Admin. Profiles, sessions, and user management use the same supported role list.
+
+For an existing database containing the retired `REQUESTER` role, preview the cleanup, then apply it:
+
+```powershell
+npm.cmd --prefix server run migrate:remove-requester-role
+npm.cmd --prefix server run migrate:remove-requester-role -- --apply
+```
+
+The migration preserves supported assignments and assigns Lecturer when removing `REQUESTER` would leave an account without a supported role. Before updating accounts, it saves their previous assignments under `server/.local/role-migrations/`, which is excluded from Git. Repeating the migration leaves already migrated accounts unchanged.
+
 ## Default Login Credentials
 
 All seed users use:
@@ -147,6 +166,32 @@ Password123!
 | HoD | hod@uor.lk |
 | Dean | dean@uor.lk |
 | Finance Officer | finance@uor.lk |
+
+## Current Database Accounts
+
+Verified on 4 October 2026 against the configured development database after the requester-role migration. This snapshot includes manually created accounts; reseeding does not recreate every account below.
+
+All 15 accounts are marked active, and each login password was verified as `Password123!`.
+
+| Account email | Available roles | Login access |
+| --- | --- | --- |
+| admin@uor.lk | Admin | Available |
+| lecturer@uor.lk | Lecturer | Available |
+| hod@uor.lk | Head of Department, Lecturer | Available |
+| dean@uor.lk | Dean, Lecturer | Available |
+| finance@uor.lk | Finance Officer | Available |
+| multirole@uor.lk | Lecturer, Head of Department | Available |
+| requester@uor.lk | Lecturer | Available |
+| coordinator@uor.lk | Lecturer | Available |
+| jayathu@uor.lk | Lecturer | Available |
+| bandara@uor.lk | Lecturer | Available |
+| yamuna@uor.lk | Lecturer | Available |
+| tharuu@uor.lk | Lecturer | Available |
+| tygfaf@uor.lk | Lecturer | Available |
+| approving.authority@uor.lk | No supported role | Blocked until a supported role is assigned |
+| finance.division@uor.lk | No supported role | Blocked until a supported role is assigned |
+
+Selecting Head of Department or Dean on a multi-role account requires a separate approval-role password. The configured approval-role passwords for `hod@uor.lk` and `dean@uor.lk` differ from `Password123!` and cannot be recovered from their stored hashes. The Head of Department approval-role password for `multirole@uor.lk` is not configured; an Admin must set it before that role can be selected.
 
 ## API Overview
 
@@ -166,6 +211,8 @@ Base URL: `http://localhost:5000/api`
 ## Workflow Summary
 
 When a request is submitted, the backend finds the highest-priority active approval rule matching request type and amount. It generates only the actual workflow steps for that request and appends Finance Officer as the payment step automatically.
+
+New requests save the requester's selected approval rule, including when saved as drafts. Submission validates that this rule is still active and supports the selected request type and amount. Existing requests without a selected rule continue to use automatic rule matching.
 
 Examples from seed data:
 

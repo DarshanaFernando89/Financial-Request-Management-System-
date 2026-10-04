@@ -38,7 +38,8 @@ export function CreateApprovalRulePage() {
         .map((value) => value.trim())
         .filter(Boolean),
       fields: [],
-      isActive: true
+      isActive: true,
+      isVisibleToRequester: true
     });
   }
 

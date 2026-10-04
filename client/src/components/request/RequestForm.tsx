@@ -2,7 +2,8 @@ import { FileText, Save, Send, X } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { requestApi } from '../../api/requestApi';
-import type { RequestField, RequestType } from '../../types/request';
+import type { RequestField } from '../../types/request';
+import type { RequestRuleOption } from '../../types/rule';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { FileUpload } from '../ui/FileUpload';
@@ -42,7 +43,9 @@ function FieldControl({ field, value, onChange }: { field: RequestField; value: 
 }
 
 export function RequestForm() {
-  const [types, setTypes] = useState<RequestType[]>([]);
+  const [rules, setRules] = useState<RequestRuleOption[]>([]);
+  const [approvalRule, setApprovalRule] = useState('');
+  const [loadingRules, setLoadingRules] = useState(true);
   const [requestType, setRequestType] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -55,10 +58,11 @@ export function RequestForm() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    requestApi.types().then(setTypes).catch((err) => setError(err.message));
+    requestApi.rules().then(setRules).catch((err) => setError(err.message)).finally(() => setLoadingRules(false));
   }, []);
 
-  const selectedType = useMemo(() => types.find((type) => type._id === requestType), [requestType, types]);
+  const selectedRule = useMemo(() => rules.find((rule) => rule._id === approvalRule), [approvalRule, rules]);
+  const selectedType = useMemo(() => selectedRule?.requestTypes.find((type) => type._id === requestType), [requestType, selectedRule]);
 
   useEffect(() => {
     const calculated = dynamicAmount(requestData);
@@ -85,6 +89,7 @@ export function RequestForm() {
     if (!files.length) {
       return {
         requestType,
+        approvalRule,
         title,
         description,
         amount: Number(amount),
@@ -95,6 +100,7 @@ export function RequestForm() {
 
     const formData = new FormData();
     formData.append('requestType', requestType);
+    formData.append('approvalRule', approvalRule);
     formData.append('title', title);
     formData.append('description', description);
     formData.append('amount', String(Number(amount)));
@@ -110,6 +116,19 @@ export function RequestForm() {
   async function submit(event: FormEvent, shouldSubmit: boolean) {
     event.preventDefault();
     setError('');
+    if (!selectedRule || !selectedType) {
+      setError('Please select a claim type and its request type.');
+      return;
+    }
+    const requestAmount = Number(amount);
+    if (!Number.isFinite(requestAmount) || requestAmount <= 0) {
+      setError('Amount must be positive.');
+      return;
+    }
+    if (requestAmount < selectedRule.minAmount || (selectedRule.maxAmount != null && requestAmount > selectedRule.maxAmount)) {
+      setError(`Amount must be within the range for ${selectedRule.name}: ${selectedRule.minAmount} - ${selectedRule.maxAmount ?? 'No upper limit'}.`);
+      return;
+    }
     if (shouldSubmit && selectedType?.requiredDocuments?.length) {
       const missingDocuments = selectedType.requiredDocuments.filter((_, index) => !requiredFiles[index]);
       if (missingDocuments.length) {
@@ -133,6 +152,29 @@ export function RequestForm() {
       <Card className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <Select
+            label="Claim Type"
+            value={approvalRule}
+            required
+            disabled={loadingRules || !rules.length}
+            onChange={(event) => {
+              const rule = rules.find((item) => item._id === event.target.value);
+              setApprovalRule(event.target.value);
+              setRequestType(rule?.requestTypes.length === 1 ? rule.requestTypes[0]._id : '');
+              setRequestData({});
+              setRequiredFiles({});
+              setAdditionalFiles([]);
+            }}
+            options={rules.map((rule) => ({ label: rule.name, value: rule._id }))}
+          />
+          <Input label="Amount" type="number" min={Math.max(selectedRule?.minAmount ?? 0, 0.01)} max={selectedRule?.maxAmount ?? undefined} step="0.01" value={amount} required onChange={(event) => setAmount(event.target.value)} />
+        </div>
+        {loadingRules && <p className="text-sm text-slate-500">Loading claim types...</p>}
+        {!loadingRules && !rules.length && !error && <p className="text-sm text-slate-500">No active claim types are available. Please contact the administrator.</p>}
+        {selectedRule && (
+          <p className="text-sm text-slate-500">Amount range: {selectedRule.minAmount} - {selectedRule.maxAmount ?? 'No upper limit'}</p>
+        )}
+        {selectedRule && selectedRule.requestTypes.length > 1 && (
+          <Select
             label="Request Type"
             value={requestType}
             required
@@ -142,10 +184,9 @@ export function RequestForm() {
               setRequiredFiles({});
               setAdditionalFiles([]);
             }}
-            options={types.map((type) => ({ label: type.name, value: type._id }))}
+            options={selectedRule.requestTypes.map((type) => ({ label: type.name, value: type._id }))}
           />
-          <Input label="Amount" type="number" min="0" step="0.01" value={amount} required onChange={(event) => setAmount(event.target.value)} />
-        </div>
+        )}
         <Input label="Title" value={title} required onChange={(event) => setTitle(event.target.value)} />
         <Textarea label="Description" value={description} onChange={(event) => setDescription(event.target.value)} />
       </Card>
@@ -213,10 +254,10 @@ export function RequestForm() {
 
       {error && <p className="rounded-md bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</p>}
       <div className="flex flex-wrap justify-end gap-3">
-        <Button variant="outline" icon={<Save size={16} />} disabled={saving} onClick={(event) => void submit(event as unknown as FormEvent, false)}>
+        <Button variant="outline" icon={<Save size={16} />} disabled={saving || loadingRules || !rules.length} onClick={(event) => void submit(event as unknown as FormEvent, false)}>
           Save as Draft
         </Button>
-        <Button type="submit" icon={<Send size={16} />} disabled={saving}>
+        <Button type="submit" icon={<Send size={16} />} disabled={saving || loadingRules || !rules.length}>
           Submit Request
         </Button>
       </div>

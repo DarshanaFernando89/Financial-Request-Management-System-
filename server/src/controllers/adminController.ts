@@ -6,7 +6,8 @@ import { AccountRequestModel } from '../models/AccountRequest.js';
 import { CustomRoleModel } from '../models/CustomRole.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
-import { ROLE_LABELS, ROLES } from '../utils/constants.js';
+import { RETIRED_ROLE_CODES, ROLE_LABELS, ROLES } from '../utils/constants.js';
+import { validateWorkflowRoleFields } from '../services/workflowRoleService.js';
 
 export const adminDashboard = asyncHandler(async (_req, res) => {
   const sixMonthsAgo = new Date();
@@ -128,12 +129,14 @@ export const listApprovalRules = asyncHandler(async (_req, res) => {
 
 export const createApprovalRule = asyncHandler(async (req, res) => {
   validateRuleBody(req.body);
+  await validateWorkflowRoleFields(req.body);
   await assertNoConflictingRule(req.body);
   const item = await ApprovalRuleModel.create(req.body);
   res.status(201).json(await item.populate('requestTypes'));
 });
 
 export const updateApprovalRule = asyncHandler(async (req, res) => {
+  await validateWorkflowRoleFields(req.body);
   if (req.body.workflowRoles?.includes(ROLES.FINANCE_OFFICER)) {
     throw new ApiError(400, 'Finance Officer cannot be configured as a normal approval step.');
   }
@@ -149,6 +152,7 @@ export const updateApprovalRule = asyncHandler(async (req, res) => {
 export const activateApprovalRule = asyncHandler(async (req, res) => {
   const item = await ApprovalRuleModel.findById(String(req.params.id));
   if (!item) throw new ApiError(404, 'Approval rule not found.');
+  await validateWorkflowRoleFields(item);
   await assertNoConflictingRule(item.toObject(), item._id.toString());
   item.isActive = true;
   await item.save();
@@ -242,7 +246,7 @@ export const listRoles = asyncHandler(async (_req, res) => {
   });
 
   const customOnlyRoles = customRoles
-    .filter((role: any) => !isSystemRoleCode(role.code) && role.isActive !== false)
+    .filter((role: any) => !isSystemRoleCode(role.code) && !RETIRED_ROLE_CODES.includes(role.code) && role.isActive !== false)
     .map((role: any) => ({ ...role.toObject(), isSystem: false }));
 
   res.json({ items: [...systemRoles, ...customOnlyRoles] });
@@ -252,6 +256,7 @@ export const createRole = asyncHandler(async (req, res) => {
   const code = normalizeRoleCode(String(req.body.code || req.body.displayName || ''));
   if (!code || !req.body.displayName) throw new ApiError(400, 'Role code and display name are required.');
   if (code === ROLES.ADMIN) throw new ApiError(403, 'Admin role already exists and cannot be created.');
+  if (RETIRED_ROLE_CODES.includes(code)) throw new ApiError(400, 'This role is no longer available.');
 
   if (isSystemRoleCode(code)) {
     const item = await CustomRoleModel.findOneAndUpdate(
@@ -278,6 +283,9 @@ export const createRole = asyncHandler(async (req, res) => {
 });
 
 export const updateRole = asyncHandler(async (req, res) => {
+  if (req.body.code && RETIRED_ROLE_CODES.includes(normalizeRoleCode(String(req.body.code)))) {
+    throw new ApiError(400, 'This role is no longer available.');
+  }
   const item = await CustomRoleModel.findByIdAndUpdate(String(req.params.id), req.body, { new: true, runValidators: true });
   if (!item) throw new ApiError(404, 'Role not found.');
   res.json(item);

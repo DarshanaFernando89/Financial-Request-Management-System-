@@ -7,13 +7,14 @@ import { canAdmin, isPrivilegedReader } from '../utils/permissions.js';
 import { createRequestForUser } from '../services/requestService.js';
 import {
   getRequestByIdOrRequestId,
+  findMatchingRule,
   initializeWorkflow,
   restartWorkflowForResubmission,
   returnFromClarification
 } from '../services/workflowService.js';
 import { notifyRole, notifyUser } from '../services/notificationService.js';
 import { writeAuditLog } from '../services/auditService.js';
-import { deleteUploadedFiles } from '../services/fileService.js';
+import { buildStoredDocumentData, deleteUploadedFiles } from '../services/fileService.js';
 
 function requestFilterFromQuery(query: any) {
   const filter: any = {};
@@ -33,16 +34,9 @@ function requestFilterFromQuery(query: any) {
 
 function attachUploadedFile(req: any, request: any, description?: string) {
   if (!req.file) return;
+  const documentId = `${req.user.userId}-${Date.now()}-${Math.round(Math.random() * 100000)}`;
   request.documents.push({
-    filename: req.file.filename,
-    originalName: req.file.originalname,
-    fileUrl: `/uploads/${req.file.filename}`,
-    mimeType: req.file.mimetype,
-    size: req.file.size,
-    uploadedBy: req.user.userId,
-    uploadedByRole: req.user.activeRole,
-    uploadedAt: new Date(),
-    description,
+    ...buildStoredDocumentData(req.file, documentId, req.user, description),
     source: 'MANUAL_UPLOAD'
   });
 }
@@ -77,20 +71,15 @@ function uploadedDocuments(
   options: { source?: 'INITIAL_SUBMISSION' | 'MANUAL_UPLOAD' | 'CLARIFICATION_RESPONSE'; clarificationRound?: number; clarificationRespondedAt?: Date } = {}
 ) {
   const descriptions = normalizeBodyList(req.body.documentDescriptions);
-  return normalizeUploadedFiles(req).map((file: any, index: number) => ({
-    filename: file.filename,
-    originalName: file.originalname,
-    fileUrl: `/uploads/${file.filename}`,
-    mimeType: file.mimetype,
-    size: file.size,
-    uploadedBy: req.user.userId,
-    uploadedByRole: req.user.activeRole,
-    uploadedAt: new Date(),
-    description: descriptions[index],
-    source: options.source || 'INITIAL_SUBMISSION',
-    clarificationRound: options.clarificationRound,
-    clarificationRespondedAt: options.clarificationRespondedAt
-  }));
+  return normalizeUploadedFiles(req).map((file: any, index: number) => {
+    const documentId = `${req.user.userId}-${Date.now()}-${Math.round(Math.random() * 100000)}-${index}`;
+    return {
+      ...buildStoredDocumentData(file, documentId, req.user, descriptions[index]),
+      source: options.source || 'INITIAL_SUBMISSION',
+      clarificationRound: options.clarificationRound,
+      clarificationRespondedAt: options.clarificationRespondedAt
+    };
+  });
 }
 
 function parseRequestData(value: unknown) {
@@ -114,7 +103,7 @@ export const listRequests = asyncHandler(async (req, res) => {
   const filter = requestFilterFromQuery(req.query);
 
   if (!canAdmin(session.activeRole)) {
-    if (isPrivilegedReader(session.activeRole)) {
+    if (isPrivilegedReader(session.activeRole, session.approvalRoles)) {
       filter.$or = [
         ...(filter.$or || []),
         { currentAssignedRole: session.activeRole },
@@ -151,14 +140,29 @@ export const getRequest = asyncHandler(async (req, res) => {
   res.json(request);
 });
 
+export const downloadDocument = asyncHandler(async (req, res) => {
+  const request = await RequestModel.findOne({ 'documents._id': req.params.documentId });
+  if (!request) throw new ApiError(404, 'Document not found.');
+
+  const document = request.documents.find((item: any) => item._id.toString() === req.params.documentId);
+  if (!document || !document.fileBuffer) throw new ApiError(404, 'Document content is unavailable.');
+
+  res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
+  res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(document.originalName || document.filename || 'document')}"`);
+  res.send(document.fileBuffer);
+});
+
 export const createRequest = asyncHandler(async (req, res) => {
   const session = (req as any).user;
-  const { requestType, title, description, amount, requestData, submit } = req.body;
+  const { requestType, approvalRule, title, description, amount, requestData, submit } = req.body;
   if (!requestType || !title || amount === undefined) throw new ApiError(400, 'Request type, title, and amount are required.');
-  if (Number(amount) <= 0) throw new ApiError(400, 'Amount must be positive.');
+  if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) throw new ApiError(400, 'Amount must be positive.');
 
   const type = await RequestTypeModel.findById(requestType);
   if (!type || !type.isActive) throw new ApiError(422, 'Request type is inactive or unavailable.');
+  if (approvalRule && !await findMatchingRule(requestType, Number(amount), approvalRule)) {
+    throw new ApiError(422, 'The selected approval rule is unavailable or does not match this request type and amount.');
+  }
 
   const documents = uploadedDocuments(req);
   const missingDocuments = parseBoolean(submit)
@@ -172,6 +176,7 @@ export const createRequest = asyncHandler(async (req, res) => {
     userId: session.userId,
     activeRole: session.activeRole,
     requestType,
+    approvalRule,
     title,
     description,
     amount: Number(amount),
@@ -210,7 +215,7 @@ export const updateRequest = asyncHandler(async (req, res) => {
     throw new ApiError(422, 'Only drafts or rejected requests can be edited.');
   }
 
-  const allowed = ['requestType', 'title', 'description', 'amount', 'requestData'];
+  const allowed = ['requestType', 'approvalRule', 'title', 'description', 'amount', 'requestData'];
   for (const key of allowed) {
     if (req.body[key] !== undefined) (request as any)[key] = req.body[key];
   }
@@ -291,7 +296,7 @@ export const respondClarification = asyncHandler(async (req, res) => {
 
   const removedDocuments = request.documents
     .filter((document: any) => removeDocumentIds.has(document._id.toString()))
-    .map((document: any) => ({ filename: document.filename }));
+    .map((document: any) => ({ filename: document.filename, storageType: document.storageType }));
   if (removeDocumentIds.size) {
     request.documents = request.documents.filter((document: any) => !removeDocumentIds.has(document._id.toString())) as any;
   }

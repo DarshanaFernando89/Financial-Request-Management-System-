@@ -3,20 +3,24 @@ import { UserModel } from '../models/User.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { writeAuditLog } from '../services/auditService.js';
-import { APPROVER_ROLES, ROLES, sanitizeAssignedRoles } from '../utils/constants.js';
+import { ROLES } from '../utils/constants.js';
+import { getRoleCatalog, roleCatalogMetadata, rolesFromCatalog, validateAssignedRoles, type RoleCatalogItem } from '../services/roleCatalogService.js';
+import { parseProfileUpdate } from '../utils/profileValidation.js';
 
-function configuredApprovalRolePasswords(user: any) {
+function configuredApprovalRolePasswords(user: any, approvalRoles: string[]) {
   const hashes = user.approvalRolePasswordHashes as Map<string, string> | undefined;
-  return hashes ? Array.from(hashes.keys()).filter((role) => APPROVER_ROLES.includes(role as any)) : [];
+  return hashes ? Array.from(hashes.keys()).filter((role) => approvalRoles.includes(role)) : [];
 }
 
-function publicUser(user: any) {
+async function publicUser(user: any, catalog?: RoleCatalogItem[]) {
+  const available = catalog || await getRoleCatalog();
   const object = typeof user.toObject === 'function' ? user.toObject() : { ...user };
   delete object.passwordHash;
   delete object.approvalRolePasswordHashes;
   delete object.__v;
-  object.roles = sanitizeAssignedRoles(object.roles);
-  object.approvalRolePasswordConfiguredRoles = configuredApprovalRolePasswords(user);
+  object.roles = rolesFromCatalog(object.roles, available);
+  Object.assign(object, roleCatalogMetadata(available));
+  object.approvalRolePasswordConfiguredRoles = configuredApprovalRolePasswords(user, object.approvalRoles);
   return object;
 }
 
@@ -24,9 +28,11 @@ async function buildApprovalRolePasswordHashes(input: {
   roles: string[];
   approvalRolePasswords?: Record<string, unknown>;
   existingHashes?: Map<string, string>;
+  catalog: RoleCatalogItem[];
 }) {
   const nextHashes = new Map<string, string>();
-  const selectedApprovalRoles = input.roles.filter((role) => APPROVER_ROLES.includes(role as any));
+  const { approvalRoles } = roleCatalogMetadata(input.catalog);
+  const selectedApprovalRoles = input.roles.filter((role) => approvalRoles.includes(role));
 
   for (const role of selectedApprovalRoles) {
     const rawPassword = input.approvalRolePasswords?.[role];
@@ -68,13 +74,14 @@ export const listUsers = asyncHandler(async (req, res) => {
       .limit(limit),
     UserModel.countDocuments(filter)
   ]);
-  res.json({ items, total, page, pages: Math.ceil(total / limit) || 1 });
+  const catalog = await getRoleCatalog();
+  res.json({ items: await Promise.all(items.map((user) => publicUser(user, catalog))), total, page, pages: Math.ceil(total / limit) || 1 });
 });
 
 export const getUser = asyncHandler(async (req, res) => {
   const user = await UserModel.findById(req.params.id).select('+approvalRolePasswordHashes');
   if (!user) throw new ApiError(404, 'User not found.');
-  res.json(publicUser(user));
+  res.json(await publicUser(user, (req as any).user.roleCatalog));
 });
 
 export const createUser = asyncHandler(async (req, res) => {
@@ -99,11 +106,12 @@ export const createUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Missing required user fields.');
   }
 
-  const sanitizedRoles = sanitizeAssignedRoles(roles);
+  const catalog = await getRoleCatalog();
+  const sanitizedRoles = validateAssignedRoles(roles, catalog);
   if (!sanitizedRoles.length) throw new ApiError(400, 'At least one role is required.');
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const approvalRolePasswordHashes = await buildApprovalRolePasswordHashes({ roles: sanitizedRoles, approvalRolePasswords });
+  const approvalRolePasswordHashes = await buildApprovalRolePasswordHashes({ roles: sanitizedRoles, approvalRolePasswords, catalog });
   const user = await UserModel.create({
     nameWithInitials,
     fullName,
@@ -131,7 +139,7 @@ export const createUser = asyncHandler(async (req, res) => {
     description: `Created user ${user.email}.`
   });
 
-  res.status(201).json(publicUser(user));
+  res.status(201).json(await publicUser(user, catalog));
 });
 
 export const updateUser = asyncHandler(async (req, res) => {
@@ -140,10 +148,15 @@ export const updateUser = asyncHandler(async (req, res) => {
   const existing = (await UserModel.findById(req.params.id).select('+approvalRolePasswordHashes')) as any;
   if (!existing) throw new ApiError(404, 'User not found.');
 
-  const roles = sanitizeAssignedRoles((updates.roles as string[] | undefined) || existing.roles);
-  if (updates.roles) updates.roles = roles;
+  const catalog = await getRoleCatalog();
+  const roles = updates.roles !== undefined ? validateAssignedRoles(updates.roles, catalog) : rolesFromCatalog(existing.roles, catalog);
+  if (updates.roles) {
+    if (!roles.length) throw new ApiError(400, 'At least one available role is required.');
+    updates.roles = roles;
+  }
   if (req.body.approvalRolePasswords || updates.roles) {
     updates.approvalRolePasswordHashes = await buildApprovalRolePasswordHashes({
+      catalog,
       roles,
       approvalRolePasswords: req.body.approvalRolePasswords,
       existingHashes: existing.approvalRolePasswordHashes
@@ -161,13 +174,13 @@ export const updateUser = asyncHandler(async (req, res) => {
     entityType: 'User',
     entityId: user._id.toString()
   });
-  res.json(publicUser(user));
+  res.json(await publicUser(user, (req as any).user.roleCatalog));
 });
 
 export const activateUser = asyncHandler(async (req, res) => {
   const user = await UserModel.findByIdAndUpdate(req.params.id, { isActive: true }, { new: true });
   if (!user) throw new ApiError(404, 'User not found.');
-  res.json(user);
+  res.json(await publicUser(user, (req as any).user.roleCatalog));
 });
 
 export const deactivateUser = asyncHandler(async (req, res) => {
@@ -178,7 +191,7 @@ export const deactivateUser = asyncHandler(async (req, res) => {
   }
   const user = await UserModel.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
   if (!user) throw new ApiError(404, 'User not found.');
-  res.json(user);
+  res.json(await publicUser(user, (req as any).user.roleCatalog));
 });
 
 export const deleteUser = asyncHandler(async (req, res) => {
@@ -205,10 +218,12 @@ export const updateRoles = asyncHandler(async (req, res) => {
   const existing = (await UserModel.findById(req.params.id).select('+approvalRolePasswordHashes')) as any;
   if (!existing) throw new ApiError(404, 'User not found.');
 
-  const roles = sanitizeAssignedRoles(req.body.roles);
+  const catalog = await getRoleCatalog();
+  const roles = validateAssignedRoles(req.body.roles, catalog);
   if (!roles.length) throw new ApiError(400, 'At least one role is required.');
 
   const approvalRolePasswordHashes = await buildApprovalRolePasswordHashes({
+    catalog,
     roles,
     approvalRolePasswords: req.body.approvalRolePasswords,
     existingHashes: existing.approvalRolePasswordHashes
@@ -219,7 +234,7 @@ export const updateRoles = asyncHandler(async (req, res) => {
     { new: true, runValidators: true }
   ).select('+approvalRolePasswordHashes');
   if (!user) throw new ApiError(404, 'User not found.');
-  res.json(publicUser(user));
+  res.json(await publicUser(user, (req as any).user.roleCatalog));
 });
 
 export const resetPassword = asyncHandler(async (req, res) => {
@@ -232,12 +247,25 @@ export const resetPassword = asyncHandler(async (req, res) => {
 
 export const getProfile = asyncHandler(async (req, res) => {
   const user = await UserModel.findById((req as any).user.userId);
-  res.json(user);
+  if (!user) throw new ApiError(404, 'User not found.');
+  res.json(await publicUser(user, (req as any).user.roleCatalog));
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
-  const allowed = ['contactNo', 'address', 'profileImageUrl'];
-  const updates = Object.fromEntries(Object.entries(req.body).filter(([key]) => allowed.includes(key)));
-  const user = await UserModel.findByIdAndUpdate((req as any).user.userId, updates, { new: true, runValidators: true });
-  res.json(user);
+  const updates = parseProfileUpdate(req.body);
+  const userId = (req as any).user.userId;
+  if (updates.email && await UserModel.exists({ email: updates.email, _id: { $ne: userId } })) {
+    throw new ApiError(409, 'This email address is already used by another account.');
+  }
+  let user;
+  try {
+    user = await UserModel.findByIdAndUpdate(userId, updates, { new: true, runValidators: true });
+  } catch (error: any) {
+    if (error.code === 11000 && (error.keyPattern?.email || error.keyValue?.email)) {
+      throw new ApiError(409, 'This email address is already used by another account.');
+    }
+    throw error;
+  }
+  if (!user) throw new ApiError(404, 'User not found.');
+  res.json(await publicUser(user, (req as any).user.roleCatalog));
 });

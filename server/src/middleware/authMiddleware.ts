@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { env } from '../config/env.js';
 import { UserModel } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
-import { APPROVER_ROLES, sanitizeAssignedRoles } from '../utils/constants.js';
+import { getRoleCatalog, roleCatalogMetadata, rolesFromCatalog } from '../services/roleCatalogService.js';
 
 export type JwtPayload = {
   userId: string;
@@ -26,13 +26,16 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
     const decoded = jwt.verify(token, env.jwtSecret) as JwtPayload;
     const user = await UserModel.findById(decoded.userId);
     if (!user || !user.isActive) throw new ApiError(401, 'User account is inactive or unavailable.');
-    const roles = sanitizeAssignedRoles(user.roles);
+    const catalog = await getRoleCatalog();
+    const roles = rolesFromCatalog(user.roles.map(String), catalog);
     const activeRole = decoded.activeRole && roles.includes(decoded.activeRole) ? decoded.activeRole : undefined;
 
     (req as any).user = {
       userId: user._id.toString(),
       email: user.email,
       roles,
+      roleCatalog: catalog,
+      ...roleCatalogMetadata(catalog),
       activeRole,
       approvalRoleVerifiedAt: decoded.approvalRoleVerifiedAt,
       user
@@ -47,7 +50,7 @@ export function requireActiveRole(req: Request, _res: Response, next: NextFuncti
   const activeRole = (req as any).user?.activeRole;
   if (!activeRole) return next(new ApiError(403, 'Select an active role before continuing.'));
   const session = (req as any).user;
-  if (session.roles.length > 1 && APPROVER_ROLES.includes(activeRole as any)) {
+  if (session.roles.length > 1 && session.approvalRoles.includes(activeRole)) {
     if (!session.approvalRoleVerifiedAt) {
       return next(new ApiError(403, 'Approval role password verification is required.'));
     }

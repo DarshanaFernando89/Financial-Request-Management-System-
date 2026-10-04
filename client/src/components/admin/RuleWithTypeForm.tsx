@@ -1,16 +1,11 @@
 import { Save } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import type { Role } from '../../types/auth';
-import { ROLES } from '../../utils/constants';
-import { roleLabel } from '../../utils/roleLabels';
+import { useWorkflowRoles } from '../../hooks/useWorkflowRoles';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
-
-const workflowRoles = ROLES.filter(
-  (role) => role !== 'REQUESTER' && role !== 'LECTURER' && role !== 'FINANCE_OFFICER' && role !== 'ADMIN'
-);
 
 export type RuleWithTypePayload = {
   name: string;
@@ -35,6 +30,7 @@ export function RuleWithTypeForm({
     workflowRoles: ['HOD']
   });
   const [error, setError] = useState('');
+  const { roles: workflowRoles, loading: rolesLoading, error: rolesError, label: workflowRoleLabel } = useWorkflowRoles();
 
   function toggleWorkflowRole(role: Role) {
     setForm((current) => {
@@ -53,6 +49,10 @@ export function RuleWithTypeForm({
     event.preventDefault();
     setError('');
     try {
+      if (rolesLoading || rolesError) throw new Error('Workflow roles must finish loading before saving.');
+      if (!form.workflowRoles.length || form.workflowRoles.some((code) => !workflowRoles.some((role) => role.code === code))) {
+        throw new Error('Select available workflow roles before saving.');
+      }
       await onSubmit({
         ...form,
         name: form.name.trim(),
@@ -109,7 +109,7 @@ export function RuleWithTypeForm({
           <p className="mb-2 text-sm font-semibold text-slate-700">Workflow role sequence</p>
           <p className="mb-3 text-xs text-slate-500">Select roles in the order they should appear in the workflow. The order is shown with numbers automatically.</p>
           <div className="grid gap-2 md:grid-cols-2">
-            {workflowRoles.map((role) => {
+            {workflowRoles.map(({ code: role }) => {
               const selectedIndex = form.workflowRoles.indexOf(role);
               const isSelected = selectedIndex >= 0;
 
@@ -124,7 +124,7 @@ export function RuleWithTypeForm({
                     >
                       {isSelected ? selectedIndex + 1 : '•'}
                     </span>
-                    <span>{roleLabel(role)}</span>
+                    <span>{workflowRoleLabel(role)}</span>
                   </span>
                 </label>
               );
@@ -139,16 +139,20 @@ export function RuleWithTypeForm({
                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-[11px] font-semibold text-white">
                       {index + 1}
                     </span>
-                    <span>{roleLabel(role)}</span>
+                    <span>{workflowRoleLabel(role)}</span>
+                    {!rolesLoading && !workflowRoles.some((option) => option.code === role) && (
+                      <Button variant="ghost" onClick={() => toggleWorkflowRole(role)}>Remove</Button>
+                    )}
                   </li>
                 ))}
               </ol>
             </div>
           )}
         </div>
-        {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+        {rolesLoading && <p className="text-sm text-slate-500">Loading workflow roles...</p>}
+        {(error || rolesError) && <p className="text-sm font-medium text-red-600">{error || rolesError}</p>}
         <div className="flex justify-end">
-          <Button type="submit" icon={<Save size={16} />}>Create Rule and Request Type</Button>
+          <Button type="submit" disabled={rolesLoading || Boolean(rolesError)} icon={<Save size={16} />}>Create Rule and Request Type</Button>
         </div>
       </Card>
     </form>

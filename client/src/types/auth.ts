@@ -16,6 +16,8 @@ export type User = {
   address?: string;
   profileImageUrl?: string;
   roles: Role[];
+  roleLabels?: Record<string, string>;
+  approvalRoles?: Role[];
   approvalRolePasswordConfiguredRoles?: Role[];
   activeRole?: Role;
   isActive: boolean;

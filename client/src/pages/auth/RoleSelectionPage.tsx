@@ -18,10 +18,10 @@ export function RoleSelectionPage() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   if (!user) return <Navigate to="/auth/login" replace />;
-  const selectableRoles = visibleAssignedRoles(user.roles);
+  const selectableRoles = visibleAssignedRoles(user.roles, Object.keys(user.roleLabels || {}));
 
   function needsApprovalPassword(role: Role) {
-    return Boolean(user && selectableRoles.length > 1 && APPROVER_ROLES.includes(role));
+    return Boolean(user && selectableRoles.length > 1 && (user?.approvalRoles || APPROVER_ROLES).includes(role));
   }
 
   async function choose(role: Role, password?: string) {
@@ -61,7 +61,12 @@ export function RoleSelectionPage() {
           <Card key={role} className="flex flex-col gap-4">
             <ShieldCheck className="text-university-maroon" size={28} />
             <div>
+<<<<<<< HEAD
               <h3 className="font-bold text-slate-900">Continue as {roleLabel(role)}</h3>
+=======
+              <h3 className="font-bold text-slate-900">Continue as {roleLabel(role, user?.roleLabels)}</h3>
+              <p className="mt-1 text-sm text-slate-500">{user.department}</p>
+>>>>>>> 89aa9170c494dcf36def96f44c53f5ad634cbfec
             </div>
             <Button onClick={() => startChoose(role)}>Continue</Button>
           </Card>
@@ -69,7 +74,7 @@ export function RoleSelectionPage() {
       </div>
       <Modal
         open={Boolean(pendingRole)}
-        title={`${roleLabel(pendingRole || '')} Password`}
+        title={`${roleLabel(pendingRole || '', user?.roleLabels)} Password`}
         onClose={() => {
           setPendingRole(null);
           setError('');

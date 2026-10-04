@@ -1,7 +1,6 @@
 import type { Role } from '../types/auth';
 
 export const ROLES: Role[] = [
-  'REQUESTER',
   'LECTURER',
   'HOD',
   'DEAN',
@@ -9,15 +8,13 @@ export const ROLES: Role[] = [
   'ADMIN'
 ];
 
-export const REQUESTER_ROLES: Role[] = ['REQUESTER', 'LECTURER'];
+export const REQUESTER_ROLES: Role[] = ['LECTURER'];
 export const APPROVER_ROLES: Role[] = ['HOD', 'DEAN'];
 export const FINANCE_ROLES: Role[] = ['FINANCE_OFFICER'];
 export const ADMIN_ROLES: Role[] = ['ADMIN'];
 
-export function visibleAssignedRoles(roles: Role[] = []) {
-  const uniqueRoles = Array.from(new Set(roles.filter(Boolean)));
-  if (uniqueRoles.length <= 1) return uniqueRoles;
-  return uniqueRoles.filter((role) => role !== 'REQUESTER');
+export function visibleAssignedRoles(roles: Role[] = [], availableRoles: Role[] = ROLES) {
+  return Array.from(new Set(roles.filter((role) => role !== 'REQUESTER' && availableRoles.includes(role))));
 }
 
 export const facultyName = 'Faculty of Engineering, University of Ruhuna';
