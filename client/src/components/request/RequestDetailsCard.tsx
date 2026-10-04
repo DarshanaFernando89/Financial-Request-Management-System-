@@ -1,8 +1,8 @@
 import { Card } from '../ui/Card';
 import { RequestStatusBadge } from './RequestStatusBadge';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { formatDate } from '../../utils/formatDate';
 import { useRoleLabel } from '../../hooks/useRoleLabel';
+import { formatDateTime } from '../../utils/formatDateTime';
 import type { FinancialRequest, RequestType } from '../../types/request';
 
 export function RequestDetailsCard({ request }: { request: FinancialRequest }) {
@@ -33,7 +33,7 @@ export function RequestDetailsCard({ request }: { request: FinancialRequest }) {
         </div>
         <div>
           <dt className="text-slate-500">Date</dt>
-          <dd className="font-semibold text-slate-900">{formatDate(request.submittedAt || request.createdAt)}</dd>
+          <dd className="font-semibold text-slate-900">{formatDateTime(request.submittedAt || request.createdAt)}</dd>
         </div>
         <div>
           <dt className="text-slate-500">Current Owner</dt>
