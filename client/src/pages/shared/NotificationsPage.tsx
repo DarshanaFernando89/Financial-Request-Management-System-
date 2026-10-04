@@ -31,10 +31,11 @@ export function NotificationsPage() {
         <div className="space-y-3">
           {notifications.map((item) => {
             const action = getNotificationAction(item, user?.activeRole);
+            const notificationTo = action?.openDirectly ? action.to : `/notifications/${item._id}`;
             return (
               <Card key={item._id} className={item.isRead ? 'shadow-none' : 'border-blue-200 bg-blue-50'}>
                 <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
-                  <Link className="min-w-0 flex-1" to={`/notifications/${item._id}`} onClick={() => void readNotification(item._id, item.isRead)}>
+                  <Link className="min-w-0 flex-1" to={notificationTo} onClick={() => void readNotification(item._id, item.isRead)}>
                     <h2 className="font-semibold text-slate-900 hover:text-university-maroon">{item.title}</h2>
                     <p className="mt-1 text-sm text-slate-600">{item.message}</p>
                   </Link>

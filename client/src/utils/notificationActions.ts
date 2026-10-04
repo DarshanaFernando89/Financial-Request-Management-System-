@@ -5,6 +5,7 @@ import { APPROVER_ROLES, FINANCE_ROLES, REQUESTER_ROLES } from './constants';
 type NotificationAction = {
   label: string;
   to: string;
+  openDirectly?: boolean;
 };
 
 function getTargetId(target: Notification['relatedAccountRequest']) {
@@ -43,7 +44,8 @@ export function getNotificationAction(notification: Notification, activeRole?: R
     if (activeRole && REQUESTER_ROLES.includes(activeRole) && request.status === 'INFO_REQUESTED') {
       return {
         label: 'Respond to Clarification',
-        to: `/requests/${request._id}/respond-clarification`
+        to: `/requests/${request._id}`,
+        openDirectly: true
       };
     }
 
