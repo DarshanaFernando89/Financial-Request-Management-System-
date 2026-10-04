@@ -62,7 +62,6 @@ export function RoleSelectionPage() {
             <ShieldCheck className="text-university-maroon" size={28} />
             <div>
               <h3 className="font-bold text-slate-900">Continue as {roleLabel(role)}</h3>
-              <p className="mt-1 text-sm text-slate-500">{user.department}</p>
             </div>
             <Button onClick={() => startChoose(role)}>Continue</Button>
           </Card>
