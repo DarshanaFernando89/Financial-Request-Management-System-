@@ -3,7 +3,6 @@ import {
   DEFAULT_CURRENCY,
   REQUEST_STATUS_VALUES,
   REQUEST_STATUSES,
-  HISTORICAL_ROLE_VALUES as ROLE_VALUES,
   STEP_STATUSES,
   STEP_TYPES
 } from '../utils/constants.js';
@@ -16,7 +15,7 @@ const documentSchema = new Schema(
     mimeType: String,
     size: Number,
     uploadedBy: { type: Schema.Types.ObjectId, ref: 'User' },
-    uploadedByRole: { type: String, enum: ROLE_VALUES },
+    uploadedByRole: { type: String },
     uploadedAt: { type: Date, default: Date.now },
     description: String,
     source: { type: String, enum: ['INITIAL_SUBMISSION', 'MANUAL_UPLOAD', 'CLARIFICATION_RESPONSE'], default: 'INITIAL_SUBMISSION' },
@@ -29,14 +28,14 @@ const documentSchema = new Schema(
 const workflowStepSchema = new Schema(
   {
     stepIndex: Number,
-    role: { type: String, enum: ROLE_VALUES, required: true },
+    role: { type: String, required: true },
     assignedUser: { type: Schema.Types.ObjectId, ref: 'User' },
     stepType: { type: String, enum: Object.values(STEP_TYPES), required: true },
     status: { type: String, enum: Object.values(STEP_STATUSES), default: STEP_STATUSES.WAITING },
     action: String,
     remarks: String,
     actedBy: { type: Schema.Types.ObjectId, ref: 'User' },
-    actedByRole: { type: String, enum: ROLE_VALUES },
+    actedByRole: { type: String },
     actedAt: Date
   },
   { _id: true }
@@ -45,7 +44,7 @@ const workflowStepSchema = new Schema(
 const historySchema = new Schema(
   {
     action: String,
-    role: { type: String, enum: ROLE_VALUES },
+    role: { type: String },
     user: { type: Schema.Types.ObjectId, ref: 'User' },
     remarks: String,
     fromStatus: String,
@@ -78,9 +77,9 @@ const requestSchema = new Schema(
     status: { type: String, enum: REQUEST_STATUS_VALUES, default: REQUEST_STATUSES.DRAFT },
     currentStepIndex: { type: Number, default: -1 },
     workflowSteps: [workflowStepSchema],
-    currentAssignedRole: { type: String, enum: ROLE_VALUES },
+    currentAssignedRole: { type: String },
     currentAssignedUser: { type: Schema.Types.ObjectId, ref: 'User' },
-    previousAssignedRoleWhenInfoRequested: { type: String, enum: ROLE_VALUES },
+    previousAssignedRoleWhenInfoRequested: { type: String },
     approvalHistory: [historySchema],
     clarificationHistory: [historySchema],
     rejectionReason: String,

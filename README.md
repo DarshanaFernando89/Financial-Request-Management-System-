@@ -16,6 +16,7 @@ The written specification is treated as the source of truth. Approval thresholds
 - Role-based dashboards for Lecturers, Approvers, Finance Officer, and Admin.
 - Dynamic request types with custom fields and required documents.
 - Configurable approval rules stored in MongoDB.
+- Approval rule creation and editing offer active custom roles from Role Management using their display names and preserve the selected workflow order.
 - Requester claim choices use the exact active approval rule names from the admin dashboard; rules with multiple request types offer a second selection for the claim form.
 - Sequential workflow engine with verification, approval, finance review, final approval, and payment steps.
 - Request More Info flow that returns to the same actor/role after requester response.

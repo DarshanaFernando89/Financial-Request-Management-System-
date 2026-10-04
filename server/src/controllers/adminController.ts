@@ -7,6 +7,7 @@ import { CustomRoleModel } from '../models/CustomRole.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { RETIRED_ROLE_CODES, ROLE_LABELS, ROLES } from '../utils/constants.js';
+import { validateWorkflowRoleFields } from '../services/workflowRoleService.js';
 
 export const adminDashboard = asyncHandler(async (_req, res) => {
   const sixMonthsAgo = new Date();
@@ -128,12 +129,14 @@ export const listApprovalRules = asyncHandler(async (_req, res) => {
 
 export const createApprovalRule = asyncHandler(async (req, res) => {
   validateRuleBody(req.body);
+  await validateWorkflowRoleFields(req.body);
   await assertNoConflictingRule(req.body);
   const item = await ApprovalRuleModel.create(req.body);
   res.status(201).json(await item.populate('requestTypes'));
 });
 
 export const updateApprovalRule = asyncHandler(async (req, res) => {
+  await validateWorkflowRoleFields(req.body);
   if (req.body.workflowRoles?.includes(ROLES.FINANCE_OFFICER)) {
     throw new ApiError(400, 'Finance Officer cannot be configured as a normal approval step.');
   }
@@ -149,6 +152,7 @@ export const updateApprovalRule = asyncHandler(async (req, res) => {
 export const activateApprovalRule = asyncHandler(async (req, res) => {
   const item = await ApprovalRuleModel.findById(String(req.params.id));
   if (!item) throw new ApiError(404, 'Approval rule not found.');
+  await validateWorkflowRoleFields(item);
   await assertNoConflictingRule(item.toObject(), item._id.toString());
   item.isActive = true;
   await item.save();

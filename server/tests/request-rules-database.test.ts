@@ -2,8 +2,9 @@ import express from 'express';
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { find, select, populate, sort } = vi.hoisted(() => ({ find: vi.fn(), select: vi.fn(), populate: vi.fn(), sort: vi.fn() }));
+const { find, select, populate, sort, roles } = vi.hoisted(() => ({ find: vi.fn(), select: vi.fn(), populate: vi.fn(), sort: vi.fn(), roles: vi.fn() }));
 vi.mock('../src/models/ApprovalRule.js', () => ({ ApprovalRuleModel: { find } }));
+vi.mock('../src/models/CustomRole.js', () => ({ CustomRoleModel: { find: roles } }));
 vi.mock('../src/middleware/authMiddleware.js', () => ({
   authMiddleware: (_req: any, _res: any, next: any) => next(),
   requireActiveRole: (_req: any, _res: any, next: any) => next()
@@ -16,6 +17,7 @@ app.use('/api/requests', requestRoutes);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  roles.mockResolvedValue([]);
   find.mockReturnValue({ select, sort });
   select.mockReturnValue({ populate });
   populate.mockReturnValue({ sort });
@@ -53,5 +55,15 @@ describe('database rule choices and routing', () => {
     await initializeWorkflow(legacy);
     expect(find.mock.calls[0][0]).not.toHaveProperty('_id');
     expect(legacy.workflowSteps.map((step: any) => step.role)).toEqual(['HOD', 'FINANCE_OFFICER']);
+  });
+
+  it('initializes a selected rule with its active custom role in the exact configured position', async () => {
+    roles.mockResolvedValue([{ code: '001', isActive: true }]);
+    sort.mockResolvedValue([{ workflowRoles: ['001', 'HOD', 'DEAN'] }]);
+    const claim: any = { requestType: 'type-1', amount: 100, approvalRule: 'custom-rule' };
+    await initializeWorkflow(claim);
+    expect(claim.workflowSteps.map((step: any) => step.role)).toEqual(['001', 'HOD', 'DEAN', 'FINANCE_OFFICER']);
+    expect(claim.currentAssignedRole).toBe('001');
+    expect(claim.status).toBe('UNDER_REVIEW');
   });
 });

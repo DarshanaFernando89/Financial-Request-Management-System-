@@ -19,6 +19,7 @@ import { getAccountRequestValidationError, normalizeAccountRequestPayload } from
 import { deleteUploadedFiles } from '../services/fileService.js';
 import { parseProfileUpdate } from '../utils/profileValidation.js';
 import { ApiError } from '../utils/ApiError.js';
+import { assertAvailableWorkflowRoles } from '../services/workflowRoleService.js';
 
 const router = Router();
 const defaultPassword = 'Password123!';
@@ -511,6 +512,7 @@ function routeRequest(request: any) {
   const rule = matchingRule(String(request.requestType?._id || request.requestType), request.amount, request.approvalRule);
   if (!rule) throw new ApiError(422, 'The approval rule is unavailable or does not match this request type and amount.');
   const workflowRoles = rule.workflowRoles;
+  assertAvailableWorkflowRoles(workflowRoles, demoWorkflowRoleCodes(), 422);
   request.workflowSteps = steps(workflowRoles, 0);
   request.currentStepIndex = 0;
   request.currentAssignedRole = request.workflowSteps[0]?.role;
@@ -999,8 +1001,16 @@ router.put('/admin/roles/:id', (req, res) => {
   res.json(item);
 });
 
+function demoWorkflowRoleCodes() {
+  return [ROLES.HOD, ROLES.DEAN, ...customRoles
+    .filter((role) => role.isActive && !Object.values(ROLES).includes(role.code) && !RETIRED_ROLE_CODES.includes(role.code))
+    .map((role) => role.code)];
+}
+
 router.get('/admin/approval-rules', (_req, res) => res.json({ items: approvalRules }));
 router.post('/admin/approval-rules', (req, res) => {
+  assertAvailableWorkflowRoles(req.body.workflowRoles, demoWorkflowRoleCodes());
+  if (req.body.approvingAuthorityRole) assertAvailableWorkflowRoles([req.body.approvingAuthorityRole], demoWorkflowRoleCodes());
   const item = { _id: `rule-${Date.now()}`, includeFinanceReview: false, isActive: true, ...req.body };
   item.requestTypes = requestTypes.filter((type) => item.requestTypes.includes(type._id));
   approvalRules.unshift(item);
@@ -1009,6 +1019,8 @@ router.post('/admin/approval-rules', (req, res) => {
 router.put('/admin/approval-rules/:id', (req, res) => {
   const item = approvalRules.find((rule) => rule._id === req.params.id);
   if (!item) return res.status(404).json({ message: 'Approval rule not found.' });
+  if (req.body.workflowRoles !== undefined) assertAvailableWorkflowRoles(req.body.workflowRoles, demoWorkflowRoleCodes());
+  if (req.body.approvingAuthorityRole) assertAvailableWorkflowRoles([req.body.approvingAuthorityRole], demoWorkflowRoleCodes());
   Object.assign(item, req.body);
   if (req.body.requestTypes) item.requestTypes = requestTypes.filter((type) => req.body.requestTypes.includes(type._id));
   res.json(item);

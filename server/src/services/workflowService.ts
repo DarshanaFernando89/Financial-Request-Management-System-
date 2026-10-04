@@ -10,11 +10,13 @@ import {
   STEP_TYPES
 } from '../utils/constants.js';
 import { ApiError } from '../utils/ApiError.js';
+import { validateWorkflowRoleFields } from './workflowRoleService.js';
 
 type BuildWorkflowInput = {
   workflowRoles: string[];
   includeFinanceReview?: boolean;
   approvingAuthorityRole?: string;
+  availableRoles?: string[];
 };
 
 export function getStepType(role: string) {
@@ -23,7 +25,7 @@ export function getStepType(role: string) {
 }
 
 export function buildWorkflowSteps(input: BuildWorkflowInput) {
-  const validWorkflowRoles = new Set<string>(APPROVER_ROLES);
+  const validWorkflowRoles = new Set<string>(input.availableRoles || APPROVER_ROLES);
   const roles = input.workflowRoles.filter((role) => validWorkflowRoles.has(role));
 
   if (
@@ -72,7 +74,9 @@ export async function initializeWorkflow(request: any) {
       : 'No active approval rule matches this request type and amount.');
   }
 
+  const availableRoles = await validateWorkflowRoleFields(rule, 422);
   const workflowSteps = buildWorkflowSteps({
+    availableRoles,
     workflowRoles: rule.workflowRoles,
     includeFinanceReview: rule.includeFinanceReview,
     approvingAuthorityRole: rule.approvingAuthorityRole
