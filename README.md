@@ -16,6 +16,7 @@ The written specification is treated as the source of truth. Approval thresholds
 - Role-based dashboards for Requester/Lecturer, Approvers, Finance Officer, and Admin.
 - Dynamic request types with custom fields and required documents.
 - Configurable approval rules stored in MongoDB.
+- Requester claim choices use the exact active approval rule names from the admin dashboard; rules with multiple request types offer a second selection for the claim form.
 - Sequential workflow engine with verification, approval, finance review, final approval, and payment steps.
 - Request More Info flow that returns to the same actor/role after requester response.
 - Rejection and resubmission with revision tracking.
@@ -173,6 +174,8 @@ Base URL: `http://localhost:5000/api`
 ## Workflow Summary
 
 When a request is submitted, the backend finds the highest-priority active approval rule matching request type and amount. It generates only the actual workflow steps for that request and appends Finance Officer as the payment step automatically.
+
+New requests save the requester's selected approval rule, including when saved as drafts. Submission validates that this rule is still active and supports the selected request type and amount. Existing requests without a selected rule continue to use automatic rule matching.
 
 Examples from seed data:
 

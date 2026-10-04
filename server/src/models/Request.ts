@@ -68,6 +68,7 @@ const requestSchema = new Schema(
       roleAtSubmission: String
     },
     requestType: { type: Schema.Types.ObjectId, ref: 'RequestType', required: true },
+    approvalRule: { type: Schema.Types.ObjectId, ref: 'ApprovalRule' },
     title: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
     amount: { type: Number, required: true, min: 0 },
