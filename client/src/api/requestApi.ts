@@ -1,7 +1,12 @@
 import { apiClient } from './apiClient';
 import type { FinancialRequest, RequestListResponse, RequestType } from '../types/request';
+import type { RequestRuleOption } from '../types/rule';
 
 export const requestApi = {
+  async rules() {
+    const { data } = await apiClient.get<{ items: RequestRuleOption[] }>('/requests/rules/active');
+    return data.items;
+  },
   async types() {
     const { data } = await apiClient.get<{ items: RequestType[] }>('/requests/types/active');
     return data.items;

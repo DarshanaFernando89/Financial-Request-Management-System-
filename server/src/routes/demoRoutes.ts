@@ -17,6 +17,7 @@ import {
 import { getAccountRequestValidationError, normalizeAccountRequestPayload } from '../utils/accountRequestValidation.js';
 import { deleteUploadedFiles } from '../services/fileService.js';
 import { parseProfileUpdate } from '../utils/profileValidation.js';
+import { ApiError } from '../utils/ApiError.js';
 
 const router = Router();
 const defaultPassword = 'Password123!';
@@ -488,12 +489,14 @@ function demoUploadedDocuments(req: any, user: any, options: { source?: string; 
   }));
 }
 
-function matchingRule(typeId: string, amount: number) {
-  return approvalRules.find((rule) => {
-    const hasType = rule.requestTypes.some((type: any) => type._id === typeId);
-    const max = rule.maxAmount ?? Infinity;
-    return hasType && amount >= rule.minAmount && amount <= max;
-  });
+function matchingRule(typeId: string, amount: number, ruleId?: string) {
+  return [...approvalRules]
+    .sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100) || b.minAmount - a.minAmount)
+    .find((rule) => {
+      const hasType = rule.requestTypes.some((type: any) => type._id === typeId);
+      const max = rule.maxAmount ?? Infinity;
+      return rule.isActive && (!ruleId || rule._id === ruleId) && hasType && amount >= rule.minAmount && amount <= max;
+    });
 }
 
 function statusForStep(step: any) {
@@ -504,8 +507,9 @@ function statusForStep(step: any) {
 }
 
 function routeRequest(request: any) {
-  const rule = matchingRule(String(request.requestType?._id || request.requestType), request.amount);
-  const workflowRoles = rule?.workflowRoles || [ROLES.HOD];
+  const rule = matchingRule(String(request.requestType?._id || request.requestType), request.amount, request.approvalRule);
+  if (!rule) throw new ApiError(422, 'The approval rule is unavailable or does not match this request type and amount.');
+  const workflowRoles = rule.workflowRoles;
   request.workflowSteps = steps(workflowRoles, 0);
   request.currentStepIndex = 0;
   request.currentAssignedRole = request.workflowSteps[0]?.role;
@@ -640,6 +644,20 @@ router.get('/requests/types/active', (_req, res) => {
   res.json({ items: requestTypes.filter((type) => type.isActive) });
 });
 
+router.get('/requests/rules/active', (_req, res) => {
+  const items = approvalRules
+    .filter((rule) => rule.isActive)
+    .map((rule) => ({
+      _id: rule._id,
+      name: rule.name,
+      minAmount: rule.minAmount,
+      maxAmount: rule.maxAmount,
+      requestTypes: rule.requestTypes.filter((type: any) => type.isActive)
+    }))
+    .filter((rule) => rule.requestTypes.length > 0);
+  res.json({ items });
+});
+
 router.get('/requests/my', (req, res) => {
   const user = currentUser(req);
   const items = requests.filter((request) => request.requester === user._id);
@@ -658,7 +676,13 @@ router.get('/requests', (req, res) => {
 
 router.post('/requests', upload.array('files', 20), (req, res) => {
   const user = currentUser(req);
-  const requestType = requestTypes.find((type) => type._id === req.body.requestType) || requestTypes[0];
+  const requestType = requestTypes.find((type) => type._id === req.body.requestType && type.isActive);
+  if (!requestType) return res.status(422).json({ message: 'Request type is inactive or unavailable.' });
+  const amount = Number(req.body.amount);
+  if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ message: 'Amount must be positive.' });
+  if (req.body.approvalRule && !matchingRule(requestType._id, amount, req.body.approvalRule)) {
+    return res.status(422).json({ message: 'The selected approval rule is unavailable or does not match this request type and amount.' });
+  }
   const submit = parseBodyBoolean(req.body.submit);
   const documents = demoUploadedDocuments(req, user);
   const missingDocuments = submit
@@ -681,9 +705,10 @@ router.post('/requests', upload.array('files', 20), (req, res) => {
     requester: user._id,
     requesterSnapshot: snapshot(user, user.activeRole),
     requestType,
+    approvalRule: req.body.approvalRule,
     title: req.body.title,
     description: req.body.description,
-    amount: Number(req.body.amount),
+    amount,
     currency: 'LKR',
     requestData,
     documents,
@@ -972,8 +997,14 @@ router.put('/admin/approval-rules/:id', (req, res) => {
   const item = approvalRules.find((rule) => rule._id === req.params.id);
   if (!item) return res.status(404).json({ message: 'Approval rule not found.' });
   Object.assign(item, req.body);
-  item.requestTypes = requestTypes.filter((type) => req.body.requestTypes?.includes(type._id));
+  if (req.body.requestTypes) item.requestTypes = requestTypes.filter((type) => req.body.requestTypes.includes(type._id));
   res.json(item);
+});
+router.delete('/admin/approval-rules/:id', (req, res) => {
+  const index = approvalRules.findIndex((rule) => rule._id === req.params.id);
+  if (index === -1) return res.status(404).json({ message: 'Approval rule not found.' });
+  approvalRules.splice(index, 1);
+  res.json({ success: true, message: 'Approval rule deleted.' });
 });
 
 router.get('/admin/request-types', (_req, res) => res.json({ items: requestTypes }));

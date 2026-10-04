@@ -82,6 +82,7 @@ export type FinancialRequest = {
     roleAtSubmission: Role;
   };
   requestType: string | RequestType;
+  approvalRule?: string;
   title: string;
   description?: string;
   amount: number;
