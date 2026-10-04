@@ -115,7 +115,7 @@ export const listRequests = asyncHandler(async (req, res) => {
   const filter = requestFilterFromQuery(req.query);
 
   if (!canAdmin(session.activeRole)) {
-    if (isPrivilegedReader(session.activeRole)) {
+    if (isPrivilegedReader(session.activeRole, session.approvalRoles)) {
       filter.$or = [
         ...(filter.$or || []),
         { currentAssignedRole: session.activeRole },

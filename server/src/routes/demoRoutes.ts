@@ -19,6 +19,7 @@ import { getAccountRequestValidationError, normalizeAccountRequestPayload } from
 import { deleteUploadedFiles } from '../services/fileService.js';
 import { parseProfileUpdate } from '../utils/profileValidation.js';
 import { ApiError } from '../utils/ApiError.js';
+import { resolveRoleCatalog, roleCatalogMetadata, validateAssignedRoles } from '../services/roleCatalogService.js';
 import { assertAvailableWorkflowRoles } from '../services/workflowRoleService.js';
 
 const router = Router();
@@ -428,8 +429,8 @@ function demoOnly(req: any, res: any, next: any) {
 }
 
 function publicUser(user: any, activeRole?: string) {
-  const roles = sanitizeAssignedRoles(user.roles);
-  return { ...user, roles, activeRole: activeRole && roles.includes(activeRole) ? activeRole : undefined };
+  const roles = sanitizeAssignedRoles(user.roles, resolveRoleCatalog(customRoles).map((role) => role.code));
+  return { ...user, roles, ...roleCatalogMetadata(resolveRoleCatalog(customRoles)), activeRole: activeRole && roles.includes(activeRole) ? activeRole : undefined };
 }
 
 function getBearer(req: any) {
@@ -560,7 +561,7 @@ router.use(demoOnly);
 router.post('/auth/login', (req, res) => {
   const user = users.find((item) => item.email === String(req.body.email || '').toLowerCase());
   if (!user || req.body.password !== defaultPassword) return res.status(401).json({ message: 'Invalid email or password.' });
-  const roles = sanitizeAssignedRoles(user.roles);
+  const roles = sanitizeAssignedRoles(user.roles, resolveRoleCatalog(customRoles).map((role) => role.code));
   if (!roles.length) return res.status(403).json({ message: 'No roles are assigned to this account.' });
   const activeRole = roles.length === 1 ? roles[0] : undefined;
   const token = signAuthToken({ userId: user._id, email: user.email, roles, activeRole });
@@ -903,7 +904,7 @@ router.get('/users/:id', (req, res) => {
 });
 
 router.post('/users', (req, res) => {
-  const roles = sanitizeAssignedRoles(req.body.roles);
+  const roles = validateAssignedRoles(req.body.roles, resolveRoleCatalog(customRoles));
   if (!roles.length) return res.status(400).json({ message: 'At least one available role is required.' });
   const user = { _id: `demo-user-${Date.now()}`, isActive: true, ...req.body, roles };
   delete user.password;
@@ -915,7 +916,7 @@ router.put('/users/:id', (req, res) => {
   const user = users.find((item) => item._id === req.params.id);
   if (!user) return res.status(404).json({ message: 'User not found.' });
   if (req.body.roles) {
-    const roles = sanitizeAssignedRoles(req.body.roles);
+    const roles = validateAssignedRoles(req.body.roles, resolveRoleCatalog(customRoles));
     if (!roles.length) return res.status(400).json({ message: 'At least one available role is required.' });
     req.body.roles = roles;
   }
@@ -1055,7 +1056,7 @@ router.patch('/account-requests/:id/approve', (req, res) => {
   const item = accountRequests.find((request) => request._id === req.params.id);
   if (!item) return res.status(404).json({ message: 'Account request not found.' });
   if (item.status !== ACCOUNT_REQUEST_STATUSES.PENDING) return res.status(422).json({ message: 'Account request has already been processed.' });
-  const roles = sanitizeAssignedRoles([String(req.body.requestedRole || item.requestedRole)]);
+  const roles = validateAssignedRoles([String(req.body.requestedRole || item.requestedRole)], resolveRoleCatalog(customRoles));
   if (!roles.length) return res.status(400).json({ message: 'Choose an available role before approving this account request.' });
   const user = {
     _id: `user-${Date.now()}`,

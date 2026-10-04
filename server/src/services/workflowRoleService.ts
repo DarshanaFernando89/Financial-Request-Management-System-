@@ -1,13 +1,9 @@
-import { CustomRoleModel } from '../models/CustomRole.js';
-import { APPROVER_ROLES, RETIRED_ROLE_CODES, ROLE_VALUES, ROLES } from '../utils/constants.js';
+import { ROLES } from '../utils/constants.js';
 import { ApiError } from '../utils/ApiError.js';
+import { getRoleCatalog, roleCatalogMetadata } from './roleCatalogService.js';
 
 export async function availableWorkflowRoleCodes() {
-  const catalog = await CustomRoleModel.find();
-  const disabled = new Set(catalog.filter((role) => !role.isActive).map((role) => role.code));
-  const system = APPROVER_ROLES.filter((code) => !disabled.has(code));
-  const custom = catalog.filter((role) => role.isActive && !ROLE_VALUES.includes(role.code as any) && !RETIRED_ROLE_CODES.includes(role.code));
-  return [...system, ...custom.map((role) => role.code)];
+  return roleCatalogMetadata(await getRoleCatalog()).approvalRoles;
 }
 
 export function assertAvailableWorkflowRoles(roles: unknown, available: string[], statusCode = 400) {

@@ -2,10 +2,11 @@ import { Card } from '../ui/Card';
 import { RequestStatusBadge } from './RequestStatusBadge';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDate } from '../../utils/formatDate';
-import { roleLabel } from '../../utils/roleLabels';
+import { useRoleLabel } from '../../hooks/useRoleLabel';
 import type { FinancialRequest, RequestType } from '../../types/request';
 
 export function RequestDetailsCard({ request }: { request: FinancialRequest }) {
+  const label = useRoleLabel();
   const type = request.requestType as RequestType;
   return (
     <Card>
@@ -36,7 +37,7 @@ export function RequestDetailsCard({ request }: { request: FinancialRequest }) {
         </div>
         <div>
           <dt className="text-slate-500">Current Owner</dt>
-          <dd className="font-semibold text-slate-900">{roleLabel(request.currentAssignedRole) || '-'}</dd>
+          <dd className="font-semibold text-slate-900">{label(request.currentAssignedRole) || '-'}</dd>
         </div>
         <div>
           <dt className="text-slate-500">Staff Category</dt>

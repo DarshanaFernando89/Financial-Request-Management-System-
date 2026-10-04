@@ -1,5 +1,5 @@
 import mongoose, { Schema } from 'mongoose';
-import { ACCOUNT_REQUEST_STATUSES, HISTORICAL_ROLE_VALUES as ROLE_VALUES } from '../utils/constants.js';
+import { ACCOUNT_REQUEST_STATUSES } from '../utils/constants.js';
 
 const accountRequestSchema = new Schema(
   {
@@ -13,7 +13,7 @@ const accountRequestSchema = new Schema(
     faculty: { type: String, required: true, trim: true },
     contactNo: { type: String, trim: true },
     address: { type: String, trim: true },
-    requestedRole: { type: String, enum: ROLE_VALUES, required: true },
+    requestedRole: { type: String, required: true },
     message: { type: String, trim: true },
     status: {
       type: String,

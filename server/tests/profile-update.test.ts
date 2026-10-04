@@ -7,6 +7,8 @@ const { findById, findByIdAndUpdate, exists, find, countDocuments } = vi.hoisted
 }));
 vi.mock('../src/models/User.js', () => ({ UserModel: { findById, findByIdAndUpdate, exists, find, countDocuments } }));
 
+vi.mock('../src/models/CustomRole.js', () => ({ CustomRoleModel: { find: async () => [] } }));
+
 import userRoutes from '../src/routes/userRoutes.js';
 import authRoutes from '../src/routes/authRoutes.js';
 import { signAuthToken } from '../src/middleware/authMiddleware.js';

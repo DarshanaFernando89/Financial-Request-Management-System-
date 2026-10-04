@@ -9,7 +9,7 @@ export function useRole() {
   return {
     activeRole,
     isRequester: hasRole(REQUESTER_ROLES),
-    isApprover: hasRole(APPROVER_ROLES),
+    isApprover: hasRole(user?.approvalRoles || APPROVER_ROLES),
     isFinance: hasRole(FINANCE_ROLES),
     isAdmin: hasRole(ADMIN_ROLES),
     hasRole

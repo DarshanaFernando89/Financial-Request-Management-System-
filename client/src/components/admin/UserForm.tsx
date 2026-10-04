@@ -31,20 +31,25 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
     faculty: initial?.faculty || 'Faculty of Engineering, University of Ruhuna',
     contactNo: initial?.contactNo || '',
     address: initial?.address || '',
-    roles: initial ? visibleAssignedRoles(initial.roles) : ['LECTURER'],
+    roles: initial ? visibleAssignedRoles(initial.roles, Object.keys(initial.roleLabels || Object.fromEntries(ROLES.map((code) => [code, code])))) : ['LECTURER'],
     approvalRolePasswords: {}
   });
   const [availableRoles, setAvailableRoles] = useState<Array<{ code: string; displayName: string; isActive: boolean }>>(
-    ROLES.map((role) => ({ code: role, displayName: roleLabel(role), isActive: true }))
+    []
   );
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [rolesLoading, setRolesLoading] = useState(true);
+  const [rolesError, setRolesError] = useState('');
+  const approvalRoles = availableRoles.filter((role) => APPROVER_ROLES.includes(role.code) || !ROLES.includes(role.code)).map((role) => role.code);
+  const roleName = (code: string) => availableRoles.find((role) => role.code === code)?.displayName || roleLabel(code, initial?.roleLabels);
 
   useEffect(() => {
     adminApi
       .roles()
-      .then((roles) => setAvailableRoles(roles.filter((role) => role.isActive && ROLES.includes(role.code))))
-      .catch(() => setAvailableRoles(ROLES.map((role) => ({ code: role, displayName: roleLabel(role), isActive: true }))));
+      .then((roles) => setAvailableRoles(roles.filter((role) => role.isActive && role.code !== 'REQUESTER')))
+      .catch(() => setRolesError('Unable to load roles. Reopen this page to try again.'))
+      .finally(() => setRolesLoading(false));
   }, []);
 
   function setValue(key: string, value: unknown) {
@@ -77,19 +82,19 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
       return;
     }
     const selectedRoles = form.roles as Role[];
-    if (!selectedRoles.length) {
+    if (rolesLoading || rolesError || !selectedRoles.length || selectedRoles.some((code) => !availableRoles.some((role) => role.code === code))) {
       setError('Select at least one available role.');
       return;
     }
     if (selectedRoles.length > 1) {
       const missingApprovalRole = selectedRoles.find(
         (role) =>
-          APPROVER_ROLES.includes(role) &&
+          approvalRoles.includes(role) &&
           !initial?.approvalRolePasswordConfiguredRoles?.includes(role) &&
           !String(form.approvalRolePasswords?.[role] || '').trim()
       );
       if (missingApprovalRole) {
-        setError(`Approval password is required for ${roleLabel(missingApprovalRole)}.`);
+        setError(`Approval password is required for ${roleName(missingApprovalRole)}.`);
         return;
       }
     }
@@ -149,19 +154,27 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
               </label>
             ))}
           </div>
+          {!rolesLoading && (form.roles as Role[]).filter((code) => !availableRoles.some((role) => role.code === code)).map((code) => (
+            <div key={code} className="mt-2 flex items-center gap-2 text-sm text-slate-600">
+              <span>{roleName(code) || 'Unavailable role'}</span>
+              <Button variant="ghost" onClick={() => toggleRole(code)}>Remove</Button>
+            </div>
+          ))}
         </div>
-        {(form.roles as Role[]).some((role) => APPROVER_ROLES.includes(role)) && (
+        {rolesLoading && <p className="text-sm text-slate-500">Loading roles...</p>}
+        {rolesError && <p className="text-sm font-medium text-red-600">{rolesError}</p>}
+        {(form.roles as Role[]).some((role) => approvalRoles.includes(role)) && (
           <div>
             <p className="mb-2 text-sm font-semibold text-slate-700">Approving role passwords</p>
             <div className="grid gap-4 md:grid-cols-2">
               {(form.roles as Role[])
-                .filter((role) => APPROVER_ROLES.includes(role))
+                .filter((role) => approvalRoles.includes(role))
                 .map((role) => {
                   const configured = initial?.approvalRolePasswordConfiguredRoles?.includes(role);
                   return (
                     <PasswordInput
                       key={role}
-                      label={`${roleLabel(role)} password${configured ? ' (set)' : ''}`}
+                      label={`${roleName(role)} password${configured ? ' (set)' : ''}`}
                       placeholder={configured ? 'Leave blank to keep current' : 'Required for multi-role users'}
                       value={form.approvalRolePasswords[role] || ''}
                       onChange={(event) => setApprovalRolePassword(role, event.target.value)}
@@ -173,7 +186,7 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
         )}
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
         <div className="flex justify-end">
-          <Button type="submit" icon={<Save size={16} />} disabled={saving}>Save User</Button>
+          <Button type="submit" icon={<Save size={16} />} disabled={saving || rolesLoading || Boolean(rolesError)}>Save User</Button>
         </div>
       </Card>
     </form>

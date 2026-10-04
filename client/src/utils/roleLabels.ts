@@ -8,6 +8,6 @@ export const roleLabels: Record<string, string> = {
   ADMIN: 'Admin'
 };
 
-export function roleLabel(role?: string) {
-  return role ? roleLabels[role as Role] || '' : '';
+export function roleLabel(role?: string, labels?: Record<string, string>) {
+  return role && role !== 'REQUESTER' ? labels?.[role] || roleLabels[role as Role] || '' : '';
 }

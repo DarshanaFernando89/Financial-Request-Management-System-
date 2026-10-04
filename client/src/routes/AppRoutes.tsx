@@ -44,7 +44,7 @@ function DashboardRouter() {
   if (!role) return <Navigate to="/auth/select-role" replace />;
   if (ADMIN_ROLES.includes(role)) return <AdminDashboardPage />;
   if (FINANCE_ROLES.includes(role)) return <FinanceDashboardPage />;
-  if (APPROVER_ROLES.includes(role)) return <ApproverDashboardPage />;
+  if ((user?.approvalRoles || APPROVER_ROLES).includes(role)) return <ApproverDashboardPage />;
   if (REQUESTER_ROLES.includes(role)) return <RequesterDashboardPage />;
   return <UnauthorizedPage />;
 }
@@ -75,7 +75,7 @@ export function AppRoutes() {
             <Route path="requests/:id/respond-clarification" element={<RespondToClarificationPage />} />
           </Route>
 
-          <Route element={<RoleGuard roles={APPROVER_ROLES} />}>
+          <Route element={<RoleGuard approvals />}>
             <Route path="approvals/pending" element={<PendingRequestsPage />} />
             <Route path="approvals/review/:id" element={<ReviewRequestPage />} />
             <Route path="approvals/history" element={<ApprovalHistoryPage />} />

@@ -16,7 +16,7 @@ import { Select } from '../../components/ui/Select';
 import { roleLabel } from '../../utils/roleLabels';
 import { formatDate } from '../../utils/formatDate';
 import type { User } from '../../types/auth';
-import { ROLES, visibleAssignedRoles } from '../../utils/constants';
+import { visibleAssignedRoles } from '../../utils/constants';
 
 const defaultResetPassword = 'Password123!';
 
@@ -46,6 +46,9 @@ export function UserManagementPage() {
   const [deleteUser, setDeleteUser] = useState<User | null>(null);
   const [approveRequest, setApproveRequest] = useState<AccountRequest | null>(null);
   const [approvalRole, setApprovalRole] = useState('');
+  const [availableRoles, setAvailableRoles] = useState<Array<{ code: string; displayName: string; isActive: boolean }>>([]);
+  const availableCodes = availableRoles.map((role) => role.code);
+  const roleNames = Object.fromEntries(availableRoles.map((role) => [role.code, role.displayName]));
   const [rejectRequest, setRejectRequest] = useState<AccountRequest | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -69,6 +72,7 @@ export function UserManagementPage() {
 
   useEffect(() => {
     void loadAccountRequests();
+    adminApi.roles().then((roles) => setAvailableRoles(roles.filter((role) => role.isActive && role.code !== 'REQUESTER'))).catch(() => setError('Unable to load available roles.'));
   }, []);
 
   async function toggleActive(user: User) {
@@ -120,7 +124,7 @@ export function UserManagementPage() {
 
   async function confirmApproveAccountRequest() {
     if (!approveRequest || isProcessingAccountRequest) return;
-    if (!ROLES.includes(approvalRole)) {
+    if (!availableCodes.includes(approvalRole)) {
       setError('Choose an available role before approving this account request.');
       return;
     }
@@ -210,7 +214,7 @@ export function UserManagementPage() {
                   </div>
                 )
               },
-              { key: 'role', header: 'Requested Role', render: (row) => <Badge>{roleLabel(row.requestedRole) || 'Role assignment required'}</Badge> },
+              { key: 'role', header: 'Requested Role', render: (row) => <Badge>{roleLabel(row.requestedRole, roleNames) || 'Role assignment required'}</Badge> },
               { key: 'created', header: 'Requested', render: (row) => formatDate(row.createdAt) },
               {
                 key: 'message',
@@ -235,7 +239,7 @@ export function UserManagementPage() {
                         setMessage('');
                         setError('');
                         setApproveRequest(row);
-                        setApprovalRole(ROLES.includes(row.requestedRole) ? row.requestedRole : '');
+                        setApprovalRole(availableCodes.includes(row.requestedRole) ? row.requestedRole : '');
                       }}
                     >
                       Approve
@@ -270,7 +274,7 @@ export function UserManagementPage() {
             { key: 'email', header: 'Email', render: (row) => row.email },
             { key: 'category', header: 'Staff Category', render: (row) => row.staffCategory.replace('_', ' ') },
             { key: 'department', header: 'Department', render: (row) => row.department },
-            { key: 'roles', header: 'Roles', render: (row) => <div className="flex flex-wrap gap-1">{visibleAssignedRoles(row.roles).map((role) => <Badge key={role}>{roleLabel(role)}</Badge>)}{!visibleAssignedRoles(row.roles).length && <Badge>Role assignment required</Badge>}</div> },
+            { key: 'roles', header: 'Roles', render: (row) => <div className="flex flex-wrap gap-1">{visibleAssignedRoles(row.roles, Object.keys(row.roleLabels || {})).map((role) => <Badge key={role}>{roleLabel(role, row.roleLabels)}</Badge>)}{!visibleAssignedRoles(row.roles, Object.keys(row.roleLabels || {})).length && <Badge>Role assignment required</Badge>}</div> },
             { key: 'status', header: 'Status', render: (row) => <Badge tone={row.isActive ? 'green' : 'gray'}>{row.isActive ? 'Active' : 'Inactive'}</Badge> },
             { key: 'created', header: 'Created', render: (row) => formatDate(row.createdAt) },
             {
@@ -359,11 +363,11 @@ export function UserManagementPage() {
       >
         <div className="space-y-4">
           <p className="text-sm text-slate-600">Create an account for {approveRequest?.fullName}. The default password will be {defaultResetPassword}.</p>
-          <Select label="Assigned role" required value={approvalRole} disabled={isProcessingAccountRequest} onChange={(event) => setApprovalRole(event.target.value)} options={ROLES.map((role) => ({ value: role, label: roleLabel(role) }))} />
+          <Select label="Assigned role" required value={approvalRole} disabled={isProcessingAccountRequest} onChange={(event) => setApprovalRole(event.target.value)} options={availableRoles.map((role) => ({ value: role.code, label: role.displayName }))} />
           {error && <p className="text-sm font-medium text-red-600">{error}</p>}
           <div className="flex justify-end gap-3">
             <Button variant="outline" disabled={isProcessingAccountRequest} onClick={() => setApproveRequest(null)}>Cancel</Button>
-            <Button disabled={isProcessingAccountRequest || !ROLES.includes(approvalRole)} onClick={() => void confirmApproveAccountRequest()}>Approve</Button>
+            <Button disabled={isProcessingAccountRequest || !availableCodes.includes(approvalRole)} onClick={() => void confirmApproveAccountRequest()}>Approve</Button>
           </div>
         </div>
       </Modal>

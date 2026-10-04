@@ -98,8 +98,8 @@ export const ADMIN_ROLES = [ROLES.ADMIN];
 
 export const DEFAULT_CURRENCY = 'LKR';
 
-export function sanitizeAssignedRoles(roles: string[] = []) {
-  const supportedRoles = new Set<string>(ROLE_VALUES);
+export function sanitizeAssignedRoles(roles: string[] = [], availableRoles: string[] = ROLE_VALUES) {
+  const supportedRoles = new Set<string>(availableRoles.filter((role) => role !== 'REQUESTER'));
   return Array.from(new Set(roles.map(String).filter((role) => supportedRoles.has(role))));
 }
 

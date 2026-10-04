@@ -116,7 +116,7 @@ export function ProfilePage() {
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            {visibleAssignedRoles(profile.roles).map((role) => <Badge key={role}>{roleLabel(role)}</Badge>)}
+            {visibleAssignedRoles(profile.roles, Object.keys(profile.roleLabels || {})).map((role) => <Badge key={role}>{roleLabel(role, profile.roleLabels)}</Badge>)}
           </div>
         </Card>
         <Card className="space-y-4">

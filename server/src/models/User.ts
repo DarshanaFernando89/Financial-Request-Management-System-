@@ -1,5 +1,5 @@
 import mongoose, { Schema } from 'mongoose';
-import { sanitizeAssignedRoles, STAFF_CATEGORIES } from '../utils/constants.js';
+import { RETIRED_ROLE_CODES, STAFF_CATEGORIES } from '../utils/constants.js';
 
 const userSchema = new Schema(
   {
@@ -40,7 +40,7 @@ const userSchema = new Schema(
     timestamps: true,
     toJSON: {
       transform(_doc, ret) {
-        ret.roles = sanitizeAssignedRoles(ret.roles);
+        ret.roles = ret.roles.filter((role: string) => !RETIRED_ROLE_CODES.includes(role));
         delete ret.passwordHash;
         delete ret.approvalRolePasswordHashes;
         delete ret.__v;

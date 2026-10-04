@@ -26,6 +26,7 @@ The written specification is treated as the source of truth. Approval thresholds
 - In-app notifications plus email/SMS-ready service stubs.
 - Audit logging for important system actions.
 - Admin user, role, account request, approval rule, and request type management.
+- Admin can assign active system and custom roles when creating or editing users. Custom roles retain their display names in profiles and sessions and use the approver dashboard for claims assigned to them. Multi-role accounts require separate approval-role passwords for custom approver roles, as they do for HoD and Dean.
 - PDF and Excel report export.
 - Basic backend tests and TypeScript build verification.
 

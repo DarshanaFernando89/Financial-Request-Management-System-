@@ -30,7 +30,7 @@ export function NotificationsPage() {
       {notifications.length ? (
         <div className="space-y-3">
           {notifications.map((item) => {
-            const action = getNotificationAction(item, user?.activeRole);
+            const action = getNotificationAction(item, user?.activeRole, user?.approvalRoles);
             return (
               <Card key={item._id} className={item.isRead ? 'shadow-none' : 'border-blue-200 bg-blue-50'}>
                 <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">

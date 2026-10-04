@@ -34,16 +34,16 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { user, logout, switchRole } = useAuth();
   const { unreadCount } = useNotifications();
   const navigate = useNavigate();
-  const assignedRoles = visibleAssignedRoles(user?.roles);
+  const assignedRoles = visibleAssignedRoles(user?.roles, Object.keys(user?.roleLabels || {}));
   const activeRole = user?.activeRole && assignedRoles.includes(user.activeRole) ? user.activeRole : undefined;
-  const visible = items.filter((item) => !item.roles || (activeRole && item.roles.includes(activeRole)));
+  const visible = items.filter((item) => !item.roles || (activeRole && (item.roles === APPROVER_ROLES ? user?.approvalRoles || APPROVER_ROLES : item.roles).includes(activeRole)));
   const [pendingRole, setPendingRole] = useState<Role | null>(null);
   const [approvalRolePassword, setApprovalRolePassword] = useState('');
   const [switchError, setSwitchError] = useState('');
   const [switching, setSwitching] = useState(false);
 
   function needsApprovalPassword(role: Role) {
-    return Boolean(user && assignedRoles.length > 1 && APPROVER_ROLES.includes(role));
+    return Boolean(user && assignedRoles.length > 1 && (user?.approvalRoles || APPROVER_ROLES).includes(role));
   }
 
   async function completeSwitch(role: Role, password?: string) {
@@ -131,7 +131,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold text-slate-900">{user?.fullName}</p>
               <p className="truncate text-xs text-slate-500">{user?.email}</p>
-              <Badge tone="gold" className="mt-2">{roleLabel(activeRole)}</Badge>
+              <Badge tone="gold" className="mt-2">{roleLabel(activeRole, user?.roleLabels)}</Badge>
             </div>
           </div>
           {user && assignedRoles.length > 1 && (
@@ -144,7 +144,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               >
                 {assignedRoles.map((role) => (
                   <option key={role} value={role}>
-                    {roleLabel(role)}
+                    {roleLabel(role, user?.roleLabels)}
                   </option>
                 ))}
               </select>
@@ -162,7 +162,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
       <Modal
         open={Boolean(pendingRole)}
-        title={`${roleLabel(pendingRole || '')} Password`}
+        title={`${roleLabel(pendingRole || '', user?.roleLabels)} Password`}
         onClose={() => {
           setPendingRole(null);
           setSwitchError('');
