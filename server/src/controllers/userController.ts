@@ -4,6 +4,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { writeAuditLog } from '../services/auditService.js';
 import { APPROVER_ROLES, ROLES, sanitizeAssignedRoles } from '../utils/constants.js';
+import { parseProfileUpdate } from '../utils/profileValidation.js';
 
 function configuredApprovalRolePasswords(user: any) {
   const hashes = user.approvalRolePasswordHashes as Map<string, string> | undefined;
@@ -236,8 +237,20 @@ export const getProfile = asyncHandler(async (req, res) => {
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
-  const allowed = ['contactNo', 'address', 'profileImageUrl'];
-  const updates = Object.fromEntries(Object.entries(req.body).filter(([key]) => allowed.includes(key)));
-  const user = await UserModel.findByIdAndUpdate((req as any).user.userId, updates, { new: true, runValidators: true });
+  const updates = parseProfileUpdate(req.body);
+  const userId = (req as any).user.userId;
+  if (updates.email && await UserModel.exists({ email: updates.email, _id: { $ne: userId } })) {
+    throw new ApiError(409, 'This email address is already used by another account.');
+  }
+  let user;
+  try {
+    user = await UserModel.findByIdAndUpdate(userId, updates, { new: true, runValidators: true });
+  } catch (error: any) {
+    if (error.code === 11000 && (error.keyPattern?.email || error.keyValue?.email)) {
+      throw new ApiError(409, 'This email address is already used by another account.');
+    }
+    throw error;
+  }
+  if (!user) throw new ApiError(404, 'User not found.');
   res.json(user);
 });

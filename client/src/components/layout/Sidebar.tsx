@@ -124,12 +124,12 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               {user?.profileImageUrl ? (
                 <img src={user.profileImageUrl} alt="" className="h-full w-full object-cover" />
               ) : (
-                user?.nameWithInitials?.slice(0, 2).toUpperCase() || 'U'
+                user?.fullName?.slice(0, 2).toUpperCase() || 'U'
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-slate-900">{user?.nameWithInitials}</p>
-              <p className="truncate text-xs text-slate-500">{user?.department}</p>
+              <p className="truncate text-sm font-bold text-slate-900">{user?.fullName}</p>
+              <p className="truncate text-xs text-slate-500">{user?.email}</p>
               <Badge tone="gold" className="mt-2">{roleLabel(user?.activeRole)}</Badge>
             </div>
           </div>

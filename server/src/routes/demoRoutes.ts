@@ -16,6 +16,7 @@ import {
 } from '../utils/constants.js';
 import { getAccountRequestValidationError, normalizeAccountRequestPayload } from '../utils/accountRequestValidation.js';
 import { deleteUploadedFiles } from '../services/fileService.js';
+import { parseProfileUpdate } from '../utils/profileValidation.js';
 
 const router = Router();
 const defaultPassword = 'Password123!';
@@ -852,11 +853,11 @@ router.put('/users/me/profile', (req, res) => {
   const sessionUser = currentUser(req);
   const storedUser = users.find((user) => user._id === sessionUser._id);
   if (!storedUser) return res.status(404).json({ message: 'User not found.' });
-  Object.assign(storedUser, {
-    contactNo: req.body.contactNo,
-    address: req.body.address,
-    profileImageUrl: req.body.profileImageUrl
-  });
+  const updates = parseProfileUpdate(req.body);
+  if (updates.email && users.some((user) => user._id !== storedUser._id && user.email === updates.email)) {
+    return res.status(409).json({ message: 'This email address is already used by another account.' });
+  }
+  Object.assign(storedUser, updates);
   res.json(publicUser(storedUser, sessionUser.activeRole));
 });
 

@@ -26,7 +26,7 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
     const decoded = jwt.verify(token, env.jwtSecret) as JwtPayload;
     const user = await UserModel.findById(decoded.userId);
     if (!user || !user.isActive) throw new ApiError(401, 'User account is inactive or unavailable.');
-    const roles = sanitizeAssignedRoles(user.roles);
+    const roles = sanitizeAssignedRoles(user.roles.map(String));
     const activeRole = decoded.activeRole && roles.includes(decoded.activeRole) ? decoded.activeRole : undefined;
 
     (req as any).user = {
