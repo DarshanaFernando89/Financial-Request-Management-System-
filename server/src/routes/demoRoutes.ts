@@ -9,12 +9,18 @@ import {
   REQUEST_STATUSES,
   REQUEST_TYPE_CODES,
   ROLES,
+  RETIRED_ROLE_CODES,
+  sanitizeAssignedRoles,
   STAFF_CATEGORIES,
   STEP_STATUSES,
   STEP_TYPES
 } from '../utils/constants.js';
 import { getAccountRequestValidationError, normalizeAccountRequestPayload } from '../utils/accountRequestValidation.js';
 import { deleteUploadedFiles } from '../services/fileService.js';
+import { parseProfileUpdate } from '../utils/profileValidation.js';
+import { ApiError } from '../utils/ApiError.js';
+import { resolveRoleCatalog, roleCatalogMetadata, validateAssignedRoles } from '../services/roleCatalogService.js';
+import { assertAvailableWorkflowRoles } from '../services/workflowRoleService.js';
 
 const router = Router();
 const defaultPassword = 'Password123!';
@@ -43,31 +49,7 @@ const users: any[] = [
     staffCategory: STAFF_CATEGORIES.ACADEMIC,
     department,
     faculty,
-    roles: [ROLES.REQUESTER, ROLES.LECTURER],
-    isActive: true
-  },
-  {
-    _id: 'demo-requester',
-    nameWithInitials: 'N. Requester',
-    fullName: 'Nimal Requester',
-    email: 'requester@uor.lk',
-    employeeNo: 'NA001',
-    staffCategory: STAFF_CATEGORIES.NON_ACADEMIC,
-    department,
-    faculty,
-    roles: [ROLES.REQUESTER],
-    isActive: true
-  },
-  {
-    _id: 'demo-coordinator',
-    nameWithInitials: 'D. Coordinator',
-    fullName: 'Department Coordinator',
-    email: 'coordinator@uor.lk',
-    employeeNo: 'DC001',
-    staffCategory: STAFF_CATEGORIES.NON_ACADEMIC,
-    department,
-    faculty,
-    roles: [ROLES.DEPARTMENT_COORDINATOR, ROLES.REQUESTER],
+    roles: [ROLES.LECTURER],
     isActive: true
   },
   {
@@ -79,19 +61,7 @@ const users: any[] = [
     staffCategory: STAFF_CATEGORIES.ACADEMIC,
     department,
     faculty,
-    roles: [ROLES.HOD, ROLES.LECTURER, ROLES.REQUESTER],
-    isActive: true
-  },
-  {
-    _id: 'demo-associate-dean',
-    nameWithInitials: 'Assoc. Dean',
-    fullName: 'Associate Dean Engineering',
-    email: 'associatedean@uor.lk',
-    employeeNo: 'AD001',
-    staffCategory: STAFF_CATEGORIES.ACADEMIC,
-    department,
-    faculty,
-    roles: [ROLES.ASSOCIATE_DEAN, ROLES.LECTURER, ROLES.REQUESTER],
+    roles: [ROLES.HOD, ROLES.LECTURER],
     isActive: true
   },
   {
@@ -103,31 +73,7 @@ const users: any[] = [
     staffCategory: STAFF_CATEGORIES.ACADEMIC,
     department,
     faculty,
-    roles: [ROLES.DEAN, ROLES.LECTURER, ROLES.REQUESTER],
-    isActive: true
-  },
-  {
-    _id: 'demo-finance-division',
-    nameWithInitials: 'F. Division',
-    fullName: 'Financial Division User',
-    email: 'finance.division@uor.lk',
-    employeeNo: 'FD001',
-    staffCategory: STAFF_CATEGORIES.NON_ACADEMIC,
-    department: 'Finance Division',
-    faculty,
-    roles: [ROLES.FINANCE_DIVISION],
-    isActive: true
-  },
-  {
-    _id: 'demo-authority',
-    nameWithInitials: 'A. Authority',
-    fullName: 'Approving Authority User',
-    email: 'approving.authority@uor.lk',
-    employeeNo: 'AA001',
-    staffCategory: STAFF_CATEGORIES.ACADEMIC,
-    department,
-    faculty,
-    roles: [ROLES.APPROVING_AUTHORITY],
+    roles: [ROLES.DEAN, ROLES.LECTURER],
     isActive: true
   },
   {
@@ -140,18 +86,6 @@ const users: any[] = [
     department: 'Finance Division',
     faculty,
     roles: [ROLES.FINANCE_OFFICER],
-    isActive: true
-  },
-  {
-    _id: 'demo-multirole',
-    nameWithInitials: 'Dr. Multi Role',
-    fullName: 'Multi Role Lecturer HoD',
-    email: 'multirole@uor.lk',
-    employeeNo: 'MR001',
-    staffCategory: STAFF_CATEGORIES.ACADEMIC,
-    department,
-    faculty,
-    roles: [ROLES.REQUESTER, ROLES.LECTURER, ROLES.HOD],
     isActive: true
   }
 ];
@@ -252,7 +186,7 @@ const approvalRules: any[] = [
     requestTypes: [requestTypes[0], requestTypes[1]],
     minAmount: 25000.01,
     maxAmount: 75000,
-    workflowRoles: [ROLES.HOD, ROLES.ASSOCIATE_DEAN],
+    workflowRoles: [ROLES.HOD, ROLES.DEAN],
     priority: 10,
     includeFinanceReview: false,
     isActive: true
@@ -263,7 +197,7 @@ const approvalRules: any[] = [
     requestTypes: [requestTypes[2]],
     minAmount: 0,
     maxAmount: null,
-    workflowRoles: [ROLES.DEPARTMENT_COORDINATOR, ROLES.HOD],
+    workflowRoles: [ROLES.HOD],
     priority: 20,
     includeFinanceReview: false,
     isActive: true
@@ -274,7 +208,7 @@ const approvalRules: any[] = [
     requestTypes: [requestTypes[4]],
     minAmount: 0,
     maxAmount: null,
-    workflowRoles: [ROLES.HOD, ROLES.FINANCE_DIVISION, ROLES.APPROVING_AUTHORITY],
+    workflowRoles: [ROLES.HOD, ROLES.DEAN],
     priority: 30,
     includeFinanceReview: false,
     isActive: true
@@ -288,14 +222,7 @@ function steps(roles: string[], pendingIndex: number) {
     _id: `step-${role}-${index}`,
     stepIndex: index,
     role,
-    stepType:
-      role === ROLES.DEPARTMENT_COORDINATOR
-        ? STEP_TYPES.VERIFICATION
-        : role === ROLES.FINANCE_DIVISION
-          ? STEP_TYPES.FINANCE_REVIEW
-          : role === ROLES.FINANCE_OFFICER
-            ? STEP_TYPES.PAYMENT
-            : STEP_TYPES.APPROVAL,
+    stepType: role === ROLES.FINANCE_OFFICER ? STEP_TYPES.PAYMENT : STEP_TYPES.APPROVAL,
     status: index < pendingIndex ? STEP_STATUSES.COMPLETED : index === pendingIndex ? STEP_STATUSES.PENDING : STEP_STATUSES.WAITING
   }));
 }
@@ -312,7 +239,6 @@ function snapshot(user: any, role: string = ROLES.LECTURER) {
 }
 
 const lecturer = users.find((user) => user.email === 'lecturer@uor.lk');
-const requester = users.find((user) => user.email === 'requester@uor.lk');
 
 const requests: any[] = [
   {
@@ -341,8 +267,8 @@ const requests: any[] = [
   {
     _id: 'request-12000065',
     requestId: '12000065',
-    requester: requester._id,
-    requesterSnapshot: snapshot(requester, ROLES.REQUESTER),
+    requester: lecturer._id,
+    requesterSnapshot: snapshot(lecturer),
     requestType: requestTypes[2],
     title: 'Fuel Claim for Department Visit',
     description: 'Official department visit.',
@@ -350,10 +276,10 @@ const requests: any[] = [
     currency: 'LKR',
     requestData: { travelDate: '2026-06-01', destination: 'Galle', distanceKm: 120 },
     documents: [],
-    status: REQUEST_STATUSES.UNDER_VERIFICATION,
+    status: REQUEST_STATUSES.UNDER_REVIEW,
     currentStepIndex: 0,
-    workflowSteps: steps([ROLES.DEPARTMENT_COORDINATOR, ROLES.HOD], 0),
-    currentAssignedRole: ROLES.DEPARTMENT_COORDINATOR,
+    workflowSteps: steps([ROLES.HOD], 0),
+    currentAssignedRole: ROLES.HOD,
     approvalHistory: [],
     clarificationHistory: [],
     revisionNo: 0,
@@ -479,7 +405,7 @@ const accountRequests: any[] = [
     faculty,
     contactNo: '0712345678',
     address: 'Faculty of Engineering, University of Ruhuna',
-    requestedRole: ROLES.REQUESTER,
+    requestedRole: ROLES.LECTURER,
     message: 'Need access to submit reimbursements.',
     status: ACCOUNT_REQUEST_STATUSES.PENDING,
     createdAt: new Date().toISOString()
@@ -503,7 +429,8 @@ function demoOnly(req: any, res: any, next: any) {
 }
 
 function publicUser(user: any, activeRole?: string) {
-  return { ...user, activeRole };
+  const roles = sanitizeAssignedRoles(user.roles, resolveRoleCatalog(customRoles).map((role) => role.code));
+  return { ...user, roles, ...roleCatalogMetadata(resolveRoleCatalog(customRoles)), activeRole: activeRole && roles.includes(activeRole) ? activeRole : undefined };
 }
 
 function getBearer(req: any) {
@@ -565,12 +492,14 @@ function demoUploadedDocuments(req: any, user: any, options: { source?: string; 
   }));
 }
 
-function matchingRule(typeId: string, amount: number) {
-  return approvalRules.find((rule) => {
-    const hasType = rule.requestTypes.some((type: any) => type._id === typeId);
-    const max = rule.maxAmount ?? Infinity;
-    return hasType && amount >= rule.minAmount && amount <= max;
-  });
+function matchingRule(typeId: string, amount: number, ruleId?: string) {
+  return [...approvalRules]
+    .sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100) || b.minAmount - a.minAmount)
+    .find((rule) => {
+      const hasType = rule.requestTypes.some((type: any) => type._id === typeId);
+      const max = rule.maxAmount ?? Infinity;
+      return rule.isActive && (!ruleId || rule._id === ruleId) && hasType && amount >= rule.minAmount && amount <= max;
+    });
 }
 
 function statusForStep(step: any) {
@@ -581,8 +510,10 @@ function statusForStep(step: any) {
 }
 
 function routeRequest(request: any) {
-  const rule = matchingRule(String(request.requestType?._id || request.requestType), request.amount);
-  const workflowRoles = rule?.workflowRoles || [ROLES.HOD];
+  const rule = matchingRule(String(request.requestType?._id || request.requestType), request.amount, request.approvalRule);
+  if (!rule) throw new ApiError(422, 'The approval rule is unavailable or does not match this request type and amount.');
+  const workflowRoles = rule.workflowRoles;
+  assertAvailableWorkflowRoles(workflowRoles, demoWorkflowRoleCodes(), 422);
   request.workflowSteps = steps(workflowRoles, 0);
   request.currentStepIndex = 0;
   request.currentAssignedRole = request.workflowSteps[0]?.role;
@@ -630,9 +561,11 @@ router.use(demoOnly);
 router.post('/auth/login', (req, res) => {
   const user = users.find((item) => item.email === String(req.body.email || '').toLowerCase());
   if (!user || req.body.password !== defaultPassword) return res.status(401).json({ message: 'Invalid email or password.' });
-  const activeRole = user.roles.length === 1 ? user.roles[0] : undefined;
-  const token = signAuthToken({ userId: user._id, email: user.email, roles: user.roles, activeRole });
-  res.json({ token, requiresRoleSelection: user.roles.length > 1, user: publicUser(user, activeRole) });
+  const roles = sanitizeAssignedRoles(user.roles, resolveRoleCatalog(customRoles).map((role) => role.code));
+  if (!roles.length) return res.status(403).json({ message: 'No roles are assigned to this account.' });
+  const activeRole = roles.length === 1 ? roles[0] : undefined;
+  const token = signAuthToken({ userId: user._id, email: user.email, roles, activeRole });
+  res.json({ token, requiresRoleSelection: roles.length > 1, user: publicUser(user, activeRole) });
 });
 
 router.post('/auth/forgot-password', (_req, res) => {
@@ -716,6 +649,20 @@ router.get('/requests/types/active', (_req, res) => {
   res.json({ items: requestTypes.filter((type) => type.isActive) });
 });
 
+router.get('/requests/rules/active', (_req, res) => {
+  const items = approvalRules
+    .filter((rule) => rule.isActive)
+    .map((rule) => ({
+      _id: rule._id,
+      name: rule.name,
+      minAmount: rule.minAmount,
+      maxAmount: rule.maxAmount,
+      requestTypes: rule.requestTypes.filter((type: any) => type.isActive)
+    }))
+    .filter((rule) => rule.requestTypes.length > 0);
+  res.json({ items });
+});
+
 router.get('/requests/my', (req, res) => {
   const user = currentUser(req);
   const items = requests.filter((request) => request.requester === user._id);
@@ -734,7 +681,13 @@ router.get('/requests', (req, res) => {
 
 router.post('/requests', upload.array('files', 20), (req, res) => {
   const user = currentUser(req);
-  const requestType = requestTypes.find((type) => type._id === req.body.requestType) || requestTypes[0];
+  const requestType = requestTypes.find((type) => type._id === req.body.requestType && type.isActive);
+  if (!requestType) return res.status(422).json({ message: 'Request type is inactive or unavailable.' });
+  const amount = Number(req.body.amount);
+  if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ message: 'Amount must be positive.' });
+  if (req.body.approvalRule && !matchingRule(requestType._id, amount, req.body.approvalRule)) {
+    return res.status(422).json({ message: 'The selected approval rule is unavailable or does not match this request type and amount.' });
+  }
   const submit = parseBodyBoolean(req.body.submit);
   const documents = demoUploadedDocuments(req, user);
   const missingDocuments = submit
@@ -757,9 +710,10 @@ router.post('/requests', upload.array('files', 20), (req, res) => {
     requester: user._id,
     requesterSnapshot: snapshot(user, user.activeRole),
     requestType,
+    approvalRule: req.body.approvalRule,
     title: req.body.title,
     description: req.body.description,
-    amount: Number(req.body.amount),
+    amount,
     currency: 'LKR',
     requestData,
     documents,
@@ -929,45 +883,52 @@ router.put('/users/me/profile', (req, res) => {
   const sessionUser = currentUser(req);
   const storedUser = users.find((user) => user._id === sessionUser._id);
   if (!storedUser) return res.status(404).json({ message: 'User not found.' });
-  Object.assign(storedUser, {
-    contactNo: req.body.contactNo,
-    address: req.body.address,
-    profileImageUrl: req.body.profileImageUrl
-  });
+  const updates = parseProfileUpdate(req.body);
+  if (updates.email && users.some((user) => user._id !== storedUser._id && user.email === updates.email)) {
+    return res.status(409).json({ message: 'This email address is already used by another account.' });
+  }
+  Object.assign(storedUser, updates);
   res.json(publicUser(storedUser, sessionUser.activeRole));
 });
 
 router.get('/users', (req, res) => {
   const search = String(req.query.search || '').toLowerCase();
   const items = search ? users.filter((user) => `${user.fullName} ${user.email} ${user.department}`.toLowerCase().includes(search)) : users;
-  res.json({ items, total: items.length, page: 1, pages: 1 });
+  res.json({ items: items.map((user) => publicUser(user)), total: items.length, page: 1, pages: 1 });
 });
 
 router.get('/users/:id', (req, res) => {
   const user = users.find((item) => item._id === req.params.id);
   if (!user) return res.status(404).json({ message: 'User not found.' });
-  res.json(user);
+  res.json(publicUser(user));
 });
 
 router.post('/users', (req, res) => {
-  const user = { _id: `demo-user-${Date.now()}`, isActive: true, ...req.body };
+  const roles = validateAssignedRoles(req.body.roles, resolveRoleCatalog(customRoles));
+  if (!roles.length) return res.status(400).json({ message: 'At least one available role is required.' });
+  const user = { _id: `demo-user-${Date.now()}`, isActive: true, ...req.body, roles };
   delete user.password;
   users.unshift(user);
-  res.status(201).json(user);
+  res.status(201).json(publicUser(user));
 });
 
 router.put('/users/:id', (req, res) => {
   const user = users.find((item) => item._id === req.params.id);
   if (!user) return res.status(404).json({ message: 'User not found.' });
+  if (req.body.roles) {
+    const roles = validateAssignedRoles(req.body.roles, resolveRoleCatalog(customRoles));
+    if (!roles.length) return res.status(400).json({ message: 'At least one available role is required.' });
+    req.body.roles = roles;
+  }
   Object.assign(user, req.body);
-  res.json(user);
+  res.json(publicUser(user));
 });
 
 router.patch('/users/:id/activate', (req, res) => {
   const user = users.find((item) => item._id === req.params.id);
   if (!user) return res.status(404).json({ message: 'User not found.' });
   user.isActive = true;
-  res.json(user);
+  res.json(publicUser(user));
 });
 
 router.patch('/users/:id/deactivate', (req, res) => {
@@ -975,7 +936,7 @@ router.patch('/users/:id/deactivate', (req, res) => {
   if (!user) return res.status(404).json({ message: 'User not found.' });
   if (user.roles.includes(ROLES.ADMIN)) return res.status(403).json({ message: 'Admin accounts cannot be deactivated.' });
   user.isActive = false;
-  res.json(user);
+  res.json(publicUser(user));
 });
 
 router.patch('/users/:id/reset-password', (_req, res) => res.json({ message: 'Password reset successfully.' }));
@@ -1004,7 +965,7 @@ router.get('/admin/roles', (_req, res) => {
     isActive: true,
     isSystem: true
   }));
-  res.json({ items: [...systemRoles, ...customRoles] });
+  res.json({ items: [...systemRoles, ...customRoles.filter((role) => !RETIRED_ROLE_CODES.includes(role.code))] });
 });
 
 router.post('/admin/roles', (req, res) => {
@@ -1013,6 +974,7 @@ router.post('/admin/roles', (req, res) => {
     .toUpperCase()
     .replace(/[^A-Z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
+  if (RETIRED_ROLE_CODES.includes(code)) return res.status(400).json({ message: 'This role is no longer available.' });
   if (!code || !req.body.displayName) return res.status(400).json({ message: 'Role code and display name are required.' });
   if (Object.values(ROLES).includes(code as any) || customRoles.some((role) => role.code === code)) {
     return res.status(409).json({ message: 'Role already exists.' });
@@ -1031,14 +993,25 @@ router.post('/admin/roles', (req, res) => {
 });
 
 router.put('/admin/roles/:id', (req, res) => {
+  if (req.body.code && RETIRED_ROLE_CODES.includes(String(req.body.code).trim().toUpperCase())) {
+    return res.status(400).json({ message: 'This role is no longer available.' });
+  }
   const item = customRoles.find((role) => role._id === req.params.id);
   if (!item) return res.status(404).json({ message: 'Role not found.' });
   Object.assign(item, req.body);
   res.json(item);
 });
 
+function demoWorkflowRoleCodes() {
+  return [ROLES.HOD, ROLES.DEAN, ...customRoles
+    .filter((role) => role.isActive && !Object.values(ROLES).includes(role.code) && !RETIRED_ROLE_CODES.includes(role.code))
+    .map((role) => role.code)];
+}
+
 router.get('/admin/approval-rules', (_req, res) => res.json({ items: approvalRules }));
 router.post('/admin/approval-rules', (req, res) => {
+  assertAvailableWorkflowRoles(req.body.workflowRoles, demoWorkflowRoleCodes());
+  if (req.body.approvingAuthorityRole) assertAvailableWorkflowRoles([req.body.approvingAuthorityRole], demoWorkflowRoleCodes());
   const item = { _id: `rule-${Date.now()}`, includeFinanceReview: false, isActive: true, ...req.body };
   item.requestTypes = requestTypes.filter((type) => item.requestTypes.includes(type._id));
   approvalRules.unshift(item);
@@ -1047,9 +1020,17 @@ router.post('/admin/approval-rules', (req, res) => {
 router.put('/admin/approval-rules/:id', (req, res) => {
   const item = approvalRules.find((rule) => rule._id === req.params.id);
   if (!item) return res.status(404).json({ message: 'Approval rule not found.' });
+  if (req.body.workflowRoles !== undefined) assertAvailableWorkflowRoles(req.body.workflowRoles, demoWorkflowRoleCodes());
+  if (req.body.approvingAuthorityRole) assertAvailableWorkflowRoles([req.body.approvingAuthorityRole], demoWorkflowRoleCodes());
   Object.assign(item, req.body);
-  item.requestTypes = requestTypes.filter((type) => req.body.requestTypes?.includes(type._id));
+  if (req.body.requestTypes) item.requestTypes = requestTypes.filter((type) => req.body.requestTypes.includes(type._id));
   res.json(item);
+});
+router.delete('/admin/approval-rules/:id', (req, res) => {
+  const index = approvalRules.findIndex((rule) => rule._id === req.params.id);
+  if (index === -1) return res.status(404).json({ message: 'Approval rule not found.' });
+  approvalRules.splice(index, 1);
+  res.json({ success: true, message: 'Approval rule deleted.' });
 });
 
 router.get('/admin/request-types', (_req, res) => res.json({ items: requestTypes }));
@@ -1075,6 +1056,8 @@ router.patch('/account-requests/:id/approve', (req, res) => {
   const item = accountRequests.find((request) => request._id === req.params.id);
   if (!item) return res.status(404).json({ message: 'Account request not found.' });
   if (item.status !== ACCOUNT_REQUEST_STATUSES.PENDING) return res.status(422).json({ message: 'Account request has already been processed.' });
+  const roles = validateAssignedRoles([String(req.body.requestedRole || item.requestedRole)], resolveRoleCatalog(customRoles));
+  if (!roles.length) return res.status(400).json({ message: 'Choose an available role before approving this account request.' });
   const user = {
     _id: `user-${Date.now()}`,
     nameWithInitials: item.nameWithInitials,
@@ -1087,11 +1070,12 @@ router.patch('/account-requests/:id/approve', (req, res) => {
     faculty: item.faculty,
     contactNo: item.contactNo,
     address: item.address,
-    roles: [item.requestedRole],
+    roles,
     isActive: true,
     createdAt: new Date().toISOString()
   };
   users.unshift(user);
+  item.requestedRole = roles[0];
   item.status = ACCOUNT_REQUEST_STATUSES.APPROVED;
   item.adminRemarks = req.body.adminRemarks;
   res.json({ accountRequest: item, user });

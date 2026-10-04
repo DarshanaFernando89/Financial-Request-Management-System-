@@ -3,34 +3,36 @@ import { ApprovalRuleModel } from '../models/ApprovalRule.js';
 import { RequestModel } from '../models/Request.js';
 import {
   APPROVAL_ACTIONS,
+  APPROVER_ROLES,
   REQUEST_STATUSES,
   ROLES,
   STEP_STATUSES,
   STEP_TYPES
 } from '../utils/constants.js';
 import { ApiError } from '../utils/ApiError.js';
+import { validateWorkflowRoleFields } from './workflowRoleService.js';
 
 type BuildWorkflowInput = {
   workflowRoles: string[];
   includeFinanceReview?: boolean;
   approvingAuthorityRole?: string;
+  availableRoles?: string[];
 };
 
 export function getStepType(role: string) {
-  if (role === ROLES.DEPARTMENT_COORDINATOR) return STEP_TYPES.VERIFICATION;
-  if (role === ROLES.FINANCE_DIVISION) return STEP_TYPES.FINANCE_REVIEW;
   if (role === ROLES.FINANCE_OFFICER) return STEP_TYPES.PAYMENT;
   return STEP_TYPES.APPROVAL;
 }
 
 export function buildWorkflowSteps(input: BuildWorkflowInput) {
-  const roles = [...input.workflowRoles];
+  const validWorkflowRoles = new Set<string>(input.availableRoles || APPROVER_ROLES);
+  const roles = input.workflowRoles.filter((role) => validWorkflowRoles.has(role));
 
-  if (input.includeFinanceReview && !roles.includes(ROLES.FINANCE_DIVISION)) {
-    roles.push(ROLES.FINANCE_DIVISION);
-  }
-
-  if (input.approvingAuthorityRole && !roles.includes(input.approvingAuthorityRole)) {
+  if (
+    input.approvingAuthorityRole &&
+    validWorkflowRoles.has(input.approvingAuthorityRole) &&
+    !roles.includes(input.approvingAuthorityRole)
+  ) {
     roles.push(input.approvingAuthorityRole);
   }
 
@@ -45,8 +47,9 @@ export function buildWorkflowSteps(input: BuildWorkflowInput) {
   }));
 }
 
-export async function findMatchingRule(requestTypeId: string | Types.ObjectId, amount: number) {
+export async function findMatchingRule(requestTypeId: string | Types.ObjectId, amount: number, approvalRuleId?: string | Types.ObjectId) {
   const rules = await ApprovalRuleModel.find({
+    ...(approvalRuleId ? { _id: approvalRuleId } : {}),
     isActive: true,
     requestTypes: requestTypeId,
     minAmount: { $lte: amount },
@@ -64,12 +67,16 @@ export function getStatusForCurrentStep(step: any) {
 }
 
 export async function initializeWorkflow(request: any) {
-  const rule = await findMatchingRule(request.requestType, request.amount);
+  const rule = await findMatchingRule(request.requestType, request.amount, request.approvalRule);
   if (!rule) {
-    throw new ApiError(422, 'No active approval rule matches this request type and amount.');
+    throw new ApiError(422, request.approvalRule
+      ? 'The selected approval rule is unavailable or does not match this request type and amount.'
+      : 'No active approval rule matches this request type and amount.');
   }
 
+  const availableRoles = await validateWorkflowRoleFields(rule, 422);
   const workflowSteps = buildWorkflowSteps({
+    availableRoles,
     workflowRoles: rule.workflowRoles,
     includeFinanceReview: rule.includeFinanceReview,
     approvingAuthorityRole: rule.approvingAuthorityRole

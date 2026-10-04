@@ -1,12 +1,11 @@
 import { Router } from 'express';
 import { approvalHistory, approve, pendingApprovals, reject, requestInfo, verifyForward } from '../controllers/approvalController.js';
 import { authMiddleware, requireActiveRole } from '../middleware/authMiddleware.js';
-import { requireRoles } from '../middleware/roleMiddleware.js';
-import { APPROVER_ROLES } from '../utils/constants.js';
+import { requireApproverRole } from '../middleware/roleMiddleware.js';
 
 const router = Router();
 
-router.use(authMiddleware, requireActiveRole, requireRoles(...APPROVER_ROLES));
+router.use(authMiddleware, requireActiveRole, requireApproverRole);
 router.get('/pending', pendingApprovals);
 router.get('/history', approvalHistory);
 router.post('/:requestId/approve', approve);

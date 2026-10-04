@@ -4,6 +4,7 @@ import { UserModel } from '../models/User.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ACCOUNT_REQUEST_STATUSES, STAFF_CATEGORIES } from '../utils/constants.js';
+import { getRoleCatalog, validateAssignedRoles } from '../services/roleCatalogService.js';
 import { submitAccountRequest } from '../services/accountRequestService.js';
 
 export const listAccountRequests = asyncHandler(async (req, res) => {
@@ -32,6 +33,8 @@ export const approveAccountRequest = asyncHandler(async (req, res) => {
   const item = await AccountRequestModel.findById(req.params.id);
   if (!item) throw new ApiError(404, 'Account request not found.');
   if (item.status !== ACCOUNT_REQUEST_STATUSES.PENDING) throw new ApiError(422, 'Account request has already been processed.');
+  const roles = validateAssignedRoles([String(req.body.requestedRole || item.requestedRole)], await getRoleCatalog());
+  if (!roles.length) throw new ApiError(400, 'Choose an available role before approving this account request.');
 
   const password = req.body.password || 'Password123!';
   const user = await UserModel.create({
@@ -46,10 +49,11 @@ export const approveAccountRequest = asyncHandler(async (req, res) => {
     faculty: item.faculty,
     contactNo: item.contactNo,
     address: item.address,
-    roles: [item.requestedRole],
+    roles,
     isActive: true
   });
 
+  item.requestedRole = roles[0] as typeof item.requestedRole;
   item.status = ACCOUNT_REQUEST_STATUSES.APPROVED;
   item.adminRemarks = req.body.adminRemarks;
   await item.save();

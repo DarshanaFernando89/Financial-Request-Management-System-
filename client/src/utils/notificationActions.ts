@@ -12,13 +12,13 @@ function getTargetId(target: Notification['relatedAccountRequest']) {
   return typeof target === 'string' ? target : target._id;
 }
 
-export function getNotificationAction(notification: Notification, activeRole?: Role): NotificationAction | undefined {
+export function getNotificationAction(notification: Notification, activeRole?: Role, approvalRoles: Role[] = APPROVER_ROLES): NotificationAction | undefined {
   if (notification.relatedRequest?._id) {
     const request = notification.relatedRequest;
 
     if (
       activeRole &&
-      APPROVER_ROLES.includes(activeRole) &&
+      approvalRoles.includes(activeRole) &&
       request.currentAssignedRole === activeRole &&
       ['SUBMITTED', 'UNDER_VERIFICATION', 'UNDER_REVIEW'].includes(request.status)
     ) {

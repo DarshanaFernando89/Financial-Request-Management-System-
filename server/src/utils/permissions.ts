@@ -4,8 +4,8 @@ export function canSubmit(role?: string) {
   return Boolean(role && SUBMITTER_ROLES.includes(role as any));
 }
 
-export function canApprove(role?: string) {
-  return Boolean(role && APPROVER_ROLES.includes(role as any));
+export function canApprove(role?: string, approvalRoles: string[] = APPROVER_ROLES) {
+  return Boolean(role && approvalRoles.includes(role));
 }
 
 export function canProcessFinance(role?: string) {
@@ -16,8 +16,8 @@ export function canAdmin(role?: string) {
   return Boolean(role && ADMIN_ROLES.includes(role as any));
 }
 
-export function isPrivilegedReader(role?: string) {
-  return Boolean(role && [...ADMIN_ROLES, ...APPROVER_ROLES, ...FINANCE_ROLES].includes(role as any));
+export function isPrivilegedReader(role?: string, approvalRoles: string[] = APPROVER_ROLES) {
+  return Boolean(role && [...ADMIN_ROLES, ...approvalRoles, ...FINANCE_ROLES].includes(role));
 }
 
 export function normalizeRole(role?: string) {

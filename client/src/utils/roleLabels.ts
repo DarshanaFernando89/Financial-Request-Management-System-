@@ -1,18 +1,13 @@
 import type { Role } from '../types/auth';
 
 export const roleLabels: Record<string, string> = {
-  REQUESTER: 'Requester / Staff Member',
   LECTURER: 'Lecturer',
-  DEPARTMENT_COORDINATOR: 'Department Coordinator',
   HOD: 'Head of Department',
-  ASSOCIATE_DEAN: 'Associate Dean',
   DEAN: 'Dean',
-  FINANCE_DIVISION: 'Financial Division',
-  APPROVING_AUTHORITY: 'Approving Authority',
   FINANCE_OFFICER: 'Finance Officer',
   ADMIN: 'Admin'
 };
 
-export function roleLabel(role?: string) {
-  return role ? roleLabels[role as Role] || role : '';
+export function roleLabel(role?: string, labels?: Record<string, string>) {
+  return role && role !== 'REQUESTER' ? labels?.[role] || roleLabels[role as Role] || '' : '';
 }

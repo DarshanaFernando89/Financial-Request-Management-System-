@@ -2,8 +2,9 @@ import { Navigate, Outlet } from 'react-router-dom';
 import type { Role } from '../../types/auth';
 import { useAuth } from '../../hooks/useAuth';
 
-export function RoleGuard({ roles }: { roles: Role[] }) {
+export function RoleGuard({ roles, approvals = false }: { roles?: Role[]; approvals?: boolean }) {
   const { user } = useAuth();
-  if (!user?.activeRole || !roles.includes(user.activeRole)) return <Navigate to="/unauthorized" replace />;
+  const allowed = approvals ? user?.approvalRoles || [] : roles || [];
+  if (!user?.activeRole || !user.roles.includes(user.activeRole) || !allowed.includes(user.activeRole)) return <Navigate to="/unauthorized" replace />;
   return <Outlet />;
 }

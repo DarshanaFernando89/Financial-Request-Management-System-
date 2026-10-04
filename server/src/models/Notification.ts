@@ -1,10 +1,9 @@
 import mongoose, { Schema } from 'mongoose';
-import { ROLE_VALUES } from '../utils/constants.js';
 
 const notificationSchema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: 'User' },
-    role: { type: String, enum: ROLE_VALUES },
+    role: { type: String },
     title: { type: String, required: true },
     message: { type: String, required: true },
     type: { type: String, default: 'INFO' },

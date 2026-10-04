@@ -1,5 +1,5 @@
 import { CheckCircle2, Circle, Clock, XCircle } from 'lucide-react';
-import { roleLabel } from '../../utils/roleLabels';
+import { useRoleLabel } from '../../hooks/useRoleLabel';
 import type { WorkflowStep } from '../../types/request';
 
 function iconFor(status: WorkflowStep['status']) {
@@ -10,13 +10,14 @@ function iconFor(status: WorkflowStep['status']) {
 }
 
 export function Timeline({ steps }: { steps: WorkflowStep[] }) {
+  const label = useRoleLabel();
   return (
     <ol className="space-y-3">
       {steps.map((step) => (
         <li key={step.stepIndex} className="flex gap-3">
           <div className="mt-0.5">{iconFor(step.status)}</div>
           <div>
-            <p className="text-sm font-semibold text-slate-900">{roleLabel(step.role)}</p>
+            <p className="text-sm font-semibold text-slate-900">{label(step.role)}</p>
             <p className="text-xs uppercase tracking-wide text-slate-500">{step.stepType.replace('_', ' ')} - {step.status.replace('_', ' ')}</p>
             {step.remarks && <p className="mt-1 text-sm text-slate-600">{step.remarks}</p>}
           </div>

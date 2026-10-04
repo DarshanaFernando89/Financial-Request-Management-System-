@@ -20,3 +20,11 @@ export function requireAssignedRole(req: Request, _res: Response, next: NextFunc
   }
   next();
 }
+
+export function requireApproverRole(req: Request, _res: Response, next: NextFunction) {
+  const session = (req as any).user;
+  if (!session?.activeRole || !session.roles.includes(session.activeRole) || !session.approvalRoles.includes(session.activeRole)) {
+    return next(new ApiError(403, 'You do not have permission to approve requests.'));
+  }
+  next();
+}

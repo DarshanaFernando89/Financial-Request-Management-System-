@@ -10,8 +10,10 @@ import type { ApprovalRule } from '../../types/rule';
 
 export function ApprovalRulesPage() {
   const [rules, setRules] = useState<ApprovalRule[]>([]);
+  const [roleNames, setRoleNames] = useState<Record<string, string>>({});
   useEffect(() => {
     adminApi.rules().then(setRules);
+    adminApi.roles().then((roles) => setRoleNames(Object.fromEntries(roles.map((role) => [role.code, role.displayName])))).catch(() => {});
   }, []);
 
   async function handleDelete(rule: ApprovalRule) {
@@ -37,7 +39,7 @@ export function ApprovalRulesPage() {
           { key: 'name', header: 'Rule', render: (row) => <Link className="font-semibold text-university-maroon" to={`/admin/approval-rules/${row._id}/edit`}>{row.name}</Link> },
           { key: 'range', header: 'Amount Range', render: (row) => `${row.minAmount} - ${row.maxAmount ?? 'No upper limit'}` },
           { key: 'types', header: 'Request Types', render: (row) => row.requestTypes?.map((type) => type.name).join(', ') },
-          { key: 'roles', header: 'Workflow', render: (row) => row.workflowRoles.map(roleLabel).join(' -> ') },
+          { key: 'roles', header: 'Workflow', render: (row) => row.workflowRoles.map((code) => roleNames[code] || roleLabel(code) || 'Unavailable role').join(' -> ') },
           { key: 'status', header: 'Status', render: (row) => <Badge tone={row.isActive ? 'green' : 'gray'}>{row.isActive ? 'Active' : 'Inactive'}</Badge> },
           {
             key: 'actions',

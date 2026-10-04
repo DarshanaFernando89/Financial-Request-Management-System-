@@ -7,6 +7,13 @@ import {
 import { ROLES, STAFF_CATEGORIES } from '../src/utils/constants.js';
 
 describe('account request validation', () => {
+  it('rejects the removed role for new account requests', () => {
+    const payload = normalizeAccountRequestPayload({
+      fullName: 'Test User', nameWithInitials: 'T. User', email: 'test@uor.lk',
+      staffCategory: STAFF_CATEGORIES.ACADEMIC, department: 'Department', faculty: 'Faculty', requestedRole: 'REQUESTER'
+    });
+    expect(getAccountRequestValidationError(payload)).toBe('Requested role is invalid.');
+  });
   it('normalizes and accepts official University of Ruhuna emails', () => {
     const payload = normalizeAccountRequestPayload({
       fullName: '  Test User ',
@@ -15,7 +22,7 @@ describe('account request validation', () => {
       staffCategory: STAFF_CATEGORIES.NON_ACADEMIC,
       department: ' Department ',
       faculty: ' Faculty ',
-      requestedRole: ROLES.REQUESTER
+      requestedRole: ROLES.LECTURER
     });
 
     expect(payload.email).toBe('test.user@uor.lk');
@@ -32,7 +39,7 @@ describe('account request validation', () => {
       staffCategory: STAFF_CATEGORIES.NON_ACADEMIC,
       department: 'Department',
       faculty: 'Faculty',
-      requestedRole: ROLES.REQUESTER
+      requestedRole: ROLES.LECTURER
     });
 
     expect(getAccountRequestValidationError(payload)).toBe(ACCOUNT_REQUEST_EMAIL_MESSAGE);

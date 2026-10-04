@@ -3,16 +3,19 @@ import { UserModel } from '../models/User.js';
 import { signAuthToken } from '../middleware/authMiddleware.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
-import { APPROVER_ROLES } from '../utils/constants.js';
+import { getRoleCatalog, roleCatalogMetadata, rolesFromCatalog, type RoleCatalogItem } from '../services/roleCatalogService.js';
 import { notifyAdmins } from '../services/notificationService.js';
 import { writeAuditLog } from '../services/auditService.js';
 import { submitAccountRequest } from '../services/accountRequestService.js';
 
-function userPayload(user: any, activeRole?: string) {
+function userPayload(user: any, activeRole: string | undefined, catalog: RoleCatalogItem[]) {
+  const roles = rolesFromCatalog(user.roles, catalog);
+  const metadata = roleCatalogMetadata(catalog);
   const approvalRolePasswordHashes = user.approvalRolePasswordHashes as Map<string, string> | undefined;
   const approvalRolePasswordConfiguredRoles = approvalRolePasswordHashes
-    ? Array.from(approvalRolePasswordHashes.keys()).filter((role) => APPROVER_ROLES.includes(role as any))
+    ? Array.from(approvalRolePasswordHashes.keys()).filter((role) => roles.includes(role) && metadata.approvalRoles.includes(role))
     : undefined;
+  const safeActiveRole = activeRole && roles.includes(activeRole) ? activeRole : undefined;
 
   return {
     _id: user._id,
@@ -27,15 +30,16 @@ function userPayload(user: any, activeRole?: string) {
     contactNo: user.contactNo,
     address: user.address,
     profileImageUrl: user.profileImageUrl,
-    roles: user.roles,
+    roles,
+    ...metadata,
     approvalRolePasswordConfiguredRoles,
-    activeRole,
+    activeRole: safeActiveRole,
     isActive: user.isActive
   };
 }
 
-function requiresApprovalRolePassword(roles: string[], role: string) {
-  return roles.length > 1 && APPROVER_ROLES.includes(role as any);
+function requiresApprovalRolePassword(roles: string[], role: string, approvalRoles: string[]) {
+  return roles.length > 1 && approvalRoles.includes(role);
 }
 
 export const login = asyncHandler(async (req, res) => {
@@ -48,9 +52,10 @@ export const login = asyncHandler(async (req, res) => {
 
   const isValid = await bcrypt.compare(String(password), String(user.passwordHash));
   if (!isValid) throw new ApiError(401, 'Invalid email or password.');
-  if (!user.roles?.length) throw new ApiError(403, 'No roles are assigned to this account.');
+  const catalog = await getRoleCatalog();
+  const roles = rolesFromCatalog(user.roles, catalog);
+  if (!roles.length) throw new ApiError(403, 'No roles are assigned to this account.');
 
-  const roles = user.roles as string[];
   const activeRole = roles.length === 1 ? roles[0] : undefined;
   const token = signAuthToken({
     userId: user._id.toString(),
@@ -71,7 +76,7 @@ export const login = asyncHandler(async (req, res) => {
   res.json({
     token,
     requiresRoleSelection: roles.length > 1,
-    user: userPayload(user, activeRole)
+    user: userPayload(user, activeRole, catalog)
   });
 });
 
@@ -83,7 +88,7 @@ export const selectRole = asyncHandler(async (req, res) => {
 
   let user = session.user;
   let approvalRoleVerifiedAt: number | undefined;
-  if (requiresApprovalRolePassword(session.roles, role)) {
+  if (requiresApprovalRolePassword(session.roles, role, session.approvalRoles)) {
     user = await UserModel.findById(session.userId).select('+approvalRolePasswordHashes');
     if (!user) throw new ApiError(401, 'User account is inactive or unavailable.');
 
@@ -115,12 +120,12 @@ export const selectRole = asyncHandler(async (req, res) => {
     description: `Selected active role ${role}.`
   });
 
-  res.json({ token, user: userPayload(user, role) });
+  res.json({ token, user: userPayload(user, role, session.roleCatalog) });
 });
 
 export const me = asyncHandler(async (req, res) => {
   const session = (req as any).user;
-  res.json({ user: userPayload(session.user, session.activeRole) });
+  res.json({ user: userPayload(session.user, session.activeRole, session.roleCatalog) });
 });
 
 export const logout = asyncHandler(async (req, res) => {

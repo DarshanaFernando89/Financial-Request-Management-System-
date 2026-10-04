@@ -9,6 +9,7 @@ export async function createRequestForUser(input: {
   userId: string;
   activeRole: string;
   requestType: string;
+  approvalRule?: string;
   title: string;
   description?: string;
   amount: number;
@@ -31,6 +32,7 @@ export async function createRequestForUser(input: {
       roleAtSubmission: input.activeRole
     },
     requestType: input.requestType,
+    approvalRule: input.approvalRule,
     title: input.title,
     description: input.description,
     amount: input.amount,

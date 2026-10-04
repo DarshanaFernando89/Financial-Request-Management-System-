@@ -14,7 +14,7 @@ import { ROLES } from '../utils/constants.js';
 
 const router = Router();
 
-router.use(authMiddleware, requireActiveRole, requireRoles(ROLES.ADMIN, ROLES.FINANCE_OFFICER, ROLES.FINANCE_DIVISION, ROLES.DEAN));
+router.use(authMiddleware, requireActiveRole, requireRoles(ROLES.ADMIN, ROLES.FINANCE_OFFICER, ROLES.DEAN));
 router.get('/summary', summary);
 router.get('/claims-per-user', claimsPerUserReport);
 router.get('/monthly-summary', monthlySummaryReport);

@@ -11,9 +11,12 @@ import { Table } from '../../components/ui/Table';
 import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Toast } from '../../components/ui/Toast';
+import { Modal } from '../../components/ui/Modal';
+import { Select } from '../../components/ui/Select';
 import { roleLabel } from '../../utils/roleLabels';
 import { formatDate } from '../../utils/formatDate';
 import type { User } from '../../types/auth';
+import { visibleAssignedRoles } from '../../utils/constants';
 
 const defaultResetPassword = 'Password123!';
 
@@ -42,6 +45,10 @@ export function UserManagementPage() {
   const [resetUser, setResetUser] = useState<User | null>(null);
   const [deleteUser, setDeleteUser] = useState<User | null>(null);
   const [approveRequest, setApproveRequest] = useState<AccountRequest | null>(null);
+  const [approvalRole, setApprovalRole] = useState('');
+  const [availableRoles, setAvailableRoles] = useState<Array<{ code: string; displayName: string; isActive: boolean }>>([]);
+  const availableCodes = availableRoles.map((role) => role.code);
+  const roleNames = Object.fromEntries(availableRoles.map((role) => [role.code, role.displayName]));
   const [rejectRequest, setRejectRequest] = useState<AccountRequest | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -65,6 +72,7 @@ export function UserManagementPage() {
 
   useEffect(() => {
     void loadAccountRequests();
+    adminApi.roles().then((roles) => setAvailableRoles(roles.filter((role) => role.isActive && role.code !== 'REQUESTER'))).catch(() => setError('Unable to load available roles.'));
   }, []);
 
   async function toggleActive(user: User) {
@@ -116,12 +124,17 @@ export function UserManagementPage() {
 
   async function confirmApproveAccountRequest() {
     if (!approveRequest || isProcessingAccountRequest) return;
+    if (!availableCodes.includes(approvalRole)) {
+      setError('Choose an available role before approving this account request.');
+      return;
+    }
     setIsProcessingAccountRequest(true);
     setMessage('');
     setError('');
     try {
       await adminApi.approveAccountRequest(approveRequest._id, {
         password: defaultResetPassword,
+        requestedRole: approvalRole,
         adminRemarks: 'Approved by admin from User Management.'
       });
       setMessage(`${approveRequest.fullName}'s account was approved. Default password: ${defaultResetPassword}.`);
@@ -201,7 +214,7 @@ export function UserManagementPage() {
                   </div>
                 )
               },
-              { key: 'role', header: 'Requested Role', render: (row) => <Badge>{roleLabel(row.requestedRole)}</Badge> },
+              { key: 'role', header: 'Requested Role', render: (row) => <Badge>{roleLabel(row.requestedRole, roleNames) || 'Role assignment required'}</Badge> },
               { key: 'created', header: 'Requested', render: (row) => formatDate(row.createdAt) },
               {
                 key: 'message',
@@ -226,6 +239,7 @@ export function UserManagementPage() {
                         setMessage('');
                         setError('');
                         setApproveRequest(row);
+                        setApprovalRole(availableCodes.includes(row.requestedRole) ? row.requestedRole : '');
                       }}
                     >
                       Approve
@@ -260,7 +274,7 @@ export function UserManagementPage() {
             { key: 'email', header: 'Email', render: (row) => row.email },
             { key: 'category', header: 'Staff Category', render: (row) => row.staffCategory.replace('_', ' ') },
             { key: 'department', header: 'Department', render: (row) => row.department },
-            { key: 'roles', header: 'Roles', render: (row) => <div className="flex flex-wrap gap-1">{row.roles.map((role) => <Badge key={role}>{roleLabel(role)}</Badge>)}</div> },
+            { key: 'roles', header: 'Roles', render: (row) => <div className="flex flex-wrap gap-1">{visibleAssignedRoles(row.roles, Object.keys(row.roleLabels || {})).map((role) => <Badge key={role}>{roleLabel(role, row.roleLabels)}</Badge>)}{!visibleAssignedRoles(row.roles, Object.keys(row.roleLabels || {})).length && <Badge>Role assignment required</Badge>}</div> },
             { key: 'status', header: 'Status', render: (row) => <Badge tone={row.isActive ? 'green' : 'gray'}>{row.isActive ? 'Active' : 'Inactive'}</Badge> },
             { key: 'created', header: 'Created', render: (row) => formatDate(row.createdAt) },
             {
@@ -340,20 +354,23 @@ export function UserManagementPage() {
           if (!isDeleting) setDeleteUser(null);
         }}
       />
-      <ConfirmDialog
+      <Modal
         open={Boolean(approveRequest)}
         title="Approve Account Request"
-        message={
-          approveRequest
-            ? `Create an account for ${approveRequest.fullName} as ${roleLabel(approveRequest.requestedRole)}? The default password will be ${defaultResetPassword}.`
-            : ''
-        }
-        confirmLabel="Approve"
-        onConfirm={() => void confirmApproveAccountRequest()}
         onClose={() => {
           if (!isProcessingAccountRequest) setApproveRequest(null);
         }}
-      />
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">Create an account for {approveRequest?.fullName}. The default password will be {defaultResetPassword}.</p>
+          <Select label="Assigned role" required value={approvalRole} disabled={isProcessingAccountRequest} onChange={(event) => setApprovalRole(event.target.value)} options={availableRoles.map((role) => ({ value: role.code, label: role.displayName }))} />
+          {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" disabled={isProcessingAccountRequest} onClick={() => setApproveRequest(null)}>Cancel</Button>
+            <Button disabled={isProcessingAccountRequest || !availableCodes.includes(approvalRole)} onClick={() => void confirmApproveAccountRequest()}>Approve</Button>
+          </div>
+        </div>
+      </Modal>
       <ConfirmDialog
         open={Boolean(rejectRequest)}
         title="Reject Account Request"

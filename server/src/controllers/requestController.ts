@@ -7,6 +7,7 @@ import { canAdmin, isPrivilegedReader } from '../utils/permissions.js';
 import { createRequestForUser } from '../services/requestService.js';
 import {
   getRequestByIdOrRequestId,
+  findMatchingRule,
   initializeWorkflow,
   restartWorkflowForResubmission,
   returnFromClarification
@@ -114,7 +115,7 @@ export const listRequests = asyncHandler(async (req, res) => {
   const filter = requestFilterFromQuery(req.query);
 
   if (!canAdmin(session.activeRole)) {
-    if (isPrivilegedReader(session.activeRole)) {
+    if (isPrivilegedReader(session.activeRole, session.approvalRoles)) {
       filter.$or = [
         ...(filter.$or || []),
         { currentAssignedRole: session.activeRole },
@@ -153,12 +154,15 @@ export const getRequest = asyncHandler(async (req, res) => {
 
 export const createRequest = asyncHandler(async (req, res) => {
   const session = (req as any).user;
-  const { requestType, title, description, amount, requestData, submit } = req.body;
+  const { requestType, approvalRule, title, description, amount, requestData, submit } = req.body;
   if (!requestType || !title || amount === undefined) throw new ApiError(400, 'Request type, title, and amount are required.');
-  if (Number(amount) <= 0) throw new ApiError(400, 'Amount must be positive.');
+  if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) throw new ApiError(400, 'Amount must be positive.');
 
   const type = await RequestTypeModel.findById(requestType);
   if (!type || !type.isActive) throw new ApiError(422, 'Request type is inactive or unavailable.');
+  if (approvalRule && !await findMatchingRule(requestType, Number(amount), approvalRule)) {
+    throw new ApiError(422, 'The selected approval rule is unavailable or does not match this request type and amount.');
+  }
 
   const documents = uploadedDocuments(req);
   const missingDocuments = parseBoolean(submit)
@@ -172,6 +176,7 @@ export const createRequest = asyncHandler(async (req, res) => {
     userId: session.userId,
     activeRole: session.activeRole,
     requestType,
+    approvalRule,
     title,
     description,
     amount: Number(amount),
@@ -210,7 +215,7 @@ export const updateRequest = asyncHandler(async (req, res) => {
     throw new ApiError(422, 'Only drafts or rejected requests can be edited.');
   }
 
-  const allowed = ['requestType', 'title', 'description', 'amount', 'requestData'];
+  const allowed = ['requestType', 'approvalRule', 'title', 'description', 'amount', 'requestData'];
   for (const key of allowed) {
     if (req.body[key] !== undefined) (request as any)[key] = req.body[key];
   }

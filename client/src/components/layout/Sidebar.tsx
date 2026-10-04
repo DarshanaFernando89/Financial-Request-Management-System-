@@ -4,7 +4,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../hooks/useNotifications';
-import { ADMIN_ROLES, APPROVER_ROLES, FINANCE_ROLES, REQUESTER_ROLES } from '../../utils/constants';
+import { ADMIN_ROLES, APPROVER_ROLES, FINANCE_ROLES, REQUESTER_ROLES, visibleAssignedRoles } from '../../utils/constants';
 import { roleLabel } from '../../utils/roleLabels';
 import type { Role } from '../../types/auth';
 import { Badge } from '../ui/Badge';
@@ -34,15 +34,16 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { user, logout, switchRole } = useAuth();
   const { unreadCount } = useNotifications();
   const navigate = useNavigate();
-  const activeRole = user?.activeRole;
-  const visible = items.filter((item) => !item.roles || (activeRole && item.roles.includes(activeRole)));
+  const assignedRoles = visibleAssignedRoles(user?.roles, Object.keys(user?.roleLabels || {}));
+  const activeRole = user?.activeRole && assignedRoles.includes(user.activeRole) ? user.activeRole : undefined;
+  const visible = items.filter((item) => !item.roles || (activeRole && (item.roles === APPROVER_ROLES ? user?.approvalRoles || APPROVER_ROLES : item.roles).includes(activeRole)));
   const [pendingRole, setPendingRole] = useState<Role | null>(null);
   const [approvalRolePassword, setApprovalRolePassword] = useState('');
   const [switchError, setSwitchError] = useState('');
   const [switching, setSwitching] = useState(false);
 
   function needsApprovalPassword(role: Role) {
-    return Boolean(user && user.roles.length > 1 && APPROVER_ROLES.includes(role));
+    return Boolean(user && assignedRoles.length > 1 && (user?.approvalRoles || APPROVER_ROLES).includes(role));
   }
 
   async function completeSwitch(role: Role, password?: string) {
@@ -124,26 +125,26 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               {user?.profileImageUrl ? (
                 <img src={user.profileImageUrl} alt="" className="h-full w-full object-cover" />
               ) : (
-                user?.nameWithInitials?.slice(0, 2).toUpperCase() || 'U'
+                user?.fullName?.slice(0, 2).toUpperCase() || 'U'
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-slate-900">{user?.nameWithInitials}</p>
-              <p className="truncate text-xs text-slate-500">{user?.department}</p>
-              <Badge tone="gold" className="mt-2">{roleLabel(user?.activeRole)}</Badge>
+              <p className="truncate text-sm font-bold text-slate-900">{user?.fullName}</p>
+              <p className="truncate text-xs text-slate-500">{user?.email}</p>
+              <Badge tone="gold" className="mt-2">{roleLabel(activeRole, user?.roleLabels)}</Badge>
             </div>
           </div>
-          {user && user.roles.length > 1 && (
+          {user && assignedRoles.length > 1 && (
             <label className="mt-3 block">
               <span className="mb-1 block text-xs font-semibold text-slate-500">Active role</span>
               <select
-                value={user.activeRole || ''}
+                value={activeRole || ''}
                 onChange={(event) => handleSwitch(event.target.value as Role)}
                 className="focus-ring h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700"
               >
-                {user.roles.map((role) => (
+                {assignedRoles.map((role) => (
                   <option key={role} value={role}>
-                    {roleLabel(role)}
+                    {roleLabel(role, user?.roleLabels)}
                   </option>
                 ))}
               </select>
@@ -161,7 +162,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
       <Modal
         open={Boolean(pendingRole)}
-        title={`${roleLabel(pendingRole || '')} Password`}
+        title={`${roleLabel(pendingRole || '', user?.roleLabels)} Password`}
         onClose={() => {
           setPendingRole(null);
           setSwitchError('');
