@@ -17,6 +17,7 @@ The written specification is treated as the source of truth. Approval thresholds
 - Configurable approval rules stored in MongoDB.
 - Approval rule creation and editing offer active custom roles from Role Management using their display names and preserve the selected workflow order.
 - Requester claim choices use the exact active approval rule names from the admin dashboard; rules with multiple request types offer a second selection for the claim form.
+- Lecture Hours Payment requests require an administrator-configured batch and module, plus time slots. Lecture hours and claim amount are calculated from the entered slots, and a lecturer cannot submit the same batch/module/time combination twice.
 - Sequential workflow engine with verification, approval, finance review, final approval, and payment steps.
 - Request More Info flow that returns to the same actor/role after requester response.
 - Rejection and resubmission with revision tracking.

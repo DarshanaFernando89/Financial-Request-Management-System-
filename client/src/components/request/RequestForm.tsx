@@ -10,6 +10,7 @@ import { FileUpload } from '../ui/FileUpload';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
+import { isLectureHoursPayment, lectureHoursFromTimeSlots } from '../../utils/lectureHours';
 
 function dynamicAmount(data: Record<string, string>) {
   const pairs = [
@@ -26,8 +27,8 @@ function dynamicAmount(data: Record<string, string>) {
   return Number(data.amount || 0);
 }
 
-function FieldControl({ field, value, onChange }: { field: RequestField; value: string; onChange: (value: string) => void }) {
-  if (field.type === 'textarea') return <Textarea label={field.label} required={field.required} value={value} onChange={(event) => onChange(event.target.value)} />;
+function FieldControl({ field, value, onChange, readOnly = false }: { field: RequestField; value: string; onChange: (value: string) => void; readOnly?: boolean }) {
+  if (field.type === 'textarea') return <Textarea label={field.label} required={field.required} placeholder={field.placeholder} value={value} onChange={(event) => onChange(event.target.value)} />;
   if (field.type === 'select') {
     return (
       <Select
@@ -39,7 +40,7 @@ function FieldControl({ field, value, onChange }: { field: RequestField; value: 
       />
     );
   }
-  return <Input label={field.label} type={field.type} required={field.required} value={value} onChange={(event) => onChange(event.target.value)} />;
+  return <Input label={field.label} type={field.type} required={field.required} readOnly={readOnly} className={readOnly ? 'bg-slate-100' : undefined} value={value} onChange={(event) => onChange(event.target.value)} />;
 }
 
 export function RequestForm() {
@@ -63,11 +64,25 @@ export function RequestForm() {
 
   const selectedRule = useMemo(() => rules.find((rule) => rule._id === approvalRule), [approvalRule, rules]);
   const selectedType = useMemo(() => selectedRule?.requestTypes.find((type) => type._id === requestType), [requestType, selectedRule]);
+  const lectureHoursRequest = isLectureHoursPayment(selectedType);
+  const calculatedLectureHours = lectureHoursRequest ? lectureHoursFromTimeSlots(requestData.timeSlots || '') : undefined;
 
   useEffect(() => {
-    const calculated = dynamicAmount(requestData);
+    if (lectureHoursRequest && calculatedLectureHours === undefined) {
+      setAmount('');
+      return;
+    }
+    const calculated = lectureHoursRequest && calculatedLectureHours !== undefined
+      ? calculatedLectureHours * Number(requestData.ratePerHour || 0)
+      : dynamicAmount(requestData);
     if (calculated > 0) setAmount(String(calculated));
-  }, [requestData]);
+  }, [requestData, lectureHoursRequest, calculatedLectureHours]);
+
+  useEffect(() => {
+    if (!lectureHoursRequest) return;
+    const value = calculatedLectureHours === undefined ? '' : String(calculatedLectureHours);
+    if (requestData.lectureHours !== value) setRequestData((current) => ({ ...current, lectureHours: value }));
+  }, [lectureHoursRequest, calculatedLectureHours, requestData.lectureHours]);
 
   function updateField(name: string, value: string) {
     setRequestData((current) => ({ ...current, [name]: value }));
@@ -166,7 +181,7 @@ export function RequestForm() {
             }}
             options={rules.map((rule) => ({ label: rule.name, value: rule._id }))}
           />
-          <Input label="Amount" type="number" min={Math.max(selectedRule?.minAmount ?? 0, 0.01)} max={selectedRule?.maxAmount ?? undefined} step="0.01" value={amount} required onChange={(event) => setAmount(event.target.value)} />
+          <Input label="Amount" type="number" min={Math.max(selectedRule?.minAmount ?? 0, 0.01)} max={selectedRule?.maxAmount ?? undefined} step="0.01" readOnly={lectureHoursRequest} className={lectureHoursRequest ? 'bg-slate-100' : undefined} value={amount} required onChange={(event) => setAmount(event.target.value)} />
         </div>
         {loadingRules && <p className="text-sm text-slate-500">Loading claim types...</p>}
         {!loadingRules && !rules.length && !error && <p className="text-sm text-slate-500">No active claim types are available. Please contact the administrator.</p>}
@@ -194,6 +209,11 @@ export function RequestForm() {
       {selectedType && (
         <Card>
           <h2 className="mb-4 text-base font-semibold text-slate-900">{selectedType.name}</h2>
+          {lectureHoursRequest && (
+            <p className="mb-4 rounded-md bg-slate-50 p-3 text-sm text-slate-600">
+              Add time ranges such as <strong>Monday 08:00-10:00; Wednesday 13:00-15:30</strong>. The total lecture hours and claim amount are calculated automatically.
+            </p>
+          )}
           <div className="grid gap-4 md:grid-cols-2">
             {selectedType.fields.map((field) => (
               <FieldControl
@@ -201,9 +221,13 @@ export function RequestForm() {
                 field={field}
                 value={requestData[field.name] || ''}
                 onChange={(value) => updateField(field.name, value)}
+                readOnly={lectureHoursRequest && field.name === 'lectureHours'}
               />
             ))}
           </div>
+          {lectureHoursRequest && requestData.timeSlots && calculatedLectureHours === undefined && (
+            <p className="mt-3 text-sm font-medium text-red-600">Enter each time slot as a start and end time, for example 08:00-10:00.</p>
+          )}
           {selectedType.requiredDocuments?.length > 0 && (
             <div className="mt-5 space-y-3">
               <div className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-900">

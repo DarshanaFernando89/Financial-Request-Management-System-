@@ -10,6 +10,8 @@
     "start": "node dist/server.js",
     "seed": "tsx src/seed/seed.ts",
     "migrate:remove-requester-role": "tsx src/scripts/removeRequesterRole.ts",
+    "migrate:lecture-hours-claim-fields": "tsx src/scripts/addLectureHoursClaimFields.ts",
+    "migrate:lecture-hours-payment-rule": "tsx src/scripts/createLectureHoursPaymentRule.ts",
     "test": "vitest run"
   },
   "dependencies": {

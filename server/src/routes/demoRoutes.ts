@@ -21,6 +21,7 @@ import { parseProfileUpdate } from '../utils/profileValidation.js';
 import { ApiError } from '../utils/ApiError.js';
 import { resolveRoleCatalog, roleCatalogMetadata, validateAssignedRoles } from '../services/roleCatalogService.js';
 import { assertAvailableWorkflowRoles } from '../services/workflowRoleService.js';
+import { duplicateLectureHoursClaimMessage, lectureHoursClaimKey, prepareLectureHoursClaim } from '../utils/lectureHoursClaim.js';
 
 const router = Router();
 const defaultPassword = 'Password123!';
@@ -99,9 +100,9 @@ const requestTypes: any[] = [
     requiredDocuments: ['Attendance confirmation', 'Work allocation'],
     isActive: true,
     fields: [
-      { name: 'courseName', label: 'Course/module name', type: 'text', required: true },
-      { name: 'academicYear', label: 'Academic year', type: 'text', required: true },
-      { name: 'semester', label: 'Semester', type: 'select', required: true, options: ['Semester 1', 'Semester 2'] },
+      { name: 'batch', label: 'Batch', type: 'select', required: true, options: ['E/20', 'E/21', 'E/26'] },
+      { name: 'module', label: 'Module', type: 'select', required: true, options: ['Embedded Systems', 'Control Systems', 'EE6101', 'EE6102'] },
+      { name: 'timeSlots', label: 'Time slots', type: 'textarea', required: true, placeholder: 'Monday 08:00-10:00; Wednesday 13:00-15:00' },
       { name: 'lectureHours', label: 'Number of lecture hours', type: 'number', required: true },
       { name: 'ratePerHour', label: 'Rate per hour', type: 'number', required: true },
       { name: 'description', label: 'Description/reason', type: 'textarea', required: false }
@@ -251,7 +252,7 @@ const requests: any[] = [
     description: 'Payment for delivered lecture hours.',
     amount: 15000,
     currency: 'LKR',
-    requestData: { courseName: 'Embedded Systems', lectureHours: 15, ratePerHour: 1000 },
+    requestData: { batch: 'E/20', module: 'Embedded Systems', timeSlots: 'Monday 08:00-10:00', lectureHours: 15, ratePerHour: 1000 },
     documents: [],
     status: REQUEST_STATUSES.UNDER_REVIEW,
     currentStepIndex: 0,
@@ -348,7 +349,7 @@ const requests: any[] = [
     title: 'Paid Lecture Claim',
     amount: 22000,
     currency: 'LKR',
-    requestData: { courseName: 'Control Systems', lectureHours: 22, ratePerHour: 1000 },
+    requestData: { batch: 'E/21', module: 'Control Systems', timeSlots: 'Thursday 13:00-15:00', lectureHours: 22, ratePerHour: 1000 },
     documents: [],
     status: REQUEST_STATUSES.PAID,
     currentStepIndex: 1,
@@ -500,6 +501,16 @@ function matchingRule(typeId: string, amount: number, ruleId?: string) {
       const max = rule.maxAmount ?? Infinity;
       return rule.isActive && (!ruleId || rule._id === ruleId) && hasType && amount >= rule.minAmount && amount <= max;
     });
+}
+
+function duplicateLectureHoursRequest(userId: string, requestType: any, requestData: Record<string, unknown>, excludeId?: string) {
+  const key = lectureHoursClaimKey(requestType.code, requestData, requestType.name);
+  if (!key) return { key };
+  const request = requests.find((item) =>
+    item._id !== excludeId && item.requester === userId && item.lectureHoursClaimKey === key &&
+    ![REQUEST_STATUSES.REJECTED, REQUEST_STATUSES.CANCELLED].includes(item.status)
+  );
+  return { key, request };
 }
 
 function statusForStep(step: any) {
@@ -683,8 +694,7 @@ router.post('/requests', upload.array('files', 20), (req, res) => {
   const user = currentUser(req);
   const requestType = requestTypes.find((type) => type._id === req.body.requestType && type.isActive);
   if (!requestType) return res.status(422).json({ message: 'Request type is inactive or unavailable.' });
-  const amount = Number(req.body.amount);
-  if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ message: 'Amount must be positive.' });
+  let amount = Number(req.body.amount);
   if (req.body.approvalRule && !matchingRule(requestType._id, amount, req.body.approvalRule)) {
     return res.status(422).json({ message: 'The selected approval rule is unavailable or does not match this request type and amount.' });
   }
@@ -703,6 +713,23 @@ router.post('/requests', upload.array('files', 20), (req, res) => {
   } catch {
     return res.status(400).json({ message: 'Request data must be valid JSON.' });
   }
+  let claimKey: string | undefined;
+  try {
+    const preparedClaim = prepareLectureHoursClaim(requestType.code, requestType.name, requestType.fields, requestData);
+    requestData = preparedClaim.requestData;
+    if (preparedClaim.amount !== undefined) amount = preparedClaim.amount;
+    claimKey = lectureHoursClaimKey(requestType.code, requestData, requestType.name);
+  } catch (error) {
+    return res.status(error instanceof ApiError ? error.statusCode : 400).json({ message: error instanceof Error ? error.message : 'Invalid lecture hours claim.' });
+  }
+  if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ message: 'Amount must be positive.' });
+  if (req.body.approvalRule && !matchingRule(requestType._id, amount, req.body.approvalRule)) {
+    return res.status(422).json({ message: 'The selected approval rule is unavailable or does not match this request type and amount.' });
+  }
+  const duplicate = claimKey && requests.find((item) =>
+    item.requester === user._id && item.lectureHoursClaimKey === claimKey && ![REQUEST_STATUSES.REJECTED, REQUEST_STATUSES.CANCELLED].includes(item.status)
+  );
+  if (duplicate) return res.status(409).json({ message: duplicateLectureHoursClaimMessage(duplicate.status) });
 
   const request = {
     _id: `request-${Date.now()}`,
@@ -716,6 +743,7 @@ router.post('/requests', upload.array('files', 20), (req, res) => {
     amount,
     currency: 'LKR',
     requestData,
+    lectureHoursClaimKey: claimKey,
     documents,
     status: submit ? REQUEST_STATUSES.SUBMITTED : REQUEST_STATUSES.DRAFT,
     currentStepIndex: -1,
@@ -739,17 +767,41 @@ router.get('/requests/:id', (req, res) => {
 });
 
 router.post('/requests/:id/submit', (req, res) => {
+  const user = currentUser(req);
   const request = requests.find((item) => item._id === req.params.id);
   if (!request) return res.status(404).json({ message: 'Request not found.' });
+  if (request.requester !== user._id) return res.status(403).json({ message: 'Only the requester can submit this request.' });
+  try {
+    const preparedClaim = prepareLectureHoursClaim(request.requestType.code, request.requestType.name, request.requestType.fields, request.requestData);
+    request.requestData = preparedClaim.requestData;
+    if (preparedClaim.amount !== undefined) request.amount = preparedClaim.amount;
+    const match = duplicateLectureHoursRequest(user._id, request.requestType, request.requestData, request._id);
+    if (match.request) return res.status(409).json({ message: duplicateLectureHoursClaimMessage(match.request.status) });
+    request.lectureHoursClaimKey = match.key;
+  } catch (error) {
+    return res.status(400).json({ message: error instanceof Error ? error.message : 'Invalid lecture hours claim.' });
+  }
   routeRequest(request);
   request.submittedAt = new Date().toISOString();
   res.json(request);
 });
 
 router.post('/requests/:id/resubmit', (req, res) => {
+  const user = currentUser(req);
   const request = requests.find((item) => item._id === req.params.id);
   if (!request) return res.status(404).json({ message: 'Request not found.' });
+  if (request.requester !== user._id) return res.status(403).json({ message: 'Only the requester can resubmit this request.' });
   Object.assign(request, req.body);
+  try {
+    const preparedClaim = prepareLectureHoursClaim(request.requestType.code, request.requestType.name, request.requestType.fields, request.requestData);
+    request.requestData = preparedClaim.requestData;
+    if (preparedClaim.amount !== undefined) request.amount = preparedClaim.amount;
+    const match = duplicateLectureHoursRequest(user._id, request.requestType, request.requestData, request._id);
+    if (match.request) return res.status(409).json({ message: duplicateLectureHoursClaimMessage(match.request.status) });
+    request.lectureHoursClaimKey = match.key;
+  } catch (error) {
+    return res.status(400).json({ message: error instanceof Error ? error.message : 'Invalid lecture hours claim.' });
+  }
   request.revisionNo += 1;
   routeRequest(request);
   res.json(request);

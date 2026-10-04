@@ -76,6 +76,7 @@ const requestSchema = new Schema(
     amount: { type: Number, required: true, min: 0 },
     currency: { type: String, default: DEFAULT_CURRENCY },
     requestData: { type: Schema.Types.Mixed, default: {} },
+    lectureHoursClaimKey: { type: String, trim: true },
     documents: [documentSchema],
     status: { type: String, enum: REQUEST_STATUS_VALUES, default: REQUEST_STATUSES.DRAFT },
     currentStepIndex: { type: Number, default: -1 },
@@ -104,5 +105,6 @@ const requestSchema = new Schema(
 requestSchema.index({ requester: 1, status: 1, createdAt: -1 });
 requestSchema.index({ currentAssignedRole: 1, status: 1 });
 requestSchema.index({ requestType: 1, amount: 1 });
+requestSchema.index({ requester: 1, lectureHoursClaimKey: 1, status: 1 });
 
 export const RequestModel = mongoose.model('Request', requestSchema);

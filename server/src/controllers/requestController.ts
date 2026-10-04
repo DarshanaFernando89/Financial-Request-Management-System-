@@ -15,6 +15,8 @@ import {
 import { notifyRole, notifyUser } from '../services/notificationService.js';
 import { writeAuditLog } from '../services/auditService.js';
 import { buildStoredDocumentData, deleteUploadedFiles } from '../services/fileService.js';
+import { assertNoDuplicateLectureHoursClaim } from '../services/lectureHoursClaimService.js';
+import { prepareLectureHoursClaim } from '../utils/lectureHoursClaim.js';
 
 function requestFilterFromQuery(query: any) {
   const filter: any = {};
@@ -156,14 +158,25 @@ export const createRequest = asyncHandler(async (req, res) => {
   const session = (req as any).user;
   const { requestType, approvalRule, title, description, amount, requestData, submit } = req.body;
   if (!requestType || !title || amount === undefined) throw new ApiError(400, 'Request type, title, and amount are required.');
-  if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) throw new ApiError(400, 'Amount must be positive.');
 
   const type = await RequestTypeModel.findById(requestType);
   if (!type || !type.isActive) throw new ApiError(422, 'Request type is inactive or unavailable.');
   if (approvalRule && !await findMatchingRule(requestType, Number(amount), approvalRule)) {
     throw new ApiError(422, 'The selected approval rule is unavailable or does not match this request type and amount.');
   }
+  const preparedClaim = prepareLectureHoursClaim(type.code, type.name, type.fields, parseRequestData(requestData));
+  const requestAmount = preparedClaim.amount ?? Number(amount);
+  if (!Number.isFinite(requestAmount) || requestAmount <= 0) throw new ApiError(400, 'Amount must be positive.');
+  if (approvalRule && !await findMatchingRule(requestType, requestAmount, approvalRule)) {
+    throw new ApiError(422, 'The selected approval rule is unavailable or does not match this request type and amount.');
+  }
 
+  const lectureHoursClaimKey = await assertNoDuplicateLectureHoursClaim({
+    requesterId: session.userId,
+    requestTypeCode: type.code,
+    requestTypeName: type.name,
+    requestData: preparedClaim.requestData
+  });
   const documents = uploadedDocuments(req);
   const missingDocuments = parseBoolean(submit)
     ? (type.requiredDocuments || []).filter((documentName) => !documents.some((document) => document.description === documentName))
@@ -179,8 +192,9 @@ export const createRequest = asyncHandler(async (req, res) => {
     approvalRule,
     title,
     description,
-    amount: Number(amount),
-    requestData: parseRequestData(requestData),
+    amount: requestAmount,
+    requestData: preparedClaim.requestData,
+    lectureHoursClaimKey,
     documents,
     submit: parseBoolean(submit)
   });
@@ -215,10 +229,26 @@ export const updateRequest = asyncHandler(async (req, res) => {
     throw new ApiError(422, 'Only drafts or rejected requests can be edited.');
   }
 
+  const nextRequestType = req.body.requestType
+    ? await RequestTypeModel.findById(req.body.requestType)
+    : await RequestTypeModel.findById(request.requestType);
+  if (!nextRequestType || !nextRequestType.isActive) throw new ApiError(422, 'Request type is inactive or unavailable.');
+  const nextRequestData = (req.body.requestData ?? request.requestData) as Record<string, unknown>;
+  const preparedClaim = prepareLectureHoursClaim(nextRequestType.code, nextRequestType.name, nextRequestType.fields, nextRequestData);
+  const lectureHoursClaimKey = await assertNoDuplicateLectureHoursClaim({
+    requesterId: session.userId,
+    requestTypeCode: nextRequestType.code,
+    requestTypeName: nextRequestType.name,
+    requestData: preparedClaim.requestData,
+    excludeRequestId: request._id.toString()
+  });
   const allowed = ['requestType', 'approvalRule', 'title', 'description', 'amount', 'requestData'];
   for (const key of allowed) {
     if (req.body[key] !== undefined) (request as any)[key] = req.body[key];
   }
+  request.requestData = preparedClaim.requestData;
+  if (preparedClaim.amount !== undefined) request.amount = preparedClaim.amount;
+  request.lectureHoursClaimKey = lectureHoursClaimKey;
   await request.save();
   res.json(await request.populate('requestType'));
 });
@@ -229,6 +259,19 @@ export const submitRequest = asyncHandler(async (req, res) => {
   if (!request) throw new ApiError(404, 'Request not found.');
   if (request.requester.toString() !== session.userId) throw new ApiError(403, 'Only the requester can submit this request.');
   if (request.status !== REQUEST_STATUSES.DRAFT) throw new ApiError(422, 'Only draft requests can be submitted.');
+
+  const type = await RequestTypeModel.findById(request.requestType);
+  if (!type || !type.isActive) throw new ApiError(422, 'Request type is inactive or unavailable.');
+  const preparedClaim = prepareLectureHoursClaim(type.code, type.name, type.fields, request.requestData);
+  request.requestData = preparedClaim.requestData;
+  if (preparedClaim.amount !== undefined) request.amount = preparedClaim.amount;
+  request.lectureHoursClaimKey = await assertNoDuplicateLectureHoursClaim({
+    requesterId: session.userId,
+    requestTypeCode: type.code,
+    requestTypeName: type.name,
+    requestData: preparedClaim.requestData,
+    excludeRequestId: request._id.toString()
+  });
 
   request.status = REQUEST_STATUSES.SUBMITTED;
   await initializeWorkflow(request);
@@ -255,6 +298,19 @@ export const resubmitRequest = asyncHandler(async (req, res) => {
   if (req.body.description !== undefined) request.description = req.body.description;
   if (req.body.amount !== undefined) request.amount = Number(req.body.amount);
   if (req.body.requestData) request.requestData = req.body.requestData;
+
+  const type = await RequestTypeModel.findById(request.requestType);
+  if (!type || !type.isActive) throw new ApiError(422, 'Request type is inactive or unavailable.');
+  const preparedClaim = prepareLectureHoursClaim(type.code, type.name, type.fields, request.requestData);
+  request.requestData = preparedClaim.requestData;
+  if (preparedClaim.amount !== undefined) request.amount = preparedClaim.amount;
+  request.lectureHoursClaimKey = await assertNoDuplicateLectureHoursClaim({
+    requesterId: session.userId,
+    requestTypeCode: type.code,
+    requestTypeName: type.name,
+    requestData: preparedClaim.requestData,
+    excludeRequestId: request._id.toString()
+  });
 
   await restartWorkflowForResubmission(request);
   if (request.currentAssignedRole) {
