@@ -29,6 +29,7 @@ export type RequestType = {
   fields: RequestField[];
   requiredDocuments: string[];
   isActive: boolean;
+  isVisibleToRequester?: boolean;
 };
 
 export type RequestDocument = {

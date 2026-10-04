@@ -10,6 +10,7 @@ import {
 
 const documentSchema = new Schema(
   {
+    _id: { type: String, required: true },
     filename: String,
     originalName: String,
     fileUrl: String,
@@ -22,7 +23,7 @@ const documentSchema = new Schema(
     storageType: { type: String, enum: ['db', 'disk'], default: 'db' },
     fileBuffer: { type: Buffer, default: undefined }
   },
-  { _id: true }
+  { _id: false }
 );
 
 const workflowStepSchema = new Schema(

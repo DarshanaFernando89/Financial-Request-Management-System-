@@ -20,7 +20,8 @@ const requestTypeSchema = new Schema(
     description: { type: String, trim: true },
     fields: [dynamicFieldSchema],
     requiredDocuments: [{ type: String }],
-    isActive: { type: Boolean, default: true }
+    isActive: { type: Boolean, default: true },
+    isVisibleToRequester: { type: Boolean, default: false }
   },
   { timestamps: true }
 );

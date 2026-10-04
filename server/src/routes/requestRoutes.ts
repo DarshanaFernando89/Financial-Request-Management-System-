@@ -24,7 +24,7 @@ router.use(authMiddleware, requireActiveRole);
 router.get(
   '/types/active',
   asyncHandler(async (_req, res) => {
-    const items = await RequestTypeModel.find({ isActive: true }).sort({ name: 1 });
+    const items = await RequestTypeModel.find({ isActive: true, isVisibleToRequester: true }).sort({ name: 1 });
     res.json({ items });
   })
 );
