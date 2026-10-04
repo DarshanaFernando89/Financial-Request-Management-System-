@@ -4,7 +4,7 @@ import { EmptyState } from '../ui/EmptyState';
 import { Table } from '../ui/Table';
 import { RequestStatusBadge } from './RequestStatusBadge';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { formatDate } from '../../utils/formatDate';
+import { formatDateTime } from '../../utils/formatDateTime';
 import { roleLabel } from '../../utils/roleLabels';
 import type { FinancialRequest, RequestType } from '../../types/request';
 
@@ -18,7 +18,7 @@ export function RequestTable({ requests, reviewBase = '/requests' }: { requests:
         { key: 'type', header: 'Type', render: (row) => (row.requestType as RequestType)?.name || '-' },
         { key: 'requester', header: 'Requester', render: (row) => row.requesterSnapshot?.name || '-' },
         { key: 'amount', header: 'Amount', render: (row) => formatCurrency(row.amount, row.currency) },
-        { key: 'date', header: 'Submitted', render: (row) => formatDate(row.submittedAt || row.createdAt) },
+        { key: 'date', header: 'Submitted', render: (row) => formatDateTime(row.submittedAt || row.createdAt) },
         { key: 'status', header: 'Status', render: (row) => <RequestStatusBadge status={row.status} /> },
         { key: 'owner', header: 'Current Owner', render: (row) => roleLabel(row.currentAssignedRole) || '-' },
         {
