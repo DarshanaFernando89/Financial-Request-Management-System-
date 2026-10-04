@@ -6,7 +6,7 @@ import { Card } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { PasswordInput } from '../../components/ui/PasswordInput';
 import { useAuth } from '../../hooks/useAuth';
-import { APPROVER_ROLES } from '../../utils/constants';
+import { APPROVER_ROLES, visibleAssignedRoles } from '../../utils/constants';
 import { roleLabel } from '../../utils/roleLabels';
 import type { Role } from '../../types/auth';
 
@@ -18,9 +18,10 @@ export function RoleSelectionPage() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   if (!user) return <Navigate to="/auth/login" replace />;
+  const selectableRoles = visibleAssignedRoles(user.roles);
 
   function needsApprovalPassword(role: Role) {
-    return Boolean(user && user.roles.length > 1 && APPROVER_ROLES.includes(role));
+    return Boolean(user && selectableRoles.length > 1 && APPROVER_ROLES.includes(role));
   }
 
   async function choose(role: Role, password?: string) {
@@ -56,7 +57,7 @@ export function RoleSelectionPage() {
     <div className="w-full max-w-3xl">
       <h2 className="mb-5 text-center text-xl font-bold text-slate-900">Select Active Role</h2>
       <div className="grid gap-4 sm:grid-cols-2">
-        {user.roles.map((role) => (
+        {selectableRoles.map((role) => (
           <Card key={role} className="flex flex-col gap-4">
             <ShieldCheck className="text-university-maroon" size={28} />
             <div>

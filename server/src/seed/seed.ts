@@ -69,31 +69,7 @@ async function seedUsers() {
       staffCategory: STAFF_CATEGORIES.ACADEMIC,
       department,
       faculty,
-      roles: [ROLES.REQUESTER, ROLES.LECTURER],
-      isActive: true
-    },
-    {
-      nameWithInitials: 'N. Requester',
-      fullName: 'Nimal Requester',
-      email: 'requester@uor.lk',
-      passwordHash,
-      employeeNo: 'NA001',
-      staffCategory: STAFF_CATEGORIES.NON_ACADEMIC,
-      department,
-      faculty,
-      roles: [ROLES.REQUESTER],
-      isActive: true
-    },
-    {
-      nameWithInitials: 'D. Coordinator',
-      fullName: 'Department Coordinator',
-      email: 'coordinator@uor.lk',
-      passwordHash,
-      employeeNo: 'DC001',
-      staffCategory: STAFF_CATEGORIES.NON_ACADEMIC,
-      department,
-      faculty,
-      roles: [ROLES.DEPARTMENT_COORDINATOR, ROLES.REQUESTER],
+      roles: [ROLES.LECTURER],
       isActive: true
     },
     {
@@ -105,19 +81,7 @@ async function seedUsers() {
       staffCategory: STAFF_CATEGORIES.ACADEMIC,
       department,
       faculty,
-      roles: [ROLES.HOD, ROLES.LECTURER, ROLES.REQUESTER],
-      isActive: true
-    },
-    {
-      nameWithInitials: 'Assoc. Dean',
-      fullName: 'Associate Dean Engineering',
-      email: 'associatedean@uor.lk',
-      passwordHash,
-      employeeNo: 'AD001',
-      staffCategory: STAFF_CATEGORIES.ACADEMIC,
-      department,
-      faculty,
-      roles: [ROLES.ASSOCIATE_DEAN, ROLES.LECTURER, ROLES.REQUESTER],
+      roles: [ROLES.HOD, ROLES.LECTURER],
       isActive: true
     },
     {
@@ -129,31 +93,7 @@ async function seedUsers() {
       staffCategory: STAFF_CATEGORIES.ACADEMIC,
       department,
       faculty,
-      roles: [ROLES.DEAN, ROLES.LECTURER, ROLES.REQUESTER],
-      isActive: true
-    },
-    {
-      nameWithInitials: 'F. Division',
-      fullName: 'Financial Division User',
-      email: 'finance.division@uor.lk',
-      passwordHash,
-      employeeNo: 'FD001',
-      staffCategory: STAFF_CATEGORIES.NON_ACADEMIC,
-      department: 'Finance Division',
-      faculty,
-      roles: [ROLES.FINANCE_DIVISION],
-      isActive: true
-    },
-    {
-      nameWithInitials: 'A. Authority',
-      fullName: 'Approving Authority User',
-      email: 'approving.authority@uor.lk',
-      passwordHash,
-      employeeNo: 'AA001',
-      staffCategory: STAFF_CATEGORIES.ACADEMIC,
-      department,
-      faculty,
-      roles: [ROLES.APPROVING_AUTHORITY],
+      roles: [ROLES.DEAN, ROLES.LECTURER],
       isActive: true
     },
     {
@@ -166,18 +106,6 @@ async function seedUsers() {
       department: 'Finance Division',
       faculty,
       roles: [ROLES.FINANCE_OFFICER],
-      isActive: true
-    },
-    {
-      nameWithInitials: 'Dr. Multi Role',
-      fullName: 'Multi Role Lecturer HoD',
-      email: 'multirole@uor.lk',
-      passwordHash,
-      employeeNo: 'MR001',
-      staffCategory: STAFF_CATEGORIES.ACADEMIC,
-      department,
-      faculty,
-      roles: [ROLES.REQUESTER, ROLES.LECTURER, ROLES.HOD],
       isActive: true
     }
   ]);
@@ -300,7 +228,7 @@ async function seedRules(types: any[]) {
       requestTypes: [byCode[REQUEST_TYPE_CODES.LECTURE_HOURS]._id, byCode[REQUEST_TYPE_CODES.PAPER_MARKING]._id, byCode[REQUEST_TYPE_CODES.EXAM_DUTIES]._id],
       minAmount: 25000.01,
       maxAmount: 75000,
-      workflowRoles: [ROLES.HOD, ROLES.ASSOCIATE_DEAN],
+      workflowRoles: [ROLES.HOD, ROLES.DEAN],
       priority: 10,
       isActive: true
     },
@@ -309,7 +237,7 @@ async function seedRules(types: any[]) {
       requestTypes: [byCode[REQUEST_TYPE_CODES.LECTURE_HOURS]._id, byCode[REQUEST_TYPE_CODES.PAPER_MARKING]._id, byCode[REQUEST_TYPE_CODES.EXAM_DUTIES]._id],
       minAmount: 75000.01,
       maxAmount: null,
-      workflowRoles: [ROLES.HOD, ROLES.ASSOCIATE_DEAN, ROLES.DEAN],
+      workflowRoles: [ROLES.HOD, ROLES.DEAN],
       priority: 10,
       isActive: true
     },
@@ -318,7 +246,7 @@ async function seedRules(types: any[]) {
       requestTypes: [byCode[REQUEST_TYPE_CODES.TRAVEL_FUEL]._id],
       minAmount: 0,
       maxAmount: null,
-      workflowRoles: [ROLES.DEPARTMENT_COORDINATOR, ROLES.HOD],
+      workflowRoles: [ROLES.HOD],
       priority: 20,
       isActive: true
     },
@@ -327,7 +255,7 @@ async function seedRules(types: any[]) {
       requestTypes: [byCode[REQUEST_TYPE_CODES.SPECIAL_EQUIPMENT]._id, byCode[REQUEST_TYPE_CODES.RESEARCH_ACADEMIC]._id],
       minAmount: 0,
       maxAmount: null,
-      workflowRoles: [ROLES.HOD, ROLES.FINANCE_DIVISION, ROLES.APPROVING_AUTHORITY],
+      workflowRoles: [ROLES.HOD, ROLES.DEAN],
       priority: 30,
       isActive: true
     },
@@ -382,7 +310,6 @@ async function seedRequests(users: any[], types: any[]) {
   const byEmail = Object.fromEntries(users.map((user) => [user.email, user]));
   const byCode = Object.fromEntries(types.map((type) => [type.code, type]));
   const lecturer = byEmail['lecturer@uor.lk'];
-  const requester = byEmail['requester@uor.lk'];
   const finance = byEmail['finance@uor.lk'];
 
   const common = {
@@ -416,8 +343,8 @@ async function seedRequests(users: any[], types: any[]) {
       requestData: { examName: 'End Semester', numberOfPapers: 120, ratePerPaper: 500 },
       status: REQUEST_STATUSES.UNDER_REVIEW,
       currentStepIndex: 1,
-      currentAssignedRole: ROLES.ASSOCIATE_DEAN,
-      workflowSteps: makeSteps([ROLES.HOD, ROLES.ASSOCIATE_DEAN], 1),
+      currentAssignedRole: ROLES.DEAN,
+      workflowSteps: makeSteps([ROLES.HOD, ROLES.DEAN], 1),
       approvalHistory: [{ action: 'APPROVE', role: ROLES.HOD, user: byEmail['hod@uor.lk']._id, fromStatus: REQUEST_STATUSES.UNDER_REVIEW, toStatus: REQUEST_STATUSES.UNDER_REVIEW, createdAt: new Date() }]
     },
     {
@@ -428,25 +355,23 @@ async function seedRequests(users: any[], types: any[]) {
       amount: 100000,
       requestData: { courseName: 'Power Systems', lectureHours: 80, ratePerHour: 1250 },
       status: REQUEST_STATUSES.UNDER_REVIEW,
-      currentStepIndex: 2,
+      currentStepIndex: 1,
       currentAssignedRole: ROLES.DEAN,
-      workflowSteps: makeSteps([ROLES.HOD, ROLES.ASSOCIATE_DEAN, ROLES.DEAN], 2)
+      workflowSteps: makeSteps([ROLES.HOD, ROLES.DEAN], 1)
     },
     {
-      requester: requester._id,
-      requesterSnapshot: snapshot(requester, ROLES.REQUESTER),
+      ...common,
       currency: 'LKR',
-      documents: [seedDocument(requester)],
       submittedAt: new Date(),
       requestId: '12000065',
       requestType: byCode[REQUEST_TYPE_CODES.TRAVEL_FUEL]._id,
       title: 'Fuel Claim for Department Visit',
       amount: 20000,
       requestData: { travelDate: '2026-06-01', destination: 'Galle', distanceKm: 120 },
-      status: REQUEST_STATUSES.UNDER_VERIFICATION,
+      status: REQUEST_STATUSES.UNDER_REVIEW,
       currentStepIndex: 0,
-      currentAssignedRole: ROLES.DEPARTMENT_COORDINATOR,
-      workflowSteps: makeSteps([ROLES.DEPARTMENT_COORDINATOR, ROLES.HOD], 0)
+      currentAssignedRole: ROLES.HOD,
+      workflowSteps: makeSteps([ROLES.HOD], 0)
     },
     {
       ...common,
@@ -457,8 +382,8 @@ async function seedRequests(users: any[], types: any[]) {
       requestData: { itemName: 'DSP Development Kit', supplier: 'Demo Supplier' },
       status: REQUEST_STATUSES.UNDER_REVIEW,
       currentStepIndex: 1,
-      currentAssignedRole: ROLES.FINANCE_DIVISION,
-      workflowSteps: makeSteps([ROLES.HOD, ROLES.FINANCE_DIVISION, ROLES.APPROVING_AUTHORITY], 1)
+      currentAssignedRole: ROLES.DEAN,
+      workflowSteps: makeSteps([ROLES.HOD, ROLES.DEAN], 1)
     },
     {
       ...common,
@@ -485,7 +410,7 @@ async function seedRequests(users: any[], types: any[]) {
       currentStepIndex: 0,
       currentAssignedRole: undefined,
       rejectionReason: 'Travel approval document was not valid.',
-      workflowSteps: makeSteps([ROLES.DEPARTMENT_COORDINATOR, ROLES.HOD], 0).map((step) => ({ ...step, status: STEP_STATUSES.REJECTED }))
+      workflowSteps: makeSteps([ROLES.HOD], 0).map((step) => ({ ...step, status: STEP_STATUSES.REJECTED }))
     },
     {
       ...common,

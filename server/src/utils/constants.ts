@@ -1,12 +1,8 @@
 export const ROLES = {
   REQUESTER: 'REQUESTER',
   LECTURER: 'LECTURER',
-  DEPARTMENT_COORDINATOR: 'DEPARTMENT_COORDINATOR',
   HOD: 'HOD',
-  ASSOCIATE_DEAN: 'ASSOCIATE_DEAN',
   DEAN: 'DEAN',
-  FINANCE_DIVISION: 'FINANCE_DIVISION',
-  APPROVING_AUTHORITY: 'APPROVING_AUTHORITY',
   FINANCE_OFFICER: 'FINANCE_OFFICER',
   ADMIN: 'ADMIN'
 } as const;
@@ -16,12 +12,8 @@ export const ROLE_VALUES = Object.values(ROLES);
 export const ROLE_LABELS: Record<string, string> = {
   [ROLES.REQUESTER]: 'Requester / Staff Member',
   [ROLES.LECTURER]: 'Lecturer',
-  [ROLES.DEPARTMENT_COORDINATOR]: 'Department Management Assistant / Department Coordinator',
   [ROLES.HOD]: 'Head of Department',
-  [ROLES.ASSOCIATE_DEAN]: 'Associate Dean',
   [ROLES.DEAN]: 'Dean',
-  [ROLES.FINANCE_DIVISION]: 'Financial Division',
-  [ROLES.APPROVING_AUTHORITY]: 'Approving Authority',
   [ROLES.FINANCE_OFFICER]: 'Finance Officer',
   [ROLES.ADMIN]: 'Admin'
 };
@@ -102,15 +94,15 @@ export const REQUEST_TYPE_CODES = {
 } as const;
 
 export const SUBMITTER_ROLES = [ROLES.REQUESTER, ROLES.LECTURER];
-export const APPROVER_ROLES = [
-  ROLES.DEPARTMENT_COORDINATOR,
-  ROLES.HOD,
-  ROLES.ASSOCIATE_DEAN,
-  ROLES.DEAN,
-  ROLES.FINANCE_DIVISION,
-  ROLES.APPROVING_AUTHORITY
-];
+export const APPROVER_ROLES = [ROLES.HOD, ROLES.DEAN];
 export const FINANCE_ROLES = [ROLES.FINANCE_OFFICER];
 export const ADMIN_ROLES = [ROLES.ADMIN];
 
 export const DEFAULT_CURRENCY = 'LKR';
+
+export function sanitizeAssignedRoles(roles: string[] = []) {
+  const supportedRoles = new Set<string>(ROLE_VALUES);
+  const uniqueRoles = Array.from(new Set(roles.map(String).filter((role) => supportedRoles.has(role))));
+  if (uniqueRoles.length <= 1) return uniqueRoles;
+  return uniqueRoles.filter((role) => role !== ROLES.REQUESTER);
+}

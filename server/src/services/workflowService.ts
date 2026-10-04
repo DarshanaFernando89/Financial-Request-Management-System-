@@ -3,6 +3,7 @@ import { ApprovalRuleModel } from '../models/ApprovalRule.js';
 import { RequestModel } from '../models/Request.js';
 import {
   APPROVAL_ACTIONS,
+  APPROVER_ROLES,
   REQUEST_STATUSES,
   ROLES,
   STEP_STATUSES,
@@ -17,20 +18,19 @@ type BuildWorkflowInput = {
 };
 
 export function getStepType(role: string) {
-  if (role === ROLES.DEPARTMENT_COORDINATOR) return STEP_TYPES.VERIFICATION;
-  if (role === ROLES.FINANCE_DIVISION) return STEP_TYPES.FINANCE_REVIEW;
   if (role === ROLES.FINANCE_OFFICER) return STEP_TYPES.PAYMENT;
   return STEP_TYPES.APPROVAL;
 }
 
 export function buildWorkflowSteps(input: BuildWorkflowInput) {
-  const roles = [...input.workflowRoles];
+  const validWorkflowRoles = new Set<string>(APPROVER_ROLES);
+  const roles = input.workflowRoles.filter((role) => validWorkflowRoles.has(role));
 
-  if (input.includeFinanceReview && !roles.includes(ROLES.FINANCE_DIVISION)) {
-    roles.push(ROLES.FINANCE_DIVISION);
-  }
-
-  if (input.approvingAuthorityRole && !roles.includes(input.approvingAuthorityRole)) {
+  if (
+    input.approvingAuthorityRole &&
+    validWorkflowRoles.has(input.approvingAuthorityRole) &&
+    !roles.includes(input.approvingAuthorityRole)
+  ) {
     roles.push(input.approvingAuthorityRole);
   }
 

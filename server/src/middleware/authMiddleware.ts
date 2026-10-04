@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { env } from '../config/env.js';
 import { UserModel } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
-import { APPROVER_ROLES } from '../utils/constants.js';
+import { APPROVER_ROLES, sanitizeAssignedRoles } from '../utils/constants.js';
 
 export type JwtPayload = {
   userId: string;
@@ -26,12 +26,14 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
     const decoded = jwt.verify(token, env.jwtSecret) as JwtPayload;
     const user = await UserModel.findById(decoded.userId);
     if (!user || !user.isActive) throw new ApiError(401, 'User account is inactive or unavailable.');
+    const roles = sanitizeAssignedRoles(user.roles);
+    const activeRole = decoded.activeRole && roles.includes(decoded.activeRole) ? decoded.activeRole : undefined;
 
     (req as any).user = {
       userId: user._id.toString(),
       email: user.email,
-      roles: user.roles,
-      activeRole: decoded.activeRole,
+      roles,
+      activeRole,
       approvalRoleVerifiedAt: decoded.approvalRoleVerifiedAt,
       user
     };

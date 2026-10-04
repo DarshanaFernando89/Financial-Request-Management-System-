@@ -3,16 +3,18 @@ import { UserModel } from '../models/User.js';
 import { signAuthToken } from '../middleware/authMiddleware.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
-import { APPROVER_ROLES } from '../utils/constants.js';
+import { APPROVER_ROLES, sanitizeAssignedRoles } from '../utils/constants.js';
 import { notifyAdmins } from '../services/notificationService.js';
 import { writeAuditLog } from '../services/auditService.js';
 import { submitAccountRequest } from '../services/accountRequestService.js';
 
 function userPayload(user: any, activeRole?: string) {
+  const roles = sanitizeAssignedRoles(user.roles);
   const approvalRolePasswordHashes = user.approvalRolePasswordHashes as Map<string, string> | undefined;
   const approvalRolePasswordConfiguredRoles = approvalRolePasswordHashes
-    ? Array.from(approvalRolePasswordHashes.keys()).filter((role) => APPROVER_ROLES.includes(role as any))
+    ? Array.from(approvalRolePasswordHashes.keys()).filter((role) => roles.includes(role) && APPROVER_ROLES.includes(role as any))
     : undefined;
+  const safeActiveRole = activeRole && roles.includes(activeRole) ? activeRole : undefined;
 
   return {
     _id: user._id,
@@ -27,9 +29,9 @@ function userPayload(user: any, activeRole?: string) {
     contactNo: user.contactNo,
     address: user.address,
     profileImageUrl: user.profileImageUrl,
-    roles: user.roles,
+    roles,
     approvalRolePasswordConfiguredRoles,
-    activeRole,
+    activeRole: safeActiveRole,
     isActive: user.isActive
   };
 }
@@ -48,9 +50,9 @@ export const login = asyncHandler(async (req, res) => {
 
   const isValid = await bcrypt.compare(String(password), String(user.passwordHash));
   if (!isValid) throw new ApiError(401, 'Invalid email or password.');
-  if (!user.roles?.length) throw new ApiError(403, 'No roles are assigned to this account.');
+  const roles = sanitizeAssignedRoles(user.roles);
+  if (!roles.length) throw new ApiError(403, 'No roles are assigned to this account.');
 
-  const roles = user.roles as string[];
   const activeRole = roles.length === 1 ? roles[0] : undefined;
   const token = signAuthToken({
     userId: user._id.toString(),

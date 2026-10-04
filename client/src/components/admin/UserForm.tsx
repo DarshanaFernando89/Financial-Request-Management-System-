@@ -31,7 +31,7 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
     faculty: initial?.faculty || 'Faculty of Engineering, University of Ruhuna',
     contactNo: initial?.contactNo || '',
     address: initial?.address || '',
-    roles: initial?.roles || ['REQUESTER'],
+    roles: initial?.roles || ['LECTURER'],
     approvalRolePasswords: {}
   });
   const [availableRoles, setAvailableRoles] = useState<Array<{ code: string; displayName: string; isActive: boolean }>>(
@@ -59,16 +59,6 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
       return { ...current, roles: Array.from(roles) };
     });
   }
-  function setApprovalRolePassword(role: Role, value: string) {
-    setForm((current) => ({
-      ...current,
-      approvalRolePasswords: {
-        ...(current.approvalRolePasswords || {}),
-        [role]: value
-      }
-    }));
-  }
-
   function setApprovalRolePassword(role: Role, value: string) {
     setForm((current) => ({
       ...current,

@@ -17,7 +17,7 @@ Open `http://localhost:5173`.
 
 1. Sign in as Admin: `admin@uor.lk` / `Password123!`.
 2. Confirm approval rules exist in Admin -> Approval Rules.
-3. Create or verify a lecturer/requester user.
+3. Create or verify a lecturer user.
 4. Create or verify a HoD user.
 5. Create or verify a Finance Officer user.
 6. Sign out.

@@ -9,6 +9,7 @@ import {
   REQUEST_STATUSES,
   REQUEST_TYPE_CODES,
   ROLES,
+  sanitizeAssignedRoles,
   STAFF_CATEGORIES,
   STEP_STATUSES,
   STEP_TYPES
@@ -43,31 +44,7 @@ const users: any[] = [
     staffCategory: STAFF_CATEGORIES.ACADEMIC,
     department,
     faculty,
-    roles: [ROLES.REQUESTER, ROLES.LECTURER],
-    isActive: true
-  },
-  {
-    _id: 'demo-requester',
-    nameWithInitials: 'N. Requester',
-    fullName: 'Nimal Requester',
-    email: 'requester@uor.lk',
-    employeeNo: 'NA001',
-    staffCategory: STAFF_CATEGORIES.NON_ACADEMIC,
-    department,
-    faculty,
-    roles: [ROLES.REQUESTER],
-    isActive: true
-  },
-  {
-    _id: 'demo-coordinator',
-    nameWithInitials: 'D. Coordinator',
-    fullName: 'Department Coordinator',
-    email: 'coordinator@uor.lk',
-    employeeNo: 'DC001',
-    staffCategory: STAFF_CATEGORIES.NON_ACADEMIC,
-    department,
-    faculty,
-    roles: [ROLES.DEPARTMENT_COORDINATOR, ROLES.REQUESTER],
+    roles: [ROLES.LECTURER],
     isActive: true
   },
   {
@@ -79,19 +56,7 @@ const users: any[] = [
     staffCategory: STAFF_CATEGORIES.ACADEMIC,
     department,
     faculty,
-    roles: [ROLES.HOD, ROLES.LECTURER, ROLES.REQUESTER],
-    isActive: true
-  },
-  {
-    _id: 'demo-associate-dean',
-    nameWithInitials: 'Assoc. Dean',
-    fullName: 'Associate Dean Engineering',
-    email: 'associatedean@uor.lk',
-    employeeNo: 'AD001',
-    staffCategory: STAFF_CATEGORIES.ACADEMIC,
-    department,
-    faculty,
-    roles: [ROLES.ASSOCIATE_DEAN, ROLES.LECTURER, ROLES.REQUESTER],
+    roles: [ROLES.HOD, ROLES.LECTURER],
     isActive: true
   },
   {
@@ -103,31 +68,7 @@ const users: any[] = [
     staffCategory: STAFF_CATEGORIES.ACADEMIC,
     department,
     faculty,
-    roles: [ROLES.DEAN, ROLES.LECTURER, ROLES.REQUESTER],
-    isActive: true
-  },
-  {
-    _id: 'demo-finance-division',
-    nameWithInitials: 'F. Division',
-    fullName: 'Financial Division User',
-    email: 'finance.division@uor.lk',
-    employeeNo: 'FD001',
-    staffCategory: STAFF_CATEGORIES.NON_ACADEMIC,
-    department: 'Finance Division',
-    faculty,
-    roles: [ROLES.FINANCE_DIVISION],
-    isActive: true
-  },
-  {
-    _id: 'demo-authority',
-    nameWithInitials: 'A. Authority',
-    fullName: 'Approving Authority User',
-    email: 'approving.authority@uor.lk',
-    employeeNo: 'AA001',
-    staffCategory: STAFF_CATEGORIES.ACADEMIC,
-    department,
-    faculty,
-    roles: [ROLES.APPROVING_AUTHORITY],
+    roles: [ROLES.DEAN, ROLES.LECTURER],
     isActive: true
   },
   {
@@ -140,18 +81,6 @@ const users: any[] = [
     department: 'Finance Division',
     faculty,
     roles: [ROLES.FINANCE_OFFICER],
-    isActive: true
-  },
-  {
-    _id: 'demo-multirole',
-    nameWithInitials: 'Dr. Multi Role',
-    fullName: 'Multi Role Lecturer HoD',
-    email: 'multirole@uor.lk',
-    employeeNo: 'MR001',
-    staffCategory: STAFF_CATEGORIES.ACADEMIC,
-    department,
-    faculty,
-    roles: [ROLES.REQUESTER, ROLES.LECTURER, ROLES.HOD],
     isActive: true
   }
 ];
@@ -252,7 +181,7 @@ const approvalRules: any[] = [
     requestTypes: [requestTypes[0], requestTypes[1]],
     minAmount: 25000.01,
     maxAmount: 75000,
-    workflowRoles: [ROLES.HOD, ROLES.ASSOCIATE_DEAN],
+    workflowRoles: [ROLES.HOD, ROLES.DEAN],
     priority: 10,
     includeFinanceReview: false,
     isActive: true
@@ -263,7 +192,7 @@ const approvalRules: any[] = [
     requestTypes: [requestTypes[2]],
     minAmount: 0,
     maxAmount: null,
-    workflowRoles: [ROLES.DEPARTMENT_COORDINATOR, ROLES.HOD],
+    workflowRoles: [ROLES.HOD],
     priority: 20,
     includeFinanceReview: false,
     isActive: true
@@ -274,7 +203,7 @@ const approvalRules: any[] = [
     requestTypes: [requestTypes[4]],
     minAmount: 0,
     maxAmount: null,
-    workflowRoles: [ROLES.HOD, ROLES.FINANCE_DIVISION, ROLES.APPROVING_AUTHORITY],
+    workflowRoles: [ROLES.HOD, ROLES.DEAN],
     priority: 30,
     includeFinanceReview: false,
     isActive: true
@@ -288,14 +217,7 @@ function steps(roles: string[], pendingIndex: number) {
     _id: `step-${role}-${index}`,
     stepIndex: index,
     role,
-    stepType:
-      role === ROLES.DEPARTMENT_COORDINATOR
-        ? STEP_TYPES.VERIFICATION
-        : role === ROLES.FINANCE_DIVISION
-          ? STEP_TYPES.FINANCE_REVIEW
-          : role === ROLES.FINANCE_OFFICER
-            ? STEP_TYPES.PAYMENT
-            : STEP_TYPES.APPROVAL,
+    stepType: role === ROLES.FINANCE_OFFICER ? STEP_TYPES.PAYMENT : STEP_TYPES.APPROVAL,
     status: index < pendingIndex ? STEP_STATUSES.COMPLETED : index === pendingIndex ? STEP_STATUSES.PENDING : STEP_STATUSES.WAITING
   }));
 }
@@ -312,7 +234,6 @@ function snapshot(user: any, role: string = ROLES.LECTURER) {
 }
 
 const lecturer = users.find((user) => user.email === 'lecturer@uor.lk');
-const requester = users.find((user) => user.email === 'requester@uor.lk');
 
 const requests: any[] = [
   {
@@ -341,8 +262,8 @@ const requests: any[] = [
   {
     _id: 'request-12000065',
     requestId: '12000065',
-    requester: requester._id,
-    requesterSnapshot: snapshot(requester, ROLES.REQUESTER),
+    requester: lecturer._id,
+    requesterSnapshot: snapshot(lecturer),
     requestType: requestTypes[2],
     title: 'Fuel Claim for Department Visit',
     description: 'Official department visit.',
@@ -350,10 +271,10 @@ const requests: any[] = [
     currency: 'LKR',
     requestData: { travelDate: '2026-06-01', destination: 'Galle', distanceKm: 120 },
     documents: [],
-    status: REQUEST_STATUSES.UNDER_VERIFICATION,
+    status: REQUEST_STATUSES.UNDER_REVIEW,
     currentStepIndex: 0,
-    workflowSteps: steps([ROLES.DEPARTMENT_COORDINATOR, ROLES.HOD], 0),
-    currentAssignedRole: ROLES.DEPARTMENT_COORDINATOR,
+    workflowSteps: steps([ROLES.HOD], 0),
+    currentAssignedRole: ROLES.HOD,
     approvalHistory: [],
     clarificationHistory: [],
     revisionNo: 0,
@@ -503,7 +424,8 @@ function demoOnly(req: any, res: any, next: any) {
 }
 
 function publicUser(user: any, activeRole?: string) {
-  return { ...user, activeRole };
+  const roles = sanitizeAssignedRoles(user.roles);
+  return { ...user, roles, activeRole: activeRole && roles.includes(activeRole) ? activeRole : undefined };
 }
 
 function getBearer(req: any) {
@@ -630,9 +552,10 @@ router.use(demoOnly);
 router.post('/auth/login', (req, res) => {
   const user = users.find((item) => item.email === String(req.body.email || '').toLowerCase());
   if (!user || req.body.password !== defaultPassword) return res.status(401).json({ message: 'Invalid email or password.' });
-  const activeRole = user.roles.length === 1 ? user.roles[0] : undefined;
-  const token = signAuthToken({ userId: user._id, email: user.email, roles: user.roles, activeRole });
-  res.json({ token, requiresRoleSelection: user.roles.length > 1, user: publicUser(user, activeRole) });
+  const roles = sanitizeAssignedRoles(user.roles);
+  const activeRole = roles.length === 1 ? roles[0] : undefined;
+  const token = signAuthToken({ userId: user._id, email: user.email, roles, activeRole });
+  res.json({ token, requiresRoleSelection: roles.length > 1, user: publicUser(user, activeRole) });
 });
 
 router.post('/auth/forgot-password', (_req, res) => {

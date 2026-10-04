@@ -5,7 +5,7 @@ Department of Electrical and Information Engineering
 
 ## Background
 
-This full-stack application digitalizes the university's paper-based financial request and claim process. Staff can submit claims, upload documents, track workflow status, respond to clarifications, and view payment progress. Approvers, Finance Division, Finance Officer, and Admin users operate through role-based dashboards with audit logging and notifications.
+This full-stack application digitalizes the university's paper-based financial request and claim process. Staff can submit claims, upload documents, track workflow status, respond to clarifications, and view payment progress. Approvers, Finance Officer, and Admin users operate through role-based dashboards with audit logging and notifications.
 
 The written specification is treated as the source of truth. Approval thresholds in this project are demo seed values only; official confidential limits are intentionally not hardcoded and must be managed through configurable approval rules.
 
@@ -13,7 +13,7 @@ The written specification is treated as the source of truth. Approval thresholds
 
 - JWT authentication with bcrypt password hashing.
 - Multi-role login with role selection after credential validation.
-- Role-based dashboards for Requester/Lecturer, Approvers, Finance Officer, and Admin.
+- Role-based dashboards for Lecturers, Approvers, Finance Officer, and Admin.
 - Dynamic request types with custom fields and required documents.
 - Configurable approval rules stored in MongoDB.
 - Sequential workflow engine with verification, approval, finance review, final approval, and payment steps.
@@ -144,16 +144,10 @@ Password123!
 | Role | Email |
 | --- | --- |
 | Admin | admin@uor.lk |
-| Lecturer / Requester | lecturer@uor.lk |
-| Non-academic Requester | requester@uor.lk |
-| Department Coordinator | coordinator@uor.lk |
+| Lecturer | lecturer@uor.lk |
 | HoD | hod@uor.lk |
-| Associate Dean | associatedean@uor.lk |
 | Dean | dean@uor.lk |
-| Financial Division | finance.division@uor.lk |
-| Approving Authority | approving.authority@uor.lk |
 | Finance Officer | finance@uor.lk |
-| Multi-role Lecturer + HoD | multirole@uor.lk |
 
 ## API Overview
 
@@ -177,12 +171,12 @@ When a request is submitted, the backend finds the highest-priority active appro
 Examples from seed data:
 
 - Small academic claim: HoD -> Finance Officer.
-- Medium academic claim: HoD -> Associate Dean -> Finance Officer.
-- Large academic claim: HoD -> Associate Dean -> Dean -> Finance Officer.
-- Travel/fuel claim: Department Coordinator -> HoD -> Finance Officer.
-- High-value special claim: HoD -> Financial Division -> Approving Authority -> Finance Officer.
+- Medium academic claim: HoD -> Dean -> Finance Officer.
+- Large academic claim: HoD -> Dean -> Finance Officer.
+- Travel/fuel claim: HoD -> Finance Officer.
+- High-value special claim: HoD -> Dean -> Finance Officer.
 
-Only the currently assigned active role can approve, verify, request more info, reject, or mark paid.
+Only the currently assigned active role can approve, request more info, reject, or mark paid.
 
 ## Reports
 
