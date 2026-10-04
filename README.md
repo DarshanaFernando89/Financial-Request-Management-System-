@@ -163,6 +163,32 @@ Password123!
 | Dean | dean@uor.lk |
 | Finance Officer | finance@uor.lk |
 
+## Current Database Accounts
+
+Verified on 4 October 2026 against the configured development database after the requester-role migration. This snapshot includes manually created accounts; reseeding does not recreate every account below.
+
+All 15 accounts are marked active, and each login password was verified as `Password123!`.
+
+| Account email | Available roles | Login access |
+| --- | --- | --- |
+| admin@uor.lk | Admin | Available |
+| lecturer@uor.lk | Lecturer | Available |
+| hod@uor.lk | Head of Department, Lecturer | Available |
+| dean@uor.lk | Dean, Lecturer | Available |
+| finance@uor.lk | Finance Officer | Available |
+| multirole@uor.lk | Lecturer, Head of Department | Available |
+| requester@uor.lk | Lecturer | Available |
+| coordinator@uor.lk | Lecturer | Available |
+| jayathu@uor.lk | Lecturer | Available |
+| bandara@uor.lk | Lecturer | Available |
+| yamuna@uor.lk | Lecturer | Available |
+| tharuu@uor.lk | Lecturer | Available |
+| tygfaf@uor.lk | Lecturer | Available |
+| approving.authority@uor.lk | No supported role | Blocked until a supported role is assigned |
+| finance.division@uor.lk | No supported role | Blocked until a supported role is assigned |
+
+Selecting Head of Department or Dean on a multi-role account requires a separate approval-role password. The configured approval-role passwords for `hod@uor.lk` and `dean@uor.lk` differ from `Password123!` and cannot be recovered from their stored hashes. The Head of Department approval-role password for `multirole@uor.lk` is not configured; an Admin must set it before that role can be selected.
+
 ## API Overview
 
 Base URL: `http://localhost:5000/api`
