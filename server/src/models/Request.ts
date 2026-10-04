@@ -9,6 +9,7 @@ import {
 
 const documentSchema = new Schema(
   {
+    _id: { type: String, required: true },
     filename: String,
     originalName: String,
     fileUrl: String,
@@ -20,9 +21,11 @@ const documentSchema = new Schema(
     description: String,
     source: { type: String, enum: ['INITIAL_SUBMISSION', 'MANUAL_UPLOAD', 'CLARIFICATION_RESPONSE'], default: 'INITIAL_SUBMISSION' },
     clarificationRound: Number,
-    clarificationRespondedAt: Date
+    clarificationRespondedAt: Date,
+    storageType: { type: String, enum: ['db', 'disk'], default: 'db' },
+    fileBuffer: { type: Buffer, default: undefined }
   },
-  { _id: true }
+  { _id: false }
 );
 
 const workflowStepSchema = new Schema(

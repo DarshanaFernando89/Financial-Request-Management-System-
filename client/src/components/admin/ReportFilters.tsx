@@ -4,7 +4,6 @@ import { adminApi } from '../../api/adminApi';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { DateInput } from '../ui/DateInput';
-import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import type { RequestType } from '../../types/request';
 
@@ -26,7 +25,7 @@ export function ReportFilters({ onApply }: { onApply: (filters: Record<string, s
   return (
     <form onSubmit={submit}>
       <Card>
-        <div className="grid gap-4 md:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-4">
           <DateInput label="Start date" value={filters.startDate || ''} onChange={(event) => setValue('startDate', event.target.value)} />
           <DateInput label="End date" value={filters.endDate || ''} onChange={(event) => setValue('endDate', event.target.value)} />
           <Select
@@ -47,7 +46,6 @@ export function ReportFilters({ onApply }: { onApply: (filters: Record<string, s
               { label: 'Rejected', value: 'REJECTED' }
             ]}
           />
-          <Input label="Department" value={filters.department || ''} onChange={(event) => setValue('department', event.target.value)} />
         </div>
         <div className="mt-4 flex justify-end">
           <Button type="submit" icon={<Search size={16} />}>Filter</Button>
