@@ -12,7 +12,8 @@ export function RequestTypeForm({ initial, onSubmit }: { initial?: Partial<Reque
     code: initial?.code || '',
     description: initial?.description || '',
     requiredDocuments: initial?.requiredDocuments?.join(', ') || '',
-    isActive: initial?.isActive ?? true
+    isActive: initial?.isActive ?? true,
+    isVisibleToRequester: initial?.isVisibleToRequester ?? false
   });
   const [error, setError] = useState('');
 
@@ -24,7 +25,8 @@ export function RequestTypeForm({ initial, onSubmit }: { initial?: Partial<Reque
         ...form,
         code: form.code.toUpperCase().replace(/\s+/g, '_'),
         fields: initial?.fields || [],
-        requiredDocuments: form.requiredDocuments.split(',').map((value) => value.trim()).filter(Boolean)
+        requiredDocuments: form.requiredDocuments.split(',').map((value) => value.trim()).filter(Boolean),
+        isVisibleToRequester: form.isVisibleToRequester
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save request type.');
@@ -40,6 +42,14 @@ export function RequestTypeForm({ initial, onSubmit }: { initial?: Partial<Reque
         </div>
         <Textarea label="Description" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
         <Input label="Required documents" value={form.requiredDocuments} onChange={(event) => setForm({ ...form, requiredDocuments: event.target.value })} />
+        <label className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={form.isVisibleToRequester}
+            onChange={(event) => setForm({ ...form, isVisibleToRequester: event.target.checked })}
+          />
+          Show in requester new-request dropdown
+        </label>
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
         <div className="flex justify-end">
           <Button type="submit" icon={<Save size={16} />}>Save Request Type</Button>

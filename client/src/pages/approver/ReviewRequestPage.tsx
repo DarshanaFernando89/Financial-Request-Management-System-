@@ -55,6 +55,9 @@ export function ReviewRequestPage() {
 
   const currentStep = request.workflowSteps.find((step) => step.stepIndex === request.currentStepIndex);
   const isVerification = currentStep?.stepType === 'VERIFICATION';
+  const requestTypeFields = typeof request.requestType === 'object' && request.requestType && 'fields' in request.requestType ? request.requestType.fields : [];
+  const fieldLabels = new Map(requestTypeFields.map((field) => [field.name, field.label]));
+  const formatValue = (value: unknown) => Array.isArray(value) ? value.join(', ') : value == null ? '—' : String(value);
 
   return (
     <div className="space-y-5">
@@ -66,8 +69,8 @@ export function ReviewRequestPage() {
             <dl className="grid gap-3 text-sm md:grid-cols-2">
               {Object.entries(request.requestData || {}).map(([key, value]) => (
                 <div key={key} className="rounded-md bg-slate-50 p-3">
-                  <dt className="font-semibold capitalize text-slate-500">{key.replace(/([A-Z])/g, ' $1')}</dt>
-                  <dd className="mt-1 text-slate-900">{String(value)}</dd>
+                  <dt className="font-semibold text-slate-500">{fieldLabels.get(key) || key.replace(/([A-Z])/g, ' $1')}</dt>
+                  <dd className="mt-1 text-slate-900">{formatValue(value)}</dd>
                 </div>
               ))}
             </dl>

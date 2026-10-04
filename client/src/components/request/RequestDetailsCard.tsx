@@ -44,7 +44,12 @@ export function RequestDetailsCard({ request }: { request: FinancialRequest }) {
           <dd className="font-semibold text-slate-900">{request.requesterSnapshot?.staffCategory?.replace('_', ' ')}</dd>
         </div>
       </dl>
-      {request.description && <p className="mt-5 rounded-md bg-slate-50 p-3 text-sm text-slate-700">{request.description}</p>}
+      {request.description && (
+        <div className="mt-5 rounded-md bg-slate-50 p-3">
+          <h2 className="text-sm font-semibold text-slate-500">Description</h2>
+          <p className="mt-1 text-sm text-slate-700">{request.description}</p>
+        </div>
+      )}
     </Card>
   );
 }
