@@ -1,7 +1,6 @@
 # Financial Request Management and Tracking System
 
 Faculty of Engineering, University of Ruhuna  
-Department of Electrical and Information Engineering
 
 ## Background
 

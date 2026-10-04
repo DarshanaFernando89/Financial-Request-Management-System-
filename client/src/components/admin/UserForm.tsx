@@ -27,7 +27,7 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
     employeeNo: initial?.employeeNo || '',
     indexNo: initial?.indexNo || '',
     staffCategory: initial?.staffCategory || 'ACADEMIC',
-    department: initial?.department || 'Department of Electrical and Information Engineering',
+    department: initial?.department || '',
     faculty: initial?.faculty || 'Faculty of Engineering, University of Ruhuna',
     contactNo: initial?.contactNo || '',
     address: initial?.address || '',

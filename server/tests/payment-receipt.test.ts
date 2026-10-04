@@ -13,7 +13,7 @@ describe('payment receipt PDF generation', () => {
         requesterSnapshot: {
           name: 'Kasun Perera',
           email: 'kasun@uor.lk',
-          department: 'Electrical and Information Engineering'
+          department: 'General'
         },
         requestType: { name: 'Travel Claim' },
         status: 'PAID',

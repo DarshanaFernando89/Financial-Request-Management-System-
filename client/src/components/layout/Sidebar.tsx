@@ -129,9 +129,14 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               )}
             </div>
             <div className="min-w-0 flex-1">
+<<<<<<< HEAD
+              <p className="truncate text-sm font-bold text-slate-900">{user?.nameWithInitials}</p>
+              <Badge tone="gold" className="mt-1">{roleLabel(user?.activeRole)}</Badge>
+=======
               <p className="truncate text-sm font-bold text-slate-900">{user?.fullName}</p>
               <p className="truncate text-xs text-slate-500">{user?.email}</p>
               <Badge tone="gold" className="mt-2">{roleLabel(activeRole, user?.roleLabels)}</Badge>
+>>>>>>> 89aa9170c494dcf36def96f44c53f5ad634cbfec
             </div>
           </div>
           {user && assignedRoles.length > 1 && (

@@ -24,7 +24,7 @@ import {
 import { buildWorkflowSteps } from '../services/workflowService.js';
 
 const faculty = 'Faculty of Engineering, University of Ruhuna';
-const department = 'Department of Electrical and Information Engineering';
+const department = 'General';
 const password = 'Password123!';
 
 async function resetCollections() {

@@ -25,7 +25,7 @@ import { assertAvailableWorkflowRoles } from '../services/workflowRoleService.js
 const router = Router();
 const defaultPassword = 'Password123!';
 const faculty = 'Faculty of Engineering, University of Ruhuna';
-const department = 'Department of Electrical and Information Engineering';
+const department = 'General';
 
 const users: any[] = [
   {
