@@ -6,7 +6,7 @@ import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
-import { APPROVER_ROLES, ROLES } from '../../utils/constants';
+import { APPROVER_ROLES, ROLES, visibleAssignedRoles } from '../../utils/constants';
 import { isPhoneNumber } from '../../utils/validation';
 import { roleLabel } from '../../utils/roleLabels';
 import type { Role, User } from '../../types/auth';
@@ -31,7 +31,7 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
     faculty: initial?.faculty || 'Faculty of Engineering, University of Ruhuna',
     contactNo: initial?.contactNo || '',
     address: initial?.address || '',
-    roles: initial?.roles || ['LECTURER'],
+    roles: initial ? visibleAssignedRoles(initial.roles) : ['LECTURER'],
     approvalRolePasswords: {}
   });
   const [availableRoles, setAvailableRoles] = useState<Array<{ code: string; displayName: string; isActive: boolean }>>(
@@ -43,7 +43,7 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
   useEffect(() => {
     adminApi
       .roles()
-      .then((roles) => setAvailableRoles(roles.filter((role) => role.isActive)))
+      .then((roles) => setAvailableRoles(roles.filter((role) => role.isActive && ROLES.includes(role.code))))
       .catch(() => setAvailableRoles(ROLES.map((role) => ({ code: role, displayName: roleLabel(role), isActive: true }))));
   }, []);
 
@@ -77,6 +77,10 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
       return;
     }
     const selectedRoles = form.roles as Role[];
+    if (!selectedRoles.length) {
+      setError('Select at least one available role.');
+      return;
+    }
     if (selectedRoles.length > 1) {
       const missingApprovalRole = selectedRoles.find(
         (role) =>

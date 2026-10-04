@@ -9,7 +9,7 @@ import type { ApprovalRule } from '../../types/rule';
 import type { RequestType } from '../../types/request';
 import type { Role } from '../../types/auth';
 
-const workflowRoles = ROLES.filter((role) => role !== 'REQUESTER' && role !== 'LECTURER' && role !== 'FINANCE_OFFICER' && role !== 'ADMIN');
+const workflowRoles = ROLES.filter((role) => role !== 'LECTURER' && role !== 'FINANCE_OFFICER' && role !== 'ADMIN');
 
 export function RuleForm({
   requestTypes,

@@ -33,6 +33,15 @@ describe('admin delete handlers', () => {
     vi.clearAllMocks();
   });
 
+  it('prevents recreating the removed role', async () => {
+    const next = vi.fn();
+    createRole({ body: { displayName: 'Old role', code: 'REQUESTER' } } as any, {} as any, next);
+    await flushAsyncHandler();
+    expect(createMock).not.toHaveBeenCalled();
+    expect(findOneAndUpdateMock).not.toHaveBeenCalled();
+    expect(next.mock.calls[0][0].statusCode).toBe(400);
+  });
+
   it('deletes an approval rule when it exists', async () => {
     findByIdAndDeleteMock.mockResolvedValue({ _id: 'rule-1' });
     const req: any = { params: { id: 'rule-1' } };

@@ -134,6 +134,19 @@ npm.cmd --prefix server test
 npm.cmd --prefix client run build
 ```
 
+## Existing Account Role Migration
+
+Available roles are Lecturer, Head of Department, Dean, Finance Officer, and Admin. Profiles, sessions, and user management use the same supported role list.
+
+For an existing database containing the retired `REQUESTER` role, preview the cleanup, then apply it:
+
+```powershell
+npm.cmd --prefix server run migrate:remove-requester-role
+npm.cmd --prefix server run migrate:remove-requester-role -- --apply
+```
+
+The migration preserves supported assignments and assigns Lecturer when removing `REQUESTER` would leave an account without a supported role. Before updating accounts, it saves their previous assignments under `server/.local/role-migrations/`, which is excluded from Git. Repeating the migration leaves already migrated accounts unchanged.
+
 ## Default Login Credentials
 
 All seed users use:

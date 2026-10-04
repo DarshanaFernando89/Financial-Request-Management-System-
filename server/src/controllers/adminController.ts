@@ -6,7 +6,7 @@ import { AccountRequestModel } from '../models/AccountRequest.js';
 import { CustomRoleModel } from '../models/CustomRole.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
-import { ROLE_LABELS, ROLES } from '../utils/constants.js';
+import { RETIRED_ROLE_CODES, ROLE_LABELS, ROLES } from '../utils/constants.js';
 
 export const adminDashboard = asyncHandler(async (_req, res) => {
   const sixMonthsAgo = new Date();
@@ -242,7 +242,7 @@ export const listRoles = asyncHandler(async (_req, res) => {
   });
 
   const customOnlyRoles = customRoles
-    .filter((role: any) => !isSystemRoleCode(role.code) && role.isActive !== false)
+    .filter((role: any) => !isSystemRoleCode(role.code) && !RETIRED_ROLE_CODES.includes(role.code) && role.isActive !== false)
     .map((role: any) => ({ ...role.toObject(), isSystem: false }));
 
   res.json({ items: [...systemRoles, ...customOnlyRoles] });
@@ -252,6 +252,7 @@ export const createRole = asyncHandler(async (req, res) => {
   const code = normalizeRoleCode(String(req.body.code || req.body.displayName || ''));
   if (!code || !req.body.displayName) throw new ApiError(400, 'Role code and display name are required.');
   if (code === ROLES.ADMIN) throw new ApiError(403, 'Admin role already exists and cannot be created.');
+  if (RETIRED_ROLE_CODES.includes(code)) throw new ApiError(400, 'This role is no longer available.');
 
   if (isSystemRoleCode(code)) {
     const item = await CustomRoleModel.findOneAndUpdate(
@@ -278,6 +279,9 @@ export const createRole = asyncHandler(async (req, res) => {
 });
 
 export const updateRole = asyncHandler(async (req, res) => {
+  if (req.body.code && RETIRED_ROLE_CODES.includes(normalizeRoleCode(String(req.body.code)))) {
+    throw new ApiError(400, 'This role is no longer available.');
+  }
   const item = await CustomRoleModel.findByIdAndUpdate(String(req.params.id), req.body, { new: true, runValidators: true });
   if (!item) throw new ApiError(404, 'Role not found.');
   res.json(item);

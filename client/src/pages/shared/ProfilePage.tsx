@@ -9,6 +9,7 @@ import { isEmail, isPhoneNumber } from '../../utils/validation';
 import { roleLabel } from '../../utils/roleLabels';
 import type { User } from '../../types/auth';
 import { useAuth } from '../../hooks/useAuth';
+import { visibleAssignedRoles } from '../../utils/constants';
 
 function profileForm(user: User) {
   return { fullName: user.fullName || '', email: user.email || '', contactNo: user.contactNo || '', profileImageUrl: user.profileImageUrl || '' };
@@ -115,7 +116,7 @@ export function ProfilePage() {
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            {profile.roles.map((role) => <Badge key={role}>{roleLabel(role)}</Badge>)}
+            {visibleAssignedRoles(profile.roles).map((role) => <Badge key={role}>{roleLabel(role)}</Badge>)}
           </div>
         </Card>
         <Card className="space-y-4">

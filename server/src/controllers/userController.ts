@@ -69,7 +69,7 @@ export const listUsers = asyncHandler(async (req, res) => {
       .limit(limit),
     UserModel.countDocuments(filter)
   ]);
-  res.json({ items, total, page, pages: Math.ceil(total / limit) || 1 });
+  res.json({ items: items.map(publicUser), total, page, pages: Math.ceil(total / limit) || 1 });
 });
 
 export const getUser = asyncHandler(async (req, res) => {
@@ -142,7 +142,10 @@ export const updateUser = asyncHandler(async (req, res) => {
   if (!existing) throw new ApiError(404, 'User not found.');
 
   const roles = sanitizeAssignedRoles((updates.roles as string[] | undefined) || existing.roles);
-  if (updates.roles) updates.roles = roles;
+  if (updates.roles) {
+    if (!roles.length) throw new ApiError(400, 'At least one available role is required.');
+    updates.roles = roles;
+  }
   if (req.body.approvalRolePasswords || updates.roles) {
     updates.approvalRolePasswordHashes = await buildApprovalRolePasswordHashes({
       roles,
@@ -233,7 +236,8 @@ export const resetPassword = asyncHandler(async (req, res) => {
 
 export const getProfile = asyncHandler(async (req, res) => {
   const user = await UserModel.findById((req as any).user.userId);
-  res.json(user);
+  if (!user) throw new ApiError(404, 'User not found.');
+  res.json(publicUser(user));
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
@@ -252,5 +256,5 @@ export const updateProfile = asyncHandler(async (req, res) => {
     throw error;
   }
   if (!user) throw new ApiError(404, 'User not found.');
-  res.json(user);
+  res.json(publicUser(user));
 });

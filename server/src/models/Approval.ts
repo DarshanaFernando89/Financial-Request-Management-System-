@@ -1,5 +1,5 @@
 import mongoose, { Schema } from 'mongoose';
-import { ROLE_VALUES } from '../utils/constants.js';
+import { HISTORICAL_ROLE_VALUES as ROLE_VALUES } from '../utils/constants.js';
 
 const approvalSchema = new Schema(
   {

@@ -20,3 +20,4 @@ client/src/assets/images/*
 client/src/assets/logos/*
 !client/src/assets/logos/.gitkeep
 *.log
+.local/

@@ -9,7 +9,7 @@ import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 
 const workflowRoles = ROLES.filter(
-  (role) => role !== 'REQUESTER' && role !== 'LECTURER' && role !== 'FINANCE_OFFICER' && role !== 'ADMIN'
+  (role) => role !== 'LECTURER' && role !== 'FINANCE_OFFICER' && role !== 'ADMIN'
 );
 
 export type RuleWithTypePayload = {

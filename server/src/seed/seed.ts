@@ -515,7 +515,7 @@ async function seedNotificationsAndLogs(users: any[], requests: any[]) {
     faculty,
     contactNo: '0712345678',
     address: 'Faculty of Engineering, University of Ruhuna',
-    requestedRole: ROLES.REQUESTER,
+    requestedRole: ROLES.LECTURER,
     message: 'Need access to submit reimbursements.',
     status: ACCOUNT_REQUEST_STATUSES.PENDING
   });

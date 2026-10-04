@@ -9,6 +9,7 @@ import {
   REQUEST_STATUSES,
   REQUEST_TYPE_CODES,
   ROLES,
+  RETIRED_ROLE_CODES,
   sanitizeAssignedRoles,
   STAFF_CATEGORIES,
   STEP_STATUSES,
@@ -402,7 +403,7 @@ const accountRequests: any[] = [
     faculty,
     contactNo: '0712345678',
     address: 'Faculty of Engineering, University of Ruhuna',
-    requestedRole: ROLES.REQUESTER,
+    requestedRole: ROLES.LECTURER,
     message: 'Need access to submit reimbursements.',
     status: ACCOUNT_REQUEST_STATUSES.PENDING,
     createdAt: new Date().toISOString()
@@ -558,6 +559,7 @@ router.post('/auth/login', (req, res) => {
   const user = users.find((item) => item.email === String(req.body.email || '').toLowerCase());
   if (!user || req.body.password !== defaultPassword) return res.status(401).json({ message: 'Invalid email or password.' });
   const roles = sanitizeAssignedRoles(user.roles);
+  if (!roles.length) return res.status(403).json({ message: 'No roles are assigned to this account.' });
   const activeRole = roles.length === 1 ? roles[0] : undefined;
   const token = signAuthToken({ userId: user._id, email: user.email, roles, activeRole });
   res.json({ token, requiresRoleSelection: roles.length > 1, user: publicUser(user, activeRole) });
@@ -889,34 +891,41 @@ router.put('/users/me/profile', (req, res) => {
 router.get('/users', (req, res) => {
   const search = String(req.query.search || '').toLowerCase();
   const items = search ? users.filter((user) => `${user.fullName} ${user.email} ${user.department}`.toLowerCase().includes(search)) : users;
-  res.json({ items, total: items.length, page: 1, pages: 1 });
+  res.json({ items: items.map((user) => publicUser(user)), total: items.length, page: 1, pages: 1 });
 });
 
 router.get('/users/:id', (req, res) => {
   const user = users.find((item) => item._id === req.params.id);
   if (!user) return res.status(404).json({ message: 'User not found.' });
-  res.json(user);
+  res.json(publicUser(user));
 });
 
 router.post('/users', (req, res) => {
-  const user = { _id: `demo-user-${Date.now()}`, isActive: true, ...req.body };
+  const roles = sanitizeAssignedRoles(req.body.roles);
+  if (!roles.length) return res.status(400).json({ message: 'At least one available role is required.' });
+  const user = { _id: `demo-user-${Date.now()}`, isActive: true, ...req.body, roles };
   delete user.password;
   users.unshift(user);
-  res.status(201).json(user);
+  res.status(201).json(publicUser(user));
 });
 
 router.put('/users/:id', (req, res) => {
   const user = users.find((item) => item._id === req.params.id);
   if (!user) return res.status(404).json({ message: 'User not found.' });
+  if (req.body.roles) {
+    const roles = sanitizeAssignedRoles(req.body.roles);
+    if (!roles.length) return res.status(400).json({ message: 'At least one available role is required.' });
+    req.body.roles = roles;
+  }
   Object.assign(user, req.body);
-  res.json(user);
+  res.json(publicUser(user));
 });
 
 router.patch('/users/:id/activate', (req, res) => {
   const user = users.find((item) => item._id === req.params.id);
   if (!user) return res.status(404).json({ message: 'User not found.' });
   user.isActive = true;
-  res.json(user);
+  res.json(publicUser(user));
 });
 
 router.patch('/users/:id/deactivate', (req, res) => {
@@ -924,7 +933,7 @@ router.patch('/users/:id/deactivate', (req, res) => {
   if (!user) return res.status(404).json({ message: 'User not found.' });
   if (user.roles.includes(ROLES.ADMIN)) return res.status(403).json({ message: 'Admin accounts cannot be deactivated.' });
   user.isActive = false;
-  res.json(user);
+  res.json(publicUser(user));
 });
 
 router.patch('/users/:id/reset-password', (_req, res) => res.json({ message: 'Password reset successfully.' }));
@@ -953,7 +962,7 @@ router.get('/admin/roles', (_req, res) => {
     isActive: true,
     isSystem: true
   }));
-  res.json({ items: [...systemRoles, ...customRoles] });
+  res.json({ items: [...systemRoles, ...customRoles.filter((role) => !RETIRED_ROLE_CODES.includes(role.code))] });
 });
 
 router.post('/admin/roles', (req, res) => {
@@ -962,6 +971,7 @@ router.post('/admin/roles', (req, res) => {
     .toUpperCase()
     .replace(/[^A-Z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
+  if (RETIRED_ROLE_CODES.includes(code)) return res.status(400).json({ message: 'This role is no longer available.' });
   if (!code || !req.body.displayName) return res.status(400).json({ message: 'Role code and display name are required.' });
   if (Object.values(ROLES).includes(code as any) || customRoles.some((role) => role.code === code)) {
     return res.status(409).json({ message: 'Role already exists.' });
@@ -980,6 +990,9 @@ router.post('/admin/roles', (req, res) => {
 });
 
 router.put('/admin/roles/:id', (req, res) => {
+  if (req.body.code && RETIRED_ROLE_CODES.includes(String(req.body.code).trim().toUpperCase())) {
+    return res.status(400).json({ message: 'This role is no longer available.' });
+  }
   const item = customRoles.find((role) => role._id === req.params.id);
   if (!item) return res.status(404).json({ message: 'Role not found.' });
   Object.assign(item, req.body);
@@ -1030,6 +1043,8 @@ router.patch('/account-requests/:id/approve', (req, res) => {
   const item = accountRequests.find((request) => request._id === req.params.id);
   if (!item) return res.status(404).json({ message: 'Account request not found.' });
   if (item.status !== ACCOUNT_REQUEST_STATUSES.PENDING) return res.status(422).json({ message: 'Account request has already been processed.' });
+  const roles = sanitizeAssignedRoles([String(req.body.requestedRole || item.requestedRole)]);
+  if (!roles.length) return res.status(400).json({ message: 'Choose an available role before approving this account request.' });
   const user = {
     _id: `user-${Date.now()}`,
     nameWithInitials: item.nameWithInitials,
@@ -1042,11 +1057,12 @@ router.patch('/account-requests/:id/approve', (req, res) => {
     faculty: item.faculty,
     contactNo: item.contactNo,
     address: item.address,
-    roles: [item.requestedRole],
+    roles,
     isActive: true,
     createdAt: new Date().toISOString()
   };
   users.unshift(user);
+  item.requestedRole = roles[0];
   item.status = ACCOUNT_REQUEST_STATUSES.APPROVED;
   item.adminRemarks = req.body.adminRemarks;
   res.json({ accountRequest: item, user });

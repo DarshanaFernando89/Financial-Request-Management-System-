@@ -1,5 +1,5 @@
 import mongoose, { Schema } from 'mongoose';
-import { ACCOUNT_REQUEST_STATUSES, ROLE_VALUES } from '../utils/constants.js';
+import { ACCOUNT_REQUEST_STATUSES, HISTORICAL_ROLE_VALUES as ROLE_VALUES } from '../utils/constants.js';
 
 const accountRequestSchema = new Schema(
   {

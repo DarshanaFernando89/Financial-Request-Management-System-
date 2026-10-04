@@ -2,10 +2,10 @@ import express from 'express';
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { findById, findByIdAndUpdate, exists } = vi.hoisted(() => ({
-  findById: vi.fn(), findByIdAndUpdate: vi.fn(), exists: vi.fn()
+const { findById, findByIdAndUpdate, exists, find, countDocuments } = vi.hoisted(() => ({
+  findById: vi.fn(), findByIdAndUpdate: vi.fn(), exists: vi.fn(), find: vi.fn(), countDocuments: vi.fn()
 }));
-vi.mock('../src/models/User.js', () => ({ UserModel: { findById, findByIdAndUpdate, exists } }));
+vi.mock('../src/models/User.js', () => ({ UserModel: { findById, findByIdAndUpdate, exists, find, countDocuments } }));
 
 import userRoutes from '../src/routes/userRoutes.js';
 import authRoutes from '../src/routes/authRoutes.js';
@@ -38,6 +38,33 @@ function update(body: unknown) {
 }
 
 describe('editable profile details', () => {
+  it.each([
+    { stored: ['REQUESTER', 'LECTURER'], visible: ['LECTURER'] },
+    { stored: ['DEAN', 'LECTURER', 'REQUESTER'], visible: ['DEAN', 'LECTURER'] },
+    { stored: ['REQUESTER', 'LECTURER', 'HOD'], visible: ['LECTURER', 'HOD'] }
+  ])('returns matching roles in profile and session: $stored', async ({ stored, visible }) => {
+    user.roles = stored;
+    token = signAuthToken({ userId: user._id, email: user.email, roles: stored, activeRole: 'LECTURER' });
+    const session = await request(app).get('/api/auth/me').auth(token, { type: 'bearer' });
+    const profile = await request(app).get('/api/users/me/profile').auth(token, { type: 'bearer' });
+    expect(session.status).toBe(200);
+    expect(profile.status).toBe(200);
+    expect(session.body.user.roles).toEqual(visible);
+    expect(profile.body.roles).toEqual(visible);
+    const saved = await update({ contactNo: '+94710000001' });
+    expect(saved.body.roles).toEqual(visible);
+    expect((await request(app).post('/api/auth/select-role').auth(token, { type: 'bearer' }).send({ role: 'REQUESTER' })).status).toBe(403);
+  });
+
+  it('filters stored roles consistently in the admin user list', async () => {
+    const other = { ...user, _id: 'user-2', roles: ['REQUESTER', 'LECTURER'] };
+    find.mockReturnValue({ sort: () => ({ skip: () => ({ limit: async () => [other] }) }) });
+    countDocuments.mockResolvedValue(1);
+    const response = await request(app).get('/api/users').auth(token, { type: 'bearer' });
+    expect(response.status).toBe(200);
+    expect(response.body.items[0].roles).toEqual(['LECTURER']);
+  });
+
   it('saves normalized name and email and refreshes the existing authenticated session', async () => {
     const response = await update({ fullName: '  Updated Full Name  ', email: ' Updated@UOR.LK ', contactNo: '+94712223344' });
     expect(response.status).toBe(200);
