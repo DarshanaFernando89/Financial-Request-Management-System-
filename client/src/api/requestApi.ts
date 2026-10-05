@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { FinancialRequest, RequestListResponse, RequestType } from '../types/request';
+import type { FinancialRequest, FuelDuplicateRequest, RequestListResponse, RequestType } from '../types/request';
 import type { RequestRuleOption } from '../types/rule';
 
 export const requestApi = {
@@ -17,6 +17,12 @@ export const requestApi = {
   },
   async mine(params?: Record<string, unknown>) {
     const { data } = await apiClient.get<RequestListResponse>('/requests/my', { params });
+    return data.items;
+  },
+  async fuelDuplicates(requestType: string, amount: number) {
+    const { data } = await apiClient.get<{ items: FuelDuplicateRequest[] }>('/requests/fuel-duplicates', {
+      params: { requestType, amount }
+    });
     return data.items;
   },
   async get(id: string) {

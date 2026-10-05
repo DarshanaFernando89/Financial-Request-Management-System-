@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { financeApi } from '../../api/financeApi';
 import { ApprovalHistoryTable } from '../../components/request/ApprovalHistoryTable';
+import { DuplicateFuelWarning } from '../../components/request/DuplicateFuelWarning';
 import { DocumentList } from '../../components/request/DocumentList';
 import { RequestDetailsCard } from '../../components/request/RequestDetailsCard';
 import { RequestTimeline } from '../../components/request/RequestTimeline';
@@ -62,6 +63,7 @@ export function PaymentReviewPage() {
   return (
     <div className="space-y-5">
       <RequestDetailsCard request={request} />
+      <DuplicateFuelWarning requests={request.duplicateFuelRequests || []} audience="finance" />
       <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
         <div className="space-y-5">
           <Card>

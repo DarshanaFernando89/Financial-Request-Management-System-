@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   cancelDraft,
+  checkFuelDuplicates,
   createRequest,
   downloadRequestSummary,
   getRequest,
@@ -39,6 +40,7 @@ router.get(
   })
 );
 router.get('/my', listMyRequests);
+router.get('/fuel-duplicates', checkFuelDuplicates);
 router.get('/', listRequests);
 router.post('/', upload.array('files', 20), createRequest);
 router.get('/:id', getRequest);

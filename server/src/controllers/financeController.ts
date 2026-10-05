@@ -7,6 +7,7 @@ import { getCurrentStep, rejectRequest, requestMoreInfo } from '../services/work
 import { notifyUser } from '../services/notificationService.js';
 import { writeAuditLog } from '../services/auditService.js';
 import { buildPaymentReceiptPdfBuffer } from '../services/reportService.js';
+import { findDuplicateFuelRequests } from '../services/fuelDuplicateService.js';
 
 export const pendingPayments = asyncHandler(async (_req, res) => {
   const items = await RequestModel.find({
@@ -29,7 +30,13 @@ export const financeRequestDetails = asyncHandler(async (req, res) => {
     requestId.match(/^[a-f\d]{24}$/i) ? { _id: requestId } : { requestId }
   ).populate('requestType requester', '-passwordHash');
   if (!request) throw new ApiError(404, 'Request not found.');
-  res.json(request);
+  const duplicateFuelRequests = await findDuplicateFuelRequests(
+    String((request.requester as any)._id || request.requester),
+    String((request.requestType as any)._id || request.requestType),
+    request.amount,
+    request._id.toString()
+  );
+  res.json({ ...request.toObject(), duplicateFuelRequests });
 });
 
 export const markPaid = asyncHandler(async (req, res) => {

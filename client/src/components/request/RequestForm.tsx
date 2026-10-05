@@ -2,10 +2,11 @@ import { FileText, Save, Send, X } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { requestApi } from '../../api/requestApi';
-import type { RequestField } from '../../types/request';
+import type { FuelDuplicateRequest, RequestField } from '../../types/request';
 import type { RequestRuleOption } from '../../types/rule';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { DuplicateFuelWarning } from './DuplicateFuelWarning';
 import { FileUpload } from '../ui/FileUpload';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
@@ -51,6 +52,8 @@ export function RequestForm() {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [requestData, setRequestData] = useState<Record<string, string>>({});
+  const [fuelDuplicates, setFuelDuplicates] = useState<FuelDuplicateRequest[]>([]);
+  const [checkingFuelDuplicates, setCheckingFuelDuplicates] = useState(false);
   const [requiredFiles, setRequiredFiles] = useState<Record<number, File | undefined>>({});
   const [additionalFiles, setAdditionalFiles] = useState<File[]>([]);
   const [error, setError] = useState('');
@@ -68,6 +71,36 @@ export function RequestForm() {
     const calculated = dynamicAmount(requestData);
     if (calculated > 0) setAmount(String(calculated));
   }, [requestData]);
+
+  useEffect(() => {
+    const requestAmount = Number(amount);
+    if (selectedType?.code !== 'TRAVEL_FUEL' || !Number.isFinite(requestAmount) || requestAmount <= 0) {
+      setFuelDuplicates([]);
+      setCheckingFuelDuplicates(false);
+      return;
+    }
+
+    let active = true;
+    setFuelDuplicates([]);
+    setCheckingFuelDuplicates(true);
+    const timeout = window.setTimeout(() => {
+      requestApi.fuelDuplicates(requestType, requestAmount)
+        .then((duplicates) => {
+          if (active) setFuelDuplicates(duplicates);
+        })
+        .catch(() => {
+          if (active) setFuelDuplicates([]);
+        })
+        .finally(() => {
+          if (active) setCheckingFuelDuplicates(false);
+        });
+    }, 300);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [amount, requestType, selectedType?.code]);
 
   function updateField(name: string, value: string) {
     setRequestData((current) => ({ ...current, [name]: value }));
@@ -116,6 +149,10 @@ export function RequestForm() {
   async function submit(event: FormEvent, shouldSubmit: boolean) {
     event.preventDefault();
     setError('');
+    if (shouldSubmit && checkingFuelDuplicates) {
+      setError('Please wait while we check for possible duplicate fuel requests.');
+      return;
+    }
     if (!selectedRule || !selectedType) {
       setError('Please select a claim type and its request type.');
       return;
@@ -191,6 +228,13 @@ export function RequestForm() {
         <Textarea label="Description" value={description} onChange={(event) => setDescription(event.target.value)} />
       </Card>
 
+      {selectedType?.code === 'TRAVEL_FUEL' && Number(amount) > 0 && (
+        <>
+          {checkingFuelDuplicates && <p className="text-sm text-slate-500">Checking for similar fuel requests...</p>}
+          <DuplicateFuelWarning requests={fuelDuplicates} audience="requester" />
+        </>
+      )}
+
       {selectedType && (
         <Card>
           <h2 className="mb-4 text-base font-semibold text-slate-900">{selectedType.name}</h2>
@@ -257,7 +301,7 @@ export function RequestForm() {
         <Button variant="outline" icon={<Save size={16} />} disabled={saving || loadingRules || !rules.length} onClick={(event) => void submit(event as unknown as FormEvent, false)}>
           Save as Draft
         </Button>
-        <Button type="submit" icon={<Send size={16} />} disabled={saving || loadingRules || !rules.length}>
+        <Button type="submit" icon={<Send size={16} />} disabled={saving || loadingRules || !rules.length || checkingFuelDuplicates}>
           Submit Request
         </Button>
       </div>

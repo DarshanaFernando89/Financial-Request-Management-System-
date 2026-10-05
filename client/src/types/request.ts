@@ -47,6 +47,13 @@ export type RequestDocument = {
   clarificationRespondedAt?: string;
 };
 
+export type FuelDuplicateRequest = {
+  requestId: string;
+  title: string;
+  amount: number;
+  status: RequestStatus;
+};
+
 export type WorkflowStep = {
   _id?: string;
   stepIndex: number;
@@ -88,6 +95,7 @@ export type FinancialRequest = {
   amount: number;
   currency: string;
   requestData: Record<string, unknown>;
+  duplicateFuelRequests?: FuelDuplicateRequest[];
   documents: RequestDocument[];
   status: RequestStatus;
   currentStepIndex: number;

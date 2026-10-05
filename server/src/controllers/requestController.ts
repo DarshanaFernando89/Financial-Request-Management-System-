@@ -1,6 +1,6 @@
 import { RequestModel } from '../models/Request.js';
 import { RequestTypeModel } from '../models/RequestType.js';
-import { APPROVAL_ACTIONS, REQUEST_STATUSES } from '../utils/constants.js';
+import { APPROVAL_ACTIONS, REQUEST_STATUSES, SUBMITTER_ROLES } from '../utils/constants.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { canAdmin, isPrivilegedReader } from '../utils/permissions.js';
@@ -15,6 +15,7 @@ import {
 import { notifyRole, notifyUser } from '../services/notificationService.js';
 import { writeAuditLog } from '../services/auditService.js';
 import { deleteUploadedFiles } from '../services/fileService.js';
+import { findDuplicateFuelRequests } from '../services/fuelDuplicateService.js';
 
 function requestFilterFromQuery(query: any) {
   const filter: any = {};
@@ -143,6 +144,19 @@ export const listMyRequests = asyncHandler(async (req, res) => {
   const session = (req as any).user;
   const filter = { ...requestFilterFromQuery(req.query), requester: session.userId };
   const items = await RequestModel.find(filter).populate('requestType').sort({ createdAt: -1 });
+  res.json({ items });
+});
+
+export const checkFuelDuplicates = asyncHandler(async (req, res) => {
+  const session = (req as any).user;
+  const requestTypeId = String(req.query.requestType || '');
+  const amount = Number(req.query.amount);
+  if (!SUBMITTER_ROLES.includes(session.activeRole)) throw new ApiError(403, 'Only requesters can check for duplicate fuel requests.');
+  if (!requestTypeId || !Number.isFinite(amount) || amount <= 0) {
+    throw new ApiError(400, 'Request type and a positive amount are required.');
+  }
+
+  const items = await findDuplicateFuelRequests(session.userId, requestTypeId, amount);
   res.json({ items });
 });
 
