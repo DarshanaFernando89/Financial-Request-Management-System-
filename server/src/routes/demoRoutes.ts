@@ -21,7 +21,7 @@ import { parseProfileUpdate } from '../utils/profileValidation.js';
 import { ApiError } from '../utils/ApiError.js';
 import { resolveRoleCatalog, roleCatalogMetadata, validateAssignedRoles } from '../services/roleCatalogService.js';
 import { assertAvailableWorkflowRoles } from '../services/workflowRoleService.js';
-import { duplicateLectureHoursClaimMessage, lectureHoursClaimKey, prepareLectureHoursClaim } from '../utils/lectureHoursClaim.js';
+import { duplicateLectureHoursClaimMessage, isLectureHoursPayment, lectureHoursClaimKey, lectureHoursClaimsShareSlot, prepareLectureHoursClaim } from '../utils/lectureHoursClaim.js';
 
 const router = Router();
 const defaultPassword = 'Password123!';
@@ -507,7 +507,9 @@ function duplicateLectureHoursRequest(userId: string, requestType: any, requestD
   const key = lectureHoursClaimKey(requestType.code, requestData, requestType.name);
   if (!key) return { key };
   const request = requests.find((item) =>
-    item._id !== excludeId && item.requester === userId && item.lectureHoursClaimKey === key &&
+    item._id !== excludeId && item.requester === userId &&
+    (item.lectureHoursClaimKey || isLectureHoursPayment(item.requestType?.code, item.requestType?.name)) &&
+    (item.lectureHoursClaimKey === key || lectureHoursClaimsShareSlot(requestData, item.requestData || {})) &&
     ![REQUEST_STATUSES.REJECTED, REQUEST_STATUSES.CANCELLED].includes(item.status)
   );
   return { key, request };
@@ -726,10 +728,8 @@ router.post('/requests', upload.array('files', 20), (req, res) => {
   if (req.body.approvalRule && !matchingRule(requestType._id, amount, req.body.approvalRule)) {
     return res.status(422).json({ message: 'The selected approval rule is unavailable or does not match this request type and amount.' });
   }
-  const duplicate = claimKey && requests.find((item) =>
-    item.requester === user._id && item.lectureHoursClaimKey === claimKey && ![REQUEST_STATUSES.REJECTED, REQUEST_STATUSES.CANCELLED].includes(item.status)
-  );
-  if (duplicate) return res.status(409).json({ message: duplicateLectureHoursClaimMessage(duplicate.status) });
+  const duplicate = duplicateLectureHoursRequest(user._id, requestType, requestData).request;
+  if (duplicate) return res.status(409).json({ message: duplicateLectureHoursClaimMessage(duplicate.status, duplicate.requestId) });
 
   const request = {
     _id: `request-${Date.now()}`,
@@ -773,10 +773,10 @@ router.post('/requests/:id/submit', (req, res) => {
   if (request.requester !== user._id) return res.status(403).json({ message: 'Only the requester can submit this request.' });
   try {
     const preparedClaim = prepareLectureHoursClaim(request.requestType.code, request.requestType.name, request.requestType.fields, request.requestData);
+    const match = duplicateLectureHoursRequest(user._id, request.requestType, preparedClaim.requestData, request._id);
+    if (match.request) return res.status(409).json({ message: duplicateLectureHoursClaimMessage(match.request.status, match.request.requestId) });
     request.requestData = preparedClaim.requestData;
     if (preparedClaim.amount !== undefined) request.amount = preparedClaim.amount;
-    const match = duplicateLectureHoursRequest(user._id, request.requestType, request.requestData, request._id);
-    if (match.request) return res.status(409).json({ message: duplicateLectureHoursClaimMessage(match.request.status) });
     request.lectureHoursClaimKey = match.key;
   } catch (error) {
     return res.status(400).json({ message: error instanceof Error ? error.message : 'Invalid lecture hours claim.' });
@@ -791,13 +791,15 @@ router.post('/requests/:id/resubmit', (req, res) => {
   const request = requests.find((item) => item._id === req.params.id);
   if (!request) return res.status(404).json({ message: 'Request not found.' });
   if (request.requester !== user._id) return res.status(403).json({ message: 'Only the requester can resubmit this request.' });
-  Object.assign(request, req.body);
   try {
-    const preparedClaim = prepareLectureHoursClaim(request.requestType.code, request.requestType.name, request.requestType.fields, request.requestData);
+    const preparedClaim = prepareLectureHoursClaim(request.requestType.code, request.requestType.name, request.requestType.fields, req.body.requestData ?? request.requestData);
+    const match = duplicateLectureHoursRequest(user._id, request.requestType, preparedClaim.requestData, request._id);
+    if (match.request) return res.status(409).json({ message: duplicateLectureHoursClaimMessage(match.request.status, match.request.requestId) });
+    if (req.body.title) request.title = req.body.title;
+    if (req.body.description !== undefined) request.description = req.body.description;
     request.requestData = preparedClaim.requestData;
     if (preparedClaim.amount !== undefined) request.amount = preparedClaim.amount;
-    const match = duplicateLectureHoursRequest(user._id, request.requestType, request.requestData, request._id);
-    if (match.request) return res.status(409).json({ message: duplicateLectureHoursClaimMessage(match.request.status) });
+    else if (req.body.amount !== undefined) request.amount = Number(req.body.amount);
     request.lectureHoursClaimKey = match.key;
   } catch (error) {
     return res.status(400).json({ message: error instanceof Error ? error.message : 'Invalid lecture hours claim.' });

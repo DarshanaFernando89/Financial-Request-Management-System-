@@ -10,7 +10,8 @@ import { FileUpload } from '../ui/FileUpload';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
-import { isLectureHoursPayment, lectureHoursFromTimeSlots } from '../../utils/lectureHours';
+import { isLectureHoursPayment, lectureAmountFromTimeSlots, lectureHoursFromTimeSlots, newLectureTimeSlot, serializeLectureTimeSlots, validateLectureSlotRates, validateLectureTimeSlots } from '../../utils/lectureHours';
+import { LectureTimeSlots } from './LectureTimeSlots';
 
 function dynamicAmount(data: Record<string, string>) {
   const pairs = [
@@ -52,6 +53,7 @@ export function RequestForm() {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [requestData, setRequestData] = useState<Record<string, string>>({});
+  const [lectureTimeSlots, setLectureTimeSlots] = useState(() => [newLectureTimeSlot()]);
   const [requiredFiles, setRequiredFiles] = useState<Record<number, File | undefined>>({});
   const [additionalFiles, setAdditionalFiles] = useState<File[]>([]);
   const [error, setError] = useState('');
@@ -65,18 +67,23 @@ export function RequestForm() {
   const selectedRule = useMemo(() => rules.find((rule) => rule._id === approvalRule), [approvalRule, rules]);
   const selectedType = useMemo(() => selectedRule?.requestTypes.find((type) => type._id === requestType), [requestType, selectedRule]);
   const lectureHoursRequest = isLectureHoursPayment(selectedType);
-  const calculatedLectureHours = lectureHoursRequest ? lectureHoursFromTimeSlots(requestData.timeSlots || '') : undefined;
+  const lectureBatches = selectedType?.fields.find((field) => field.name === 'batch')?.options || [];
+  const lectureModules = selectedType?.fields.find((field) => field.name === 'module')?.options || [];
+  const timeSlotsError = lectureHoursRequest ? validateLectureTimeSlots(lectureTimeSlots) : '';
+  const calculatedLectureHours = lectureHoursRequest && !timeSlotsError
+    ? lectureHoursFromTimeSlots(serializeLectureTimeSlots(lectureTimeSlots))
+    : undefined;
+  const slotRatesError = lectureHoursRequest ? validateLectureSlotRates(lectureTimeSlots) : '';
+  const calculatedLectureAmount = lectureHoursRequest ? lectureAmountFromTimeSlots(lectureTimeSlots) : undefined;
 
   useEffect(() => {
-    if (lectureHoursRequest && calculatedLectureHours === undefined) {
-      setAmount('');
+    if (lectureHoursRequest) {
+      setAmount(calculatedLectureAmount !== undefined && calculatedLectureAmount > 0 ? calculatedLectureAmount.toFixed(2) : '');
       return;
     }
-    const calculated = lectureHoursRequest && calculatedLectureHours !== undefined
-      ? calculatedLectureHours * Number(requestData.ratePerHour || 0)
-      : dynamicAmount(requestData);
+    const calculated = dynamicAmount(requestData);
     if (calculated > 0) setAmount(String(calculated));
-  }, [requestData, lectureHoursRequest, calculatedLectureHours]);
+  }, [requestData, lectureHoursRequest, calculatedLectureAmount]);
 
   useEffect(() => {
     if (!lectureHoursRequest) return;
@@ -93,6 +100,14 @@ export function RequestForm() {
   }
 
   function buildPayload(shouldSubmit: boolean) {
+    const claimData = lectureHoursRequest
+      ? {
+          ...requestData,
+          timeSlots: serializeLectureTimeSlots(lectureTimeSlots),
+          lectureHours: String(calculatedLectureHours),
+          lectureTimeSlots: lectureTimeSlots.map(({ date, batch, module, startTime, endTime, ratePerHour }) => ({ date, batch, module, startTime, endTime, ratePerHour: Number(ratePerHour) }))
+        }
+      : requestData;
     const requiredDocuments = selectedType?.requiredDocuments || [];
     const files = [
       ...requiredDocuments
@@ -108,7 +123,7 @@ export function RequestForm() {
         title,
         description,
         amount: Number(amount),
-        requestData,
+        requestData: claimData,
         submit: shouldSubmit
       };
     }
@@ -119,7 +134,7 @@ export function RequestForm() {
     formData.append('title', title);
     formData.append('description', description);
     formData.append('amount', String(Number(amount)));
-    formData.append('requestData', JSON.stringify(requestData));
+    formData.append('requestData', JSON.stringify(claimData));
     formData.append('submit', String(shouldSubmit));
     files.forEach(({ file, description }) => {
       formData.append('files', file);
@@ -133,6 +148,14 @@ export function RequestForm() {
     setError('');
     if (!selectedRule || !selectedType) {
       setError('Please select a claim type and its request type.');
+      return;
+    }
+    if (timeSlotsError || slotRatesError) {
+      setError(timeSlotsError || slotRatesError);
+      return;
+    }
+    if (lectureHoursRequest && lectureTimeSlots.some((slot) => !lectureBatches.includes(slot.batch) || !lectureModules.includes(slot.module))) {
+      setError('Select an available batch and module for every lecture time slot.');
       return;
     }
     const requestAmount = Number(amount);
@@ -176,6 +199,7 @@ export function RequestForm() {
               setApprovalRule(event.target.value);
               setRequestType(rule?.requestTypes.length === 1 ? rule.requestTypes[0]._id : '');
               setRequestData({});
+              setLectureTimeSlots([newLectureTimeSlot()]);
               setRequiredFiles({});
               setAdditionalFiles([]);
             }}
@@ -196,6 +220,7 @@ export function RequestForm() {
             onChange={(event) => {
               setRequestType(event.target.value);
               setRequestData({});
+              setLectureTimeSlots([newLectureTimeSlot()]);
               setRequiredFiles({});
               setAdditionalFiles([]);
             }}
@@ -211,11 +236,13 @@ export function RequestForm() {
           <h2 className="mb-4 text-base font-semibold text-slate-900">{selectedType.name}</h2>
           {lectureHoursRequest && (
             <p className="mb-4 rounded-md bg-slate-50 p-3 text-sm text-slate-600">
-              Add time ranges such as <strong>Monday 08:00-10:00; Wednesday 13:00-15:30</strong>. The total lecture hours and claim amount are calculated automatically.
+              For each slot, select the date, batch, module, start time, and end time, then enter its rate per hour. Times use 15-minute intervals. Add slots for different lectures, batches, modules, or rates. Total lecture hours and claim amount are calculated automatically.
             </p>
           )}
           <div className="grid gap-4 md:grid-cols-2">
-            {selectedType.fields.map((field) => (
+            {selectedType.fields.filter((field) => !lectureHoursRequest || !['batch', 'module', 'ratePerHour'].includes(field.name)).map((field) => lectureHoursRequest && field.name === 'timeSlots' ? (
+              <LectureTimeSlots key={field.name} slots={lectureTimeSlots} batches={lectureBatches} modules={lectureModules} onChange={setLectureTimeSlots} />
+            ) : (
               <FieldControl
                 key={field.name}
                 field={field}
@@ -225,8 +252,8 @@ export function RequestForm() {
               />
             ))}
           </div>
-          {lectureHoursRequest && requestData.timeSlots && calculatedLectureHours === undefined && (
-            <p className="mt-3 text-sm font-medium text-red-600">Enter each time slot as a start and end time, for example 08:00-10:00.</p>
+          {lectureHoursRequest && timeSlotsError && lectureTimeSlots.some((slot) => slot.date || slot.startTime || slot.endTime) && (
+            <p className="mt-3 text-sm font-medium text-red-600">{timeSlotsError}</p>
           )}
           {selectedType.requiredDocuments?.length > 0 && (
             <div className="mt-5 space-y-3">
@@ -276,7 +303,7 @@ export function RequestForm() {
         </Card>
       )}
 
-      {error && <p className="rounded-md bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</p>}
+      {error && <p role="alert" className="rounded-md bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</p>}
       <div className="flex flex-wrap justify-end gap-3">
         <Button variant="outline" icon={<Save size={16} />} disabled={saving || loadingRules || !rules.length} onClick={(event) => void submit(event as unknown as FormEvent, false)}>
           Save as Draft

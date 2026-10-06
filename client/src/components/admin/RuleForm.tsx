@@ -5,15 +5,12 @@ import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { useWorkflowRoles } from '../../hooks/useWorkflowRoles';
 import type { ApprovalRule } from '../../types/rule';
-import type { RequestType } from '../../types/request';
 import type { Role } from '../../types/auth';
 
 export function RuleForm({
-  requestTypes,
   initial,
   onSubmit
 }: {
-  requestTypes: RequestType[];
   initial?: Partial<ApprovalRule>;
   onSubmit: (payload: Record<string, unknown>) => Promise<void>;
 }) {
@@ -28,16 +25,8 @@ export function RuleForm({
   const [error, setError] = useState('');
   const { roles: workflowRoles, loading: rolesLoading, error: rolesError, label: workflowRoleLabel } = useWorkflowRoles();
 
-  function toggle(key: 'requestTypes' | 'workflowRoles', value: string) {
+  function toggleWorkflowRole(value: Role) {
     setForm((current) => {
-      if (key === 'requestTypes') {
-        const values = [...(current.requestTypes as string[])];
-        const index = values.indexOf(value);
-        if (index >= 0) values.splice(index, 1);
-        else values.push(value);
-        return { ...current, requestTypes: values };
-      }
-
       const values = [...(current.workflowRoles as string[])];
       const index = values.indexOf(value);
       if (index >= 0) return { ...current, workflowRoles: values.filter((item) => item !== value) };
@@ -74,17 +63,6 @@ export function RuleForm({
           <Input label="Maximum amount" type="number" value={form.maxAmount} onChange={(event) => setForm({ ...form, maxAmount: event.target.value })} />
         </div>
         <div>
-          <p className="mb-2 text-sm font-semibold text-slate-700">Request types</p>
-          <div className="grid gap-2 md:grid-cols-2">
-            {requestTypes.map((type) => (
-              <label key={type._id} className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm">
-                <input type="checkbox" checked={(form.requestTypes as string[]).includes(type._id)} onChange={() => toggle('requestTypes', type._id)} />
-                <span>{type.name}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-        <div>
           <p className="mb-2 text-sm font-semibold text-slate-700">Workflow role sequence</p>
           <p className="mb-3 text-xs text-slate-500">Select roles in the order they should appear in the workflow. The order is shown with numbers automatically.</p>
           <div className="grid gap-2 md:grid-cols-2">
@@ -94,7 +72,7 @@ export function RuleForm({
 
               return (
                 <label key={role} className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm">
-                  <input type="checkbox" checked={isSelected} onChange={() => toggle('workflowRoles', role)} />
+                  <input type="checkbox" checked={isSelected} onChange={() => toggleWorkflowRole(role)} />
                   <span className="flex items-center gap-2">
                     <span
                       className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ${
@@ -120,7 +98,7 @@ export function RuleForm({
                     </span>
                     <span>{workflowRoleLabel(role)}</span>
                     {!rolesLoading && !workflowRoles.some((option) => option.code === role) && (
-                      <Button variant="ghost" onClick={() => toggle('workflowRoles', role)}>Remove</Button>
+                      <Button variant="ghost" onClick={() => toggleWorkflowRole(role)}>Remove</Button>
                     )}
                   </li>
                 ))}

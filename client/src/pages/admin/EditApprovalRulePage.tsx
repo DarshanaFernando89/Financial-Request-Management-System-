@@ -24,7 +24,7 @@ export function EditApprovalRulePage() {
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold text-slate-900">Edit Approval Rule</h1>
-      <RuleForm initial={rule} requestTypes={types} onSubmit={async (payload) => {
+      <RuleForm initial={rule} onSubmit={async (payload) => {
         await adminApi.updateRule(id, payload);
         navigate('/admin/approval-rules');
       }} />

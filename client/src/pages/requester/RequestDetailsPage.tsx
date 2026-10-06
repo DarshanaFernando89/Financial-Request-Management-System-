@@ -7,6 +7,7 @@ import { ClarificationPanel } from '../../components/request/ClarificationPanel'
 import { DocumentList } from '../../components/request/DocumentList';
 import { PaymentSummaryCard } from '../../components/request/PaymentSummaryCard';
 import { RequestDetailsCard } from '../../components/request/RequestDetailsCard';
+import { RequestDataCard } from '../../components/request/RequestDataCard';
 import { RequestTimeline } from '../../components/request/RequestTimeline';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -18,6 +19,8 @@ export function RequestDetailsPage() {
   const { id = '' } = useParams();
   const [request, setRequest] = useState<FinancialRequest | null>(null);
   const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -42,36 +45,50 @@ export function RequestDetailsPage() {
 
   const currentRequest = request;
   const isRequester = typeof currentRequest.requester === 'string' ? currentRequest.requester === user?._id : currentRequest.requester?._id === user?._id;
-  const requestTypeFields = typeof request.requestType === 'object' && request.requestType && 'fields' in request.requestType ? request.requestType.fields : [];
-  const fieldLabels = new Map(requestTypeFields.map((field) => [field.name, field.label]));
-  const formatValue = (value: unknown) => Array.isArray(value) ? value.join(', ') : value == null ? '—' : String(value);
 
   async function submitDraft() {
-    await requestApi.submit(currentRequest._id);
-    await load();
+    setActionError('');
+    setSaving(true);
+    try {
+      await requestApi.submit(currentRequest._id);
+      await load();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Unable to submit request.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function resubmit() {
-    await requestApi.resubmit(currentRequest._id, {
-      title: currentRequest.title,
-      description: currentRequest.description,
-      amount: currentRequest.amount,
-      requestData: currentRequest.requestData
-    });
-    await load();
+    setActionError('');
+    setSaving(true);
+    try {
+      await requestApi.resubmit(currentRequest._id, {
+        title: currentRequest.title,
+        description: currentRequest.description,
+        amount: currentRequest.amount,
+        requestData: currentRequest.requestData
+      });
+      await load();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Unable to resubmit request.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <div className="space-y-5">
       <RequestDetailsCard request={request} />
+      {actionError && <p role="alert" className="rounded-md bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{actionError}</p>}
       {isRequester && request.status === 'DRAFT' && (
         <Card className="flex justify-end">
-          <Button icon={<Send size={16} />} onClick={() => void submitDraft()}>Submit Request</Button>
+          <Button disabled={saving} icon={<Send size={16} />} onClick={() => void submitDraft()}>Submit Request</Button>
         </Card>
       )}
       {isRequester && request.status === 'REJECTED' && (
         <Card className="flex justify-end">
-          <Button icon={<RefreshCcw size={16} />} onClick={() => void resubmit()}>Edit and Resubmit</Button>
+          <Button disabled={saving} icon={<RefreshCcw size={16} />} onClick={() => void resubmit()}>Edit and Resubmit</Button>
         </Card>
       )}
       {isRequester && request.status === 'INFO_REQUESTED' && (
@@ -80,19 +97,9 @@ export function RequestDetailsPage() {
           <ClarificationPanel requestId={request._id} onDone={() => void load()} />
         </Card>
       )}
-      <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
-        <div className="space-y-5">
-          <Card>
-            <h2 className="mb-4 font-semibold text-slate-900">Request Data</h2>
-            <dl className="grid gap-3 text-sm md:grid-cols-2">
-              {Object.entries(request.requestData || {}).map(([key, value]) => (
-                <div key={key} className="rounded-md bg-slate-50 p-3">
-                  <dt className="font-semibold text-slate-500">{fieldLabels.get(key) || key.replace(/([A-Z])/g, ' $1')}</dt>
-                  <dd className="mt-1 text-slate-900">{formatValue(value)}</dd>
-                </div>
-              ))}
-            </dl>
-          </Card>
+      <RequestDataCard request={request} />
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0 space-y-5">
           <Card>
             <h2 className="mb-4 font-semibold text-slate-900">Documents</h2>
             <DocumentList documents={request.documents} />

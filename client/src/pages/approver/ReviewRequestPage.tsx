@@ -6,6 +6,7 @@ import { requestApi } from '../../api/requestApi';
 import { ApprovalHistoryTable } from '../../components/request/ApprovalHistoryTable';
 import { DocumentList } from '../../components/request/DocumentList';
 import { RequestDetailsCard } from '../../components/request/RequestDetailsCard';
+import { RequestDataCard } from '../../components/request/RequestDataCard';
 import { RequestTimeline } from '../../components/request/RequestTimeline';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -55,26 +56,13 @@ export function ReviewRequestPage() {
 
   const currentStep = request.workflowSteps.find((step) => step.stepIndex === request.currentStepIndex);
   const isVerification = currentStep?.stepType === 'VERIFICATION';
-  const requestTypeFields = typeof request.requestType === 'object' && request.requestType && 'fields' in request.requestType ? request.requestType.fields : [];
-  const fieldLabels = new Map(requestTypeFields.map((field) => [field.name, field.label]));
-  const formatValue = (value: unknown) => Array.isArray(value) ? value.join(', ') : value == null ? '—' : String(value);
 
   return (
     <div className="space-y-5">
       <RequestDetailsCard request={request} />
-      <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
-        <div className="space-y-5">
-          <Card>
-            <h2 className="mb-4 font-semibold text-slate-900">Request Data</h2>
-            <dl className="grid gap-3 text-sm md:grid-cols-2">
-              {Object.entries(request.requestData || {}).map(([key, value]) => (
-                <div key={key} className="rounded-md bg-slate-50 p-3">
-                  <dt className="font-semibold text-slate-500">{fieldLabels.get(key) || key.replace(/([A-Z])/g, ' $1')}</dt>
-                  <dd className="mt-1 text-slate-900">{formatValue(value)}</dd>
-                </div>
-              ))}
-            </dl>
-          </Card>
+      <RequestDataCard request={request} />
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0 space-y-5">
           <Card>
             <h2 className="mb-4 font-semibold text-slate-900">Documents</h2>
             <DocumentList documents={request.documents} />
