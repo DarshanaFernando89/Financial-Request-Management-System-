@@ -6,6 +6,8 @@ import { Input } from '../ui/Input';
 import { useWorkflowRoles } from '../../hooks/useWorkflowRoles';
 import type { ApprovalRule } from '../../types/rule';
 import type { Role } from '../../types/auth';
+import { DocumentSettings } from './DocumentSettings';
+import { DEFAULT_FILE_TYPES } from '../../utils/documentPolicy';
 
 export function RuleForm({
   initial,
@@ -20,7 +22,9 @@ export function RuleForm({
     minAmount: initial?.minAmount || 0,
     maxAmount: initial?.maxAmount ?? '',
     workflowRoles: initial?.workflowRoles || ['HOD'],
-    isActive: initial?.isActive ?? true
+    isActive: initial?.isActive ?? true,
+    requiredDocuments: (initial?.requiredDocuments ?? [...new Set(initial?.requestTypes?.flatMap((type) => type.requiredDocuments || []) || [])]).join('\n'),
+    acceptedFileTypes: initial?.acceptedFileTypes ?? DEFAULT_FILE_TYPES
   });
   const [error, setError] = useState('');
   const { roles: workflowRoles, loading: rolesLoading, error: rolesError, label: workflowRoleLabel } = useWorkflowRoles();
@@ -40,12 +44,14 @@ export function RuleForm({
     event.preventDefault();
     setError('');
     try {
+      if (!form.acceptedFileTypes.length) throw new Error('Select at least one accepted file type.');
       if (rolesLoading || rolesError) throw new Error('Workflow roles must finish loading before saving.');
       if (!selectedWorkflowRoles.length || selectedWorkflowRoles.some((code) => !workflowRoles.some((role) => role.code === code))) {
         throw new Error('Select available workflow roles before saving.');
       }
       await onSubmit({
         ...form,
+        requiredDocuments: [...new Set(form.requiredDocuments.split(/[,\r\n]+/).map((name: string) => name.trim()).filter(Boolean))],
         minAmount: Number(form.minAmount),
         maxAmount: form.maxAmount === '' ? null : Number(form.maxAmount)
       });
@@ -106,6 +112,9 @@ export function RuleForm({
             </div>
           )}
         </div>
+        <DocumentSettings requiredDocuments={form.requiredDocuments} acceptedFileTypes={form.acceptedFileTypes}
+          onRequiredDocumentsChange={(value) => setForm({ ...form, requiredDocuments: value })}
+          onAcceptedFileTypesChange={(value) => setForm({ ...form, acceptedFileTypes: value })} />
         {rolesLoading && <p className="text-sm text-slate-500">Loading workflow roles...</p>}
         {(error || rolesError) && <p className="text-sm font-medium text-red-600">{error || rolesError}</p>}
         <div className="flex justify-end">

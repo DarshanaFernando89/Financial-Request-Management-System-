@@ -15,6 +15,7 @@ The written specification is treated as the source of truth. Approval thresholds
 - Role-based dashboards for Lecturers, Approvers, Finance Officer, and Admin.
 - Dynamic request types with custom fields and required documents.
 - Configurable approval rules stored in MongoDB.
+- Approval rule creation and editing let Admin configure required supporting document names and select accepted formats (PDF, PNG, JPG/JPEG, Word, and Excel). These settings apply to required and additional uploads, including draft uploads and clarification responses; missing required documents block submission and resubmission.
 - Approval rule creation and editing offer active custom roles from Role Management using their display names and preserve the selected workflow order.
 - Requester claim choices use the exact active approval rule names from the admin dashboard; rules with multiple request types offer a second selection for the claim form.
 - Lecture Hours Payment requests require an administrator-configured batch and module, plus time slots. Lecture hours and claim amount are calculated from the entered slots, and a lecturer cannot submit the same batch/module/time combination twice.
@@ -214,6 +215,10 @@ Base URL: `http://localhost:5000/api`
 When a request is submitted, the backend finds the highest-priority active approval rule matching request type and amount. It generates only the actual workflow steps for that request and appends Finance Officer as the payment step automatically.
 
 New requests save the requester's selected approval rule, including when saved as drafts. Submission validates that this rule is still active and supports the selected request type and amount. Existing requests without a selected rule continue to use automatic rule matching.
+
+In **Admin > Approval Rules**, create or edit a rule to configure its supporting documents. Type each required document name on a separate line, or separate names with commas. Leave the list blank when none are required. Select at least one accepted file format. Requesters see a separate upload control for each required document, plus optional supporting uploads, with a 10 MB limit per file. Draft and rejected request details allow missing documents to be uploaded before submission.
+
+Existing rules inherit their request type's required documents until an Admin saves the rule's document settings. The edit form fills in those document names for the Admin to change; saving stores rule-specific requirements without changing other rules that share the same request type. Existing rules retain the previously supported file formats unless restricted by Admin.
 
 Examples from seed data:
 

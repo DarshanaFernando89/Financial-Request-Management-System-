@@ -5,6 +5,7 @@ import { requestApi } from '../../api/requestApi';
 import { ApprovalHistoryTable } from '../../components/request/ApprovalHistoryTable';
 import { ClarificationPanel } from '../../components/request/ClarificationPanel';
 import { DocumentList } from '../../components/request/DocumentList';
+import { DocumentAttachmentForm } from '../../components/request/DocumentAttachmentForm';
 import { PaymentSummaryCard } from '../../components/request/PaymentSummaryCard';
 import { RequestDetailsCard } from '../../components/request/RequestDetailsCard';
 import { RequestDataCard } from '../../components/request/RequestDataCard';
@@ -103,6 +104,7 @@ export function RequestDetailsPage() {
           <Card>
             <h2 className="mb-4 font-semibold text-slate-900">Documents</h2>
             <DocumentList documents={request.documents} />
+            {isRequester && ['DRAFT', 'REJECTED'].includes(request.status) && <DocumentAttachmentForm request={request} onUploaded={() => void load()} />}
           </Card>
           <Card>
             <h2 className="mb-4 font-semibold text-slate-900">Approval History</h2>

@@ -5,6 +5,7 @@ import {
   downloadDocument,
   downloadRequestSummary,
   getRequest,
+  getRequestDocumentPolicy,
   listMyRequests,
   listRequests,
   respondClarification,
@@ -26,7 +27,7 @@ router.get(
   '/rules/active',
   asyncHandler(async (_req, res) => {
     const rules = await ApprovalRuleModel.find({ isActive: true })
-      .select('name requestTypes minAmount maxAmount')
+      .select('name requestTypes minAmount maxAmount requiredDocuments acceptedFileTypes')
       .populate({ path: 'requestTypes', match: { isActive: true } })
       .sort({ priority: 1, minAmount: 1 });
     res.json({ items: rules.filter((rule) => rule.requestTypes.length > 0) });
@@ -44,6 +45,7 @@ router.get('/', listRequests);
 router.post('/', upload.array('files', 20), createRequest);
 router.get('/documents/:documentId', downloadDocument);
 router.get('/:id', getRequest);
+router.get('/:id/document-policy', getRequestDocumentPolicy);
 router.put('/:id', updateRequest);
 router.post('/:id/submit', submitRequest);
 router.post('/:id/resubmit', resubmitRequest);

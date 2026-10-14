@@ -2,8 +2,9 @@ import express from 'express';
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { find, select, populate, sort, roles } = vi.hoisted(() => ({ find: vi.fn(), select: vi.fn(), populate: vi.fn(), sort: vi.fn(), roles: vi.fn() }));
+const { find, select, populate, sort, roles, findType } = vi.hoisted(() => ({ find: vi.fn(), select: vi.fn(), populate: vi.fn(), sort: vi.fn(), roles: vi.fn(), findType: vi.fn() }));
 vi.mock('../src/models/ApprovalRule.js', () => ({ ApprovalRuleModel: { find } }));
+vi.mock('../src/models/RequestType.js', () => ({ RequestTypeModel: { findById: findType } }));
 vi.mock('../src/models/CustomRole.js', () => ({ CustomRoleModel: { find: roles } }));
 vi.mock('../src/middleware/authMiddleware.js', () => ({
   authMiddleware: (_req: any, _res: any, next: any) => next(),
@@ -18,6 +19,7 @@ app.use('/api/requests', requestRoutes);
 beforeEach(() => {
   vi.clearAllMocks();
   roles.mockResolvedValue([]);
+  findType.mockResolvedValue({ requiredDocuments: [] });
   find.mockReturnValue({ select, sort });
   select.mockReturnValue({ populate });
   populate.mockReturnValue({ sort });
@@ -32,6 +34,7 @@ describe('database rule choices and routing', () => {
     expect(response.body.items).toEqual([active]);
     expect(find).toHaveBeenCalledWith({ isActive: true });
     expect(populate).toHaveBeenCalledWith({ path: 'requestTypes', match: { isActive: true } });
+    expect(select).toHaveBeenCalledWith(expect.stringContaining('requiredDocuments acceptedFileTypes'));
   });
 
   it('constrains matching by the chosen rule, request type, and amount', async () => {
@@ -65,5 +68,24 @@ describe('database rule choices and routing', () => {
     expect(claim.workflowSteps.map((step: any) => step.role)).toEqual(['001', 'HOD', 'DEAN', 'FINANCE_OFFICER']);
     expect(claim.currentAssignedRole).toBe('001');
     expect(claim.status).toBe('UNDER_REVIEW');
+  });
+
+  it('requires the selected rule documents before initializing a saved draft', async () => {
+    sort.mockResolvedValue([{ workflowRoles: ['HOD'], requiredDocuments: ['Receipt'], acceptedFileTypes: ['.pdf'] }]);
+    const draft: any = { requestType: 'type-1', amount: 100, documents: [] };
+    await expect(initializeWorkflow(draft)).rejects.toMatchObject({ statusCode: 400, message: 'Please upload required documents: Receipt.' });
+    expect(draft.workflowSteps).toBeUndefined();
+    draft.documents = [{ description: 'Receipt', originalName: 'receipt.pdf', mimeType: 'application/pdf' }];
+    await initializeWorkflow(draft);
+    expect(draft.currentAssignedRole).toBe('HOD');
+  });
+
+  it('checks inherited requirements and accepted formats on existing requests', async () => {
+    findType.mockResolvedValue({ requiredDocuments: ['Invoice'] });
+    sort.mockResolvedValue([{ workflowRoles: ['HOD'], acceptedFileTypes: ['.pdf'] }]);
+    await expect(initializeWorkflow({ requestType: 'type-1', amount: 100, documents: [] })).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining('Invoice') });
+    await expect(initializeWorkflow({ requestType: 'type-1', amount: 100, documents: [{ description: 'Invoice', originalName: 'invoice.png', mimeType: 'image/png' }] })).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining('not accepted') });
+    sort.mockResolvedValue([{ workflowRoles: ['HOD'], requiredDocuments: [] }]);
+    await expect(initializeWorkflow({ requestType: 'type-1', amount: 100, documents: [] })).resolves.toMatchObject({ currentAssignedRole: 'HOD' });
   });
 });

@@ -1,6 +1,7 @@
 import { apiClient } from './apiClient';
 import type { FinancialRequest, RequestListResponse, RequestType } from '../types/request';
 import type { RequestRuleOption } from '../types/rule';
+import type { DocumentPolicy } from '../utils/documentPolicy';
 
 export const requestApi = {
   async rules() {
@@ -21,6 +22,10 @@ export const requestApi = {
   },
   async get(id: string) {
     const { data } = await apiClient.get<FinancialRequest>(`/requests/${id}`);
+    return data;
+  },
+  async documentPolicy(id: string) {
+    const { data } = await apiClient.get<DocumentPolicy>(`/requests/${id}/document-policy`);
     return data;
   },
   async create(payload: Record<string, unknown> | FormData) {

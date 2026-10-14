@@ -7,6 +7,7 @@ import { FileUpload } from '../ui/FileUpload';
 import { Input } from '../ui/Input';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { Textarea } from '../ui/Textarea';
+import { DEFAULT_FILE_TYPES, validateDocumentFiles } from '../../utils/documentPolicy';
 
 type PendingDocument = {
   key: string;
@@ -24,6 +25,7 @@ function documentUrl(document: RequestDocument) {
 export function ClarificationPanel({ requestId, onDone }: { requestId: string; onDone: () => void }) {
   const [remarks, setRemarks] = useState('');
   const [documents, setDocuments] = useState<RequestDocument[]>([]);
+  const [acceptedFileTypes, setAcceptedFileTypes] = useState(DEFAULT_FILE_TYPES);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const [pendingDocuments, setPendingDocuments] = useState<PendingDocument[]>([]);
   const [error, setError] = useState('');
@@ -33,9 +35,12 @@ export function ClarificationPanel({ requestId, onDone }: { requestId: string; o
   useEffect(() => {
     let active = true;
     setLoading(true);
-    requestApi.get(requestId)
-      .then((request) => {
-        if (active) setDocuments(request.documents || []);
+    Promise.all([requestApi.get(requestId), requestApi.documentPolicy(requestId)])
+      .then(([request, policy]) => {
+        if (active) {
+          setDocuments(request.documents || []);
+          setAcceptedFileTypes(policy.acceptedFileTypes);
+        }
       })
       .catch((err) => {
         if (active) setError(err instanceof Error ? err.message : 'Unable to load attached documents.');
@@ -61,6 +66,9 @@ export function ClarificationPanel({ requestId, onDone }: { requestId: string; o
 
   function replaceDocument(document: RequestDocument, file?: File) {
     if (!file || !document._id) return;
+    const message = validateDocumentFiles([file], acceptedFileTypes);
+    if (message) { setError(message); return; }
+    setError('');
     setRemovedIds((current) => new Set(current).add(document._id!));
     setPendingDocuments((items) => [
       ...items.filter((item) => item.replacementFor !== document._id),
@@ -75,6 +83,9 @@ export function ClarificationPanel({ requestId, onDone }: { requestId: string; o
 
   function addDocuments(files: FileList | null) {
     if (!files) return;
+    const message = validateDocumentFiles(Array.from(files), acceptedFileTypes);
+    if (message) { setError(message); return; }
+    setError('');
     const added = Array.from(files).map((file, index) => ({
       key: `${file.name}-${file.lastModified}-${Date.now()}-${index}`,
       file,
@@ -133,7 +144,7 @@ export function ClarificationPanel({ requestId, onDone }: { requestId: string; o
                   <div className="flex items-center gap-2">
                     <label className="focus-ring inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                       <RefreshCcw size={14} /> Replace
-                      <input className="sr-only" type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx" onChange={(event) => { replaceDocument(document, event.target.files?.[0]); event.target.value = ''; }} />
+                      <input className="sr-only" type="file" disabled={loading || saving} accept={acceptedFileTypes.join(',')} onChange={(event) => { replaceDocument(document, event.target.files?.[0]); event.target.value = ''; }} />
                     </label>
                     <Button className="min-h-9 px-3 py-1.5 text-xs" variant={removed ? 'outline' : 'danger'} icon={removed ? <RefreshCcw size={14} /> : <Trash2 size={14} />} onClick={() => markRemoved(id)}>
                       {removed ? 'Keep' : 'Remove'}
@@ -148,7 +159,7 @@ export function ClarificationPanel({ requestId, onDone }: { requestId: string; o
       </section>
 
       <section className="space-y-3">
-        <FileUpload label="Add other documents" description="Select one or more files requested by the approving authority." multiple accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx" onChange={(event) => { addDocuments(event.target.files); event.target.value = ''; }} />
+        <FileUpload label="Add other documents" description={`Accepted: ${acceptedFileTypes.join(', ')}. Up to 10 MB per file.`} disabled={loading || saving} multiple accept={acceptedFileTypes.join(',')} onChange={(event) => { addDocuments(event.target.files); event.target.value = ''; }} />
         {pendingDocuments.map((document) => (
           <div key={document.key} className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 md:grid-cols-[minmax(0,1fr)_minmax(220px,1fr)_auto] md:items-end">
             <div className="min-w-0 text-sm">

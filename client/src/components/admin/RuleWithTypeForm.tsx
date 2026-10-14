@@ -6,11 +6,14 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
+import { DocumentSettings } from './DocumentSettings';
+import { DEFAULT_FILE_TYPES } from '../../utils/documentPolicy';
 
 export type RuleWithTypePayload = {
   name: string;
   description: string;
   requiredDocuments: string;
+  acceptedFileTypes: string[];
   minAmount: number;
   maxAmount: number | null;
   workflowRoles: Role[];
@@ -25,6 +28,7 @@ export function RuleWithTypeForm({
     name: '',
     description: '',
     requiredDocuments: '',
+    acceptedFileTypes: DEFAULT_FILE_TYPES,
     minAmount: 0,
     maxAmount: null,
     workflowRoles: ['HOD']
@@ -49,6 +53,7 @@ export function RuleWithTypeForm({
     event.preventDefault();
     setError('');
     try {
+      if (!form.acceptedFileTypes.length) throw new Error('Select at least one accepted file type.');
       if (rolesLoading || rolesError) throw new Error('Workflow roles must finish loading before saving.');
       if (!form.workflowRoles.length || form.workflowRoles.some((code) => !workflowRoles.some((role) => role.code === code))) {
         throw new Error('Select available workflow roles before saving.');
@@ -84,12 +89,9 @@ export function RuleWithTypeForm({
           value={form.description}
           onChange={(event) => setForm({ ...form, description: event.target.value })}
         />
-        <Input
-          label="Required documents"
-          value={form.requiredDocuments}
-          onChange={(event) => setForm({ ...form, requiredDocuments: event.target.value })}
-          placeholder="Fuel receipt, approval note"
-        />
+        <DocumentSettings requiredDocuments={form.requiredDocuments} acceptedFileTypes={form.acceptedFileTypes}
+          onRequiredDocumentsChange={(value) => setForm({ ...form, requiredDocuments: value })}
+          onAcceptedFileTypesChange={(value) => setForm({ ...form, acceptedFileTypes: value })} />
         <div className="grid gap-4 md:grid-cols-2">
           <Input
             label="Minimum amount"

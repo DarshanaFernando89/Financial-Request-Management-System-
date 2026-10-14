@@ -12,6 +12,7 @@ import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
 import { isLectureHoursPayment, lectureAmountFromTimeSlots, lectureHoursFromTimeSlots, newLectureTimeSlot, serializeLectureTimeSlots, validateLectureSlotRates, validateLectureTimeSlots } from '../../utils/lectureHours';
 import { LectureTimeSlots } from './LectureTimeSlots';
+import { DEFAULT_FILE_TYPES, validateDocumentFiles } from '../../utils/documentPolicy';
 
 function dynamicAmount(data: Record<string, string>) {
   const pairs = [
@@ -66,6 +67,9 @@ export function RequestForm() {
 
   const selectedRule = useMemo(() => rules.find((rule) => rule._id === approvalRule), [approvalRule, rules]);
   const selectedType = useMemo(() => selectedRule?.requestTypes.find((type) => type._id === requestType), [requestType, selectedRule]);
+  const requiredDocuments = selectedRule?.requiredDocuments ?? selectedType?.requiredDocuments ?? [];
+  const acceptedFileTypes = selectedRule?.acceptedFileTypes ?? DEFAULT_FILE_TYPES;
+  const uploadDescription = `Accepted: ${acceptedFileTypes.join(', ')}. Up to 10 MB per file.`;
   const lectureHoursRequest = isLectureHoursPayment(selectedType);
   const lectureBatches = selectedType?.fields.find((field) => field.name === 'batch')?.options || [];
   const lectureModules = selectedType?.fields.find((field) => field.name === 'module')?.options || [];
@@ -96,7 +100,17 @@ export function RequestForm() {
   }
 
   function updateRequiredFile(index: number, file?: File) {
+    const message = validateDocumentFiles(file ? [file] : [], acceptedFileTypes);
+    if (message) { setError(message); return; }
+    setError('');
     setRequiredFiles((current) => ({ ...current, [index]: file }));
+  }
+
+  function updateAdditionalFiles(files: File[]) {
+    const message = validateDocumentFiles(files, acceptedFileTypes);
+    if (message) { setError(message); return; }
+    setError('');
+    setAdditionalFiles(files);
   }
 
   function buildPayload(shouldSubmit: boolean) {
@@ -108,7 +122,6 @@ export function RequestForm() {
           lectureTimeSlots: lectureTimeSlots.map(({ date, batch, module, startTime, endTime, ratePerHour }) => ({ date, batch, module, startTime, endTime, ratePerHour: Number(ratePerHour) }))
         }
       : requestData;
-    const requiredDocuments = selectedType?.requiredDocuments || [];
     const files = [
       ...requiredDocuments
         .map((documentName, index) => ({ file: requiredFiles[index], description: documentName }))
@@ -167,8 +180,10 @@ export function RequestForm() {
       setError(`Amount must be within the range for ${selectedRule.name}: ${selectedRule.minAmount} - ${selectedRule.maxAmount ?? 'No upper limit'}.`);
       return;
     }
-    if (shouldSubmit && selectedType?.requiredDocuments?.length) {
-      const missingDocuments = selectedType.requiredDocuments.filter((_, index) => !requiredFiles[index]);
+    const fileError = validateDocumentFiles([...Object.values(requiredFiles).filter((file): file is File => Boolean(file)), ...additionalFiles], acceptedFileTypes);
+    if (fileError) { setError(fileError); return; }
+    if (shouldSubmit && requiredDocuments.length) {
+      const missingDocuments = requiredDocuments.filter((_, index) => !requiredFiles[index]);
       if (missingDocuments.length) {
         setError(`Please upload required documents: ${missingDocuments.join(', ')}.`);
         return;
@@ -255,13 +270,15 @@ export function RequestForm() {
           {lectureHoursRequest && timeSlotsError && lectureTimeSlots.some((slot) => slot.date || slot.startTime || slot.endTime) && (
             <p className="mt-3 text-sm font-medium text-red-600">{timeSlotsError}</p>
           )}
-          {selectedType.requiredDocuments?.length > 0 && (
-            <div className="mt-5 space-y-3">
+          <div className="mt-5 space-y-3">
+              <h3 className="text-sm font-semibold text-slate-800">Supporting documents</h3>
+              {requiredDocuments.length > 0 && (
               <div className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-900">
-                Required documents: {selectedType.requiredDocuments.join(', ')}
+                Required documents: {requiredDocuments.join(', ')}
               </div>
+              )}
               <div className="grid gap-3 md:grid-cols-2">
-                {selectedType.requiredDocuments.map((documentName, index) => (
+                {requiredDocuments.map((documentName, index) => (
                   <div key={`${documentName}-${index}`} className="rounded-md border border-slate-200 p-3">
                     <div className="mb-3 flex min-h-9 items-start gap-2">
                       <FileText size={18} className="mt-0.5 shrink-0 text-university-maroon" />
@@ -272,8 +289,8 @@ export function RequestForm() {
                     </div>
                     <FileUpload
                       label={requiredFiles[index] ? 'Replace file' : 'Choose file'}
-                      description="PDF, image, Word, or Excel up to 10 MB"
-                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx"
+                      description={uploadDescription}
+                      accept={acceptedFileTypes.join(',')}
                       onChange={(event) => updateRequiredFile(index, event.target.files?.[0])}
                     />
                   </div>
@@ -281,10 +298,10 @@ export function RequestForm() {
               </div>
               <FileUpload
                 label="Add other supporting documents"
-                description="Optional"
-                accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx"
+                description={`Optional. ${uploadDescription}`}
+                accept={acceptedFileTypes.join(',')}
                 multiple
-                onChange={(event) => setAdditionalFiles(Array.from(event.target.files || []))}
+                onChange={(event) => updateAdditionalFiles(Array.from(event.target.files || []))}
               />
               {additionalFiles.length > 0 && (
                 <div className="flex flex-wrap gap-2">
@@ -298,8 +315,7 @@ export function RequestForm() {
                   ))}
                 </div>
               )}
-            </div>
-          )}
+          </div>
         </Card>
       )}
 

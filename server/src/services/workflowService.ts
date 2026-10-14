@@ -11,6 +11,8 @@ import {
 } from '../utils/constants.js';
 import { ApiError } from '../utils/ApiError.js';
 import { validateWorkflowRoleFields } from './workflowRoleService.js';
+import { RequestTypeModel } from '../models/RequestType.js';
+import { documentPolicy, assertAcceptedDocuments, assertRequiredDocuments } from '../utils/documentPolicy.js';
 
 type BuildWorkflowInput = {
   workflowRoles: string[];
@@ -75,6 +77,11 @@ export async function initializeWorkflow(request: any) {
   }
 
   const availableRoles = await validateWorkflowRoleFields(rule, 422);
+  // Legacy rules inherit their request type's requirements.
+  const type = await RequestTypeModel.findById(request.requestType);
+  const policy = documentPolicy(rule, type);
+  assertAcceptedDocuments(request.documents || [], policy);
+  assertRequiredDocuments(request.documents || [], policy);
   const workflowSteps = buildWorkflowSteps({
     availableRoles,
     workflowRoles: rule.workflowRoles,

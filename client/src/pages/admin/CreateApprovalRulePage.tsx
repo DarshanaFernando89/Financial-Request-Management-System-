@@ -34,7 +34,7 @@ export function CreateApprovalRulePage() {
       code: buildRequestTypeCode(name, currentTypes.map((type) => type.code)),
       description: description || undefined,
       requiredDocuments: requiredDocuments
-        .split(',')
+        .split(/[,\r\n]+/)
         .map((value) => value.trim())
         .filter(Boolean),
       fields: [],
@@ -51,6 +51,8 @@ export function CreateApprovalRulePage() {
         const requestType = await ensureRequestType(payload.name, payload.description, payload.requiredDocuments);
         await adminApi.createRule({
           name: payload.name,
+          requiredDocuments: [...new Set(payload.requiredDocuments.split(/[,\r\n]+/).map((name) => name.trim()).filter(Boolean))],
+          acceptedFileTypes: payload.acceptedFileTypes,
           requestTypes: [requestType._id],
           minAmount: payload.minAmount,
           maxAmount: payload.maxAmount,

@@ -7,6 +7,7 @@ import { Table } from '../../components/ui/Table';
 import { Badge } from '../../components/ui/Badge';
 import { roleLabel } from '../../utils/roleLabels';
 import type { ApprovalRule } from '../../types/rule';
+import { DEFAULT_FILE_TYPES } from '../../utils/documentPolicy';
 
 export function ApprovalRulesPage() {
   const [rules, setRules] = useState<ApprovalRule[]>([]);
@@ -39,6 +40,7 @@ export function ApprovalRulesPage() {
           { key: 'name', header: 'Rule', render: (row) => <Link className="font-semibold text-university-maroon" to={`/admin/approval-rules/${row._id}/edit`}>{row.name}</Link> },
           { key: 'range', header: 'Amount Range', render: (row) => `${row.minAmount} - ${row.maxAmount ?? 'No upper limit'}` },
           { key: 'types', header: 'Request Types', render: (row) => row.requestTypes?.map((type) => type.name).join(', ') },
+          { key: 'documents', header: 'Supporting Documents', render: (row) => <div className="space-y-1"><p>{row.requiredDocuments == null ? 'Use request type requirements' : row.requiredDocuments.join(', ') || 'None required'}</p><p className="text-xs text-slate-500">{(row.acceptedFileTypes ?? DEFAULT_FILE_TYPES).join(', ')}</p></div> },
           { key: 'roles', header: 'Workflow', render: (row) => row.workflowRoles.map((code) => roleNames[code] || roleLabel(code) || 'Unavailable role').join(' -> ') },
           { key: 'status', header: 'Status', render: (row) => <Badge tone={row.isActive ? 'green' : 'gray'}>{row.isActive ? 'Active' : 'Inactive'}</Badge> },
           {

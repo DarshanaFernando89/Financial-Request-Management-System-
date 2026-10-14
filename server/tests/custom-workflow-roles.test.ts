@@ -70,13 +70,18 @@ describe('custom roles in approval rules', () => {
     const create = vi.spyOn(ApprovalRuleModel, 'create').mockImplementation(async (body: any) => ({ populate: async () => body }) as any);
     const update = vi.spyOn(ApprovalRuleModel, 'findByIdAndUpdate').mockImplementation((_id: any, body: any) => ({ populate: async () => body }) as any);
     try {
-      const payload = { name: 'Coordinator approval', requestTypes: ['507f1f77bcf86cd799439011'], minAmount: 0, workflowRoles: ['001', 'HOD'] };
+      const payload = { name: 'Coordinator approval', requestTypes: ['507f1f77bcf86cd799439011'], minAmount: 0, workflowRoles: ['001', 'HOD'], requiredDocuments: [' Receipt ', 'Receipt'], acceptedFileTypes: ['.PDF'] };
       const saved = await request(app).post('/rules').send(payload);
       expect(saved.status).toBe(201);
       expect(saved.body.workflowRoles).toEqual(['001', 'HOD']);
+      expect(saved.body.requiredDocuments).toEqual(['Receipt']);
+      expect(saved.body.acceptedFileTypes).toEqual(['.pdf']);
       const edited = await request(app).put('/rules/507f1f77bcf86cd799439012').send({ ...payload, workflowRoles: ['HOD', '001'] });
       expect(edited.status).toBe(200);
       expect(edited.body.workflowRoles).toEqual(['HOD', '001']);
+      expect(edited.body.requiredDocuments).toEqual(['Receipt']);
+      expect(edited.body.acceptedFileTypes).toEqual(['.pdf']);
+      expect((await request(app).put('/rules/507f1f77bcf86cd799439012').send({ ...payload, acceptedFileTypes: [] })).status).toBe(400);
       const stale = await request(app).post('/rules').send({ ...payload, workflowRoles: ['ARCHIVED'] });
       expect(stale.status).toBe(400);
       expect(create).toHaveBeenCalledTimes(1);

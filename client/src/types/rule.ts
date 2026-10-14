@@ -7,6 +7,8 @@ export type RequestRuleOption = {
   requestTypes: RequestType[];
   minAmount: number;
   maxAmount?: number | null;
+  requiredDocuments?: string[] | null;
+  acceptedFileTypes?: string[];
 };
 
 export type ApprovalRule = {
@@ -16,6 +18,8 @@ export type ApprovalRule = {
   minAmount: number;
   maxAmount?: number | null;
   workflowRoles: Role[];
+  requiredDocuments?: string[] | null;
+  acceptedFileTypes?: string[];
   includeFinanceReview: boolean;
   approvingAuthorityRole?: Role;
   priority: number;

@@ -17,6 +17,8 @@ import { writeAuditLog } from '../services/auditService.js';
 import { buildStoredDocumentData, deleteUploadedFiles } from '../services/fileService.js';
 import { assertNoDuplicateLectureHoursClaim } from '../services/lectureHoursClaimService.js';
 import { prepareLectureHoursClaim } from '../utils/lectureHoursClaim.js';
+import { documentPolicy, assertAcceptedDocuments, assertRequiredDocuments } from '../utils/documentPolicy.js';
+import { getDocumentPolicy } from '../services/documentPolicyService.js';
 
 function requestFilterFromQuery(query: any) {
   const filter: any = {};
@@ -142,6 +144,12 @@ export const getRequest = asyncHandler(async (req, res) => {
   res.json(request);
 });
 
+export const getRequestDocumentPolicy = asyncHandler(async (req, res) => {
+  const request = await getRequestByIdOrRequestId(String(req.params.id));
+  if (!request) throw new ApiError(404, 'Request not found.');
+  res.json(await getDocumentPolicy(request));
+});
+
 export const downloadDocument = asyncHandler(async (req, res) => {
   const request = await RequestModel.findOne({ 'documents._id': req.params.documentId });
   if (!request) throw new ApiError(404, 'Document not found.');
@@ -167,7 +175,8 @@ export const createRequest = asyncHandler(async (req, res) => {
   const preparedClaim = prepareLectureHoursClaim(type.code, type.name, type.fields, parseRequestData(requestData));
   const requestAmount = preparedClaim.amount ?? Number(amount);
   if (!Number.isFinite(requestAmount) || requestAmount <= 0) throw new ApiError(400, 'Amount must be positive.');
-  if (approvalRule && !await findMatchingRule(requestType, requestAmount, approvalRule)) {
+  const rule = await findMatchingRule(requestType, requestAmount, approvalRule);
+  if (approvalRule && !rule) {
     throw new ApiError(422, 'The selected approval rule is unavailable or does not match this request type and amount.');
   }
 
@@ -178,12 +187,9 @@ export const createRequest = asyncHandler(async (req, res) => {
     requestData: preparedClaim.requestData
   });
   const documents = uploadedDocuments(req);
-  const missingDocuments = parseBoolean(submit)
-    ? (type.requiredDocuments || []).filter((documentName) => !documents.some((document) => document.description === documentName))
-    : [];
-  if (missingDocuments.length) {
-    throw new ApiError(400, `Please upload required documents: ${missingDocuments.join(', ')}.`);
-  }
+  const policy = documentPolicy(rule, type);
+  assertAcceptedDocuments(documents, policy);
+  if (parseBoolean(submit)) assertRequiredDocuments(documents, policy);
 
   const request = await createRequestForUser({
     userId: session.userId,
@@ -333,6 +339,7 @@ export const uploadDocument = asyncHandler(async (req, res) => {
   const isCurrentOwner = request.currentAssignedRole === session.activeRole;
   if (!isRequester && !isCurrentOwner) throw new ApiError(403, 'You cannot upload documents to this request.');
 
+  assertAcceptedDocuments([req.file], await getDocumentPolicy(request));
   attachUploadedFile(req, request, req.body.description);
   await request.save();
   res.status(201).json(request.documents[request.documents.length - 1]);
@@ -344,6 +351,8 @@ export const respondClarification = asyncHandler(async (req, res) => {
   if (!request) throw new ApiError(404, 'Request not found.');
   if (request.requester.toString() !== session.userId) throw new ApiError(403, 'Only the requester can respond to clarification.');
   if (request.status !== REQUEST_STATUSES.INFO_REQUESTED) throw new ApiError(422, 'This request is not waiting for clarification.');
+
+  assertAcceptedDocuments(normalizeUploadedFiles(req), await getDocumentPolicy(request));
 
   const removeDocumentIds = new Set(parseDocumentIds(req.body.removeDocumentIds));
   const existingIds = new Set(request.documents.map((document: any) => document._id.toString()));

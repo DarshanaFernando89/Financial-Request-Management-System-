@@ -143,6 +143,10 @@ describe('Lecture Hours Payment duplicate protection', () => {
     const lectureSlot = { date: '2027-03-04', batch: 'E/26', module: 'EE6101', startTime: '08:00', endTime: '10:00', ratePerHour: 1500 };
     const draft = await createLectureClaim({ lectureTimeSlots: [lectureSlot] });
     expect(draft.status).toBe(201);
+    for (const description of ['Attendance confirmation', 'Work allocation']) {
+      expect((await request(app).post(`/api/requests/${draft.body._id}/upload-document`).auth(lecturerToken, { type: 'bearer' })
+        .field('description', description).attach('file', Buffer.from('required document'), 'support.pdf')).status).toBe(201);
+    }
     expect((await request(app).post(`/api/requests/${draft.body._id}/submit`).auth(lecturerToken, { type: 'bearer' }).send({})).status).toBe(200);
   });
 

@@ -19,9 +19,11 @@ import { getAccountRequestValidationError, normalizeAccountRequestPayload } from
 import { deleteUploadedFiles } from '../services/fileService.js';
 import { parseProfileUpdate } from '../utils/profileValidation.js';
 import { ApiError } from '../utils/ApiError.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 import { resolveRoleCatalog, roleCatalogMetadata, validateAssignedRoles } from '../services/roleCatalogService.js';
 import { assertAvailableWorkflowRoles } from '../services/workflowRoleService.js';
 import { duplicateLectureHoursClaimMessage, isLectureHoursPayment, lectureHoursClaimKey, lectureHoursClaimsShareSlot, prepareLectureHoursClaim } from '../utils/lectureHoursClaim.js';
+import { documentPolicy, validateDocumentSettings, assertAcceptedDocuments, assertRequiredDocuments } from '../utils/documentPolicy.js';
 
 const router = Router();
 const defaultPassword = 'Password123!';
@@ -525,6 +527,9 @@ function statusForStep(step: any) {
 function routeRequest(request: any) {
   const rule = matchingRule(String(request.requestType?._id || request.requestType), request.amount, request.approvalRule);
   if (!rule) throw new ApiError(422, 'The approval rule is unavailable or does not match this request type and amount.');
+  const policy = documentPolicy(rule, request.requestType);
+  assertAcceptedDocuments(request.documents || [], policy);
+  assertRequiredDocuments(request.documents || [], policy);
   const workflowRoles = rule.workflowRoles;
   assertAvailableWorkflowRoles(workflowRoles, demoWorkflowRoleCodes(), 422);
   request.workflowSteps = steps(workflowRoles, 0);
@@ -670,6 +675,8 @@ router.get('/requests/rules/active', (_req, res) => {
       name: rule.name,
       minAmount: rule.minAmount,
       maxAmount: rule.maxAmount,
+      requiredDocuments: rule.requiredDocuments,
+      acceptedFileTypes: rule.acceptedFileTypes,
       requestTypes: rule.requestTypes.filter((type: any) => type.isActive)
     }))
     .filter((rule) => rule.requestTypes.length > 0);
@@ -702,12 +709,6 @@ router.post('/requests', upload.array('files', 20), (req, res) => {
   }
   const submit = parseBodyBoolean(req.body.submit);
   const documents = demoUploadedDocuments(req, user);
-  const missingDocuments = submit
-    ? (requestType.requiredDocuments || []).filter((documentName: string) => !documents.some((document: any) => document.description === documentName))
-    : [];
-  if (missingDocuments.length) {
-    return res.status(400).json({ message: `Please upload required documents: ${missingDocuments.join(', ')}.` });
-  }
 
   let requestData = {};
   try {
@@ -728,6 +729,9 @@ router.post('/requests', upload.array('files', 20), (req, res) => {
   if (req.body.approvalRule && !matchingRule(requestType._id, amount, req.body.approvalRule)) {
     return res.status(422).json({ message: 'The selected approval rule is unavailable or does not match this request type and amount.' });
   }
+  const policy = documentPolicy(matchingRule(requestType._id, amount, req.body.approvalRule), requestType);
+  assertAcceptedDocuments(documents, policy);
+  if (submit) assertRequiredDocuments(documents, policy);
   const duplicate = duplicateLectureHoursRequest(user._id, requestType, requestData).request;
   if (duplicate) return res.status(409).json({ message: duplicateLectureHoursClaimMessage(duplicate.status, duplicate.requestId) });
 
@@ -766,11 +770,39 @@ router.get('/requests/:id', (req, res) => {
   res.json(item);
 });
 
+function demoDocumentPolicy(request: any) {
+  const rule = request.approvalRule
+    ? approvalRules.find((item) => item._id === request.approvalRule)
+    : matchingRule(request.requestType._id, request.amount);
+  return documentPolicy(rule, request.requestType);
+}
+
+router.get('/requests/:id/document-policy', (req, res) => {
+  const item = requests.find((request) => request._id === req.params.id || request.requestId === req.params.id);
+  if (!item) return res.status(404).json({ message: 'Request not found.' });
+  res.json(demoDocumentPolicy(item));
+});
+
+router.post('/requests/:id/upload-document', upload.single('file'), (req, res) => {
+  const user = currentUser(req);
+  const request = requests.find((item) => item._id === req.params.id);
+  if (!request) return res.status(404).json({ message: 'Request not found.' });
+  if (!req.file) return res.status(400).json({ message: 'File upload is required.' });
+  if (request.requester !== user._id && request.currentAssignedRole !== user.activeRole) return res.status(403).json({ message: 'You cannot upload documents to this request.' });
+  assertAcceptedDocuments([req.file], demoDocumentPolicy(request));
+  req.files = [req.file];
+  req.body.documentDescriptions = req.body.description;
+  const [document] = demoUploadedDocuments(req, user, { source: 'MANUAL_UPLOAD' });
+  request.documents.push(document);
+  res.status(201).json(document);
+});
+
 router.post('/requests/:id/submit', (req, res) => {
   const user = currentUser(req);
   const request = requests.find((item) => item._id === req.params.id);
   if (!request) return res.status(404).json({ message: 'Request not found.' });
   if (request.requester !== user._id) return res.status(403).json({ message: 'Only the requester can submit this request.' });
+  if (request.status !== REQUEST_STATUSES.DRAFT) return res.status(422).json({ message: 'Only draft requests can be submitted.' });
   try {
     const preparedClaim = prepareLectureHoursClaim(request.requestType.code, request.requestType.name, request.requestType.fields, request.requestData);
     const match = duplicateLectureHoursRequest(user._id, request.requestType, preparedClaim.requestData, request._id);
@@ -791,6 +823,7 @@ router.post('/requests/:id/resubmit', (req, res) => {
   const request = requests.find((item) => item._id === req.params.id);
   if (!request) return res.status(404).json({ message: 'Request not found.' });
   if (request.requester !== user._id) return res.status(403).json({ message: 'Only the requester can resubmit this request.' });
+  if (request.status !== REQUEST_STATUSES.REJECTED) return res.status(422).json({ message: 'Only rejected requests can be resubmitted.' });
   try {
     const preparedClaim = prepareLectureHoursClaim(request.requestType.code, request.requestType.name, request.requestType.fields, req.body.requestData ?? request.requestData);
     const match = duplicateLectureHoursRequest(user._id, request.requestType, preparedClaim.requestData, request._id);
@@ -804,17 +837,18 @@ router.post('/requests/:id/resubmit', (req, res) => {
   } catch (error) {
     return res.status(400).json({ message: error instanceof Error ? error.message : 'Invalid lecture hours claim.' });
   }
-  request.revisionNo += 1;
   routeRequest(request);
+  request.revisionNo += 1;
   res.json(request);
 });
 
-router.post('/requests/:id/respond-clarification', upload.array('files', 20), async (req, res) => {
+router.post('/requests/:id/respond-clarification', upload.array('files', 20), asyncHandler(async (req, res) => {
   const user = currentUser(req);
   const request = requests.find((item) => item._id === req.params.id);
   if (!request) return res.status(404).json({ message: 'Request not found.' });
   if (request.requester !== user._id) return res.status(403).json({ message: 'Only the requester can respond to clarification.' });
   if (request.status !== REQUEST_STATUSES.INFO_REQUESTED) return res.status(422).json({ message: 'This request is not waiting for clarification.' });
+  assertAcceptedDocuments(Array.isArray(req.files) ? req.files : [], demoDocumentPolicy(request));
 
   let removeDocumentIds: string[] = [];
   try {
@@ -853,7 +887,7 @@ router.post('/requests/:id/respond-clarification', upload.array('files', 20), as
   });
   await deleteUploadedFiles(removedDocuments);
   res.json(request);
-});
+}));
 
 router.get('/approvals/pending', (req, res) => {
   const user = currentUser(req);
@@ -1064,6 +1098,7 @@ function demoWorkflowRoleCodes() {
 
 router.get('/admin/approval-rules', (_req, res) => res.json({ items: approvalRules }));
 router.post('/admin/approval-rules', (req, res) => {
+  validateDocumentSettings(req.body);
   assertAvailableWorkflowRoles(req.body.workflowRoles, demoWorkflowRoleCodes());
   if (req.body.approvingAuthorityRole) assertAvailableWorkflowRoles([req.body.approvingAuthorityRole], demoWorkflowRoleCodes());
   const item = { _id: `rule-${Date.now()}`, includeFinanceReview: false, isActive: true, ...req.body };
@@ -1072,6 +1107,7 @@ router.post('/admin/approval-rules', (req, res) => {
   res.status(201).json(item);
 });
 router.put('/admin/approval-rules/:id', (req, res) => {
+  validateDocumentSettings(req.body);
   const item = approvalRules.find((rule) => rule._id === req.params.id);
   if (!item) return res.status(404).json({ message: 'Approval rule not found.' });
   if (req.body.workflowRoles !== undefined) assertAvailableWorkflowRoles(req.body.workflowRoles, demoWorkflowRoleCodes());
