@@ -19,6 +19,7 @@ import { assertNoDuplicateLectureHoursClaim } from '../services/lectureHoursClai
 import { prepareLectureHoursClaim } from '../utils/lectureHoursClaim.js';
 import { assertNoDuplicatePaperMarkingClaim } from '../services/paperMarkingClaimService.js';
 import { preparePaperMarkingClaim } from '../utils/paperMarkingClaim.js';
+import { findDuplicateFuelClaim, fuelDuplicateWarning } from '../services/fuelDuplicateClaimService.js';
 import { documentPolicy, assertAcceptedDocuments, assertRequiredDocuments } from '../utils/documentPolicy.js';
 import { getDocumentPolicy } from '../services/documentPolicyService.js';
 
@@ -169,6 +170,25 @@ export const listMyRequests = asyncHandler(async (req, res) => {
   res.json({ items });
 });
 
+export const checkDuplicateFuelClaim = asyncHandler(async (req, res) => {
+  const session = (req as any).user;
+  const requestTypeId = String(req.query.requestType || '');
+  const amount = Number(req.query.amount);
+  if (!requestTypeId || !Number.isFinite(amount) || amount <= 0) {
+    throw new ApiError(400, 'A request type and positive amount are required.');
+  }
+  const type = await RequestTypeModel.findById(requestTypeId);
+  if (!type || !type.isActive) throw new ApiError(422, 'Request type is inactive or unavailable.');
+  const duplicate = await findDuplicateFuelClaim({
+    requesterId: session.userId,
+    requestTypeId: type._id.toString(),
+    requestTypeCode: type.code,
+    requestTypeName: type.name,
+    amount
+  });
+  res.json({ warning: duplicate ? fuelDuplicateWarning(duplicate.requestId) : undefined });
+});
+
 export const getRequest = asyncHandler(async (req, res) => {
   const request = await getRequestByIdOrRequestId(String(req.params.id));
   if (!request) throw new ApiError(404, 'Request not found.');
@@ -213,6 +233,13 @@ export const createRequest = asyncHandler(async (req, res) => {
     type,
     requestData: preparedClaim.requestData
   });
+  const duplicateFuelClaim = await findDuplicateFuelClaim({
+    requesterId: session.userId,
+    requestTypeId: type._id.toString(),
+    requestTypeCode: type.code,
+    requestTypeName: type.name,
+    amount: requestAmount
+  });
   const documents = uploadedDocuments(req);
   const policy = documentPolicy(rule, type);
   assertAcceptedDocuments(documents, policy);
@@ -228,6 +255,7 @@ export const createRequest = asyncHandler(async (req, res) => {
     amount: requestAmount,
     requestData: preparedClaim.requestData,
     ...claimKeys,
+    duplicateWarning: duplicateFuelClaim ? fuelDuplicateWarning(duplicateFuelClaim.requestId) : undefined,
     documents,
     submit: parseBoolean(submit)
   });
@@ -274,6 +302,14 @@ export const updateRequest = asyncHandler(async (req, res) => {
     requestData: preparedClaim.requestData,
     excludeRequestId: request._id.toString()
   });
+  const duplicateFuelClaim = await findDuplicateFuelClaim({
+    requesterId: session.userId,
+    requestTypeId: nextRequestType._id.toString(),
+    requestTypeCode: nextRequestType.code,
+    requestTypeName: nextRequestType.name,
+    amount: preparedClaim.amount ?? Number(req.body.amount ?? request.amount),
+    excludeRequestId: request._id.toString()
+  });
   const allowed = ['requestType', 'approvalRule', 'title', 'description', 'amount', 'requestData'];
   for (const key of allowed) {
     if (req.body[key] !== undefined) (request as any)[key] = req.body[key];
@@ -282,6 +318,7 @@ export const updateRequest = asyncHandler(async (req, res) => {
   if (preparedClaim.amount !== undefined) request.amount = preparedClaim.amount;
   request.lectureHoursClaimKey = claimKeys.lectureHoursClaimKey;
   request.paperMarkingClaimKey = claimKeys.paperMarkingClaimKey;
+  request.duplicateWarning = duplicateFuelClaim ? fuelDuplicateWarning(duplicateFuelClaim.requestId) : undefined;
   await request.save();
   res.json(await request.populate('requestType'));
 });
@@ -306,6 +343,15 @@ export const submitRequest = asyncHandler(async (req, res) => {
   });
   request.lectureHoursClaimKey = claimKeys.lectureHoursClaimKey;
   request.paperMarkingClaimKey = claimKeys.paperMarkingClaimKey;
+  const duplicateFuelClaim = await findDuplicateFuelClaim({
+    requesterId: session.userId,
+    requestTypeId: type._id.toString(),
+    requestTypeCode: type.code,
+    requestTypeName: type.name,
+    amount: request.amount,
+    excludeRequestId: request._id.toString()
+  });
+  request.duplicateWarning = duplicateFuelClaim ? fuelDuplicateWarning(duplicateFuelClaim.requestId) : undefined;
 
   request.status = REQUEST_STATUSES.SUBMITTED;
   await initializeWorkflow(request);
@@ -346,6 +392,15 @@ export const resubmitRequest = asyncHandler(async (req, res) => {
   });
   request.lectureHoursClaimKey = claimKeys.lectureHoursClaimKey;
   request.paperMarkingClaimKey = claimKeys.paperMarkingClaimKey;
+  const duplicateFuelClaim = await findDuplicateFuelClaim({
+    requesterId: session.userId,
+    requestTypeId: type._id.toString(),
+    requestTypeCode: type.code,
+    requestTypeName: type.name,
+    amount: request.amount,
+    excludeRequestId: request._id.toString()
+  });
+  request.duplicateWarning = duplicateFuelClaim ? fuelDuplicateWarning(duplicateFuelClaim.requestId) : undefined;
 
   await restartWorkflowForResubmission(request);
   if (request.currentAssignedRole) {

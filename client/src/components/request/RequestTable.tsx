@@ -1,4 +1,4 @@
-import { Eye } from 'lucide-react';
+import { AlertTriangle, Eye } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '../ui/EmptyState';
 import { Table } from '../ui/Table';
@@ -19,6 +19,16 @@ export function RequestTable({ requests, reviewBase = '/requests' }: { requests:
         { key: 'type', header: 'Type', render: (row) => (row.requestType as RequestType)?.name || '-' },
         { key: 'requester', header: 'Requester', render: (row) => row.requesterSnapshot?.name || '-' },
         { key: 'amount', header: 'Amount', render: (row) => formatCurrency(row.amount, row.currency) },
+        {
+          key: 'warning',
+          header: 'Duplicate check',
+          render: (row) => row.duplicateWarning ? (
+            <span className="inline-flex items-start gap-1 text-xs font-semibold text-amber-800">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              <span>{row.duplicateWarning}</span>
+            </span>
+          ) : <span className="text-slate-400">-</span>
+        },
         { key: 'date', header: 'Submitted', render: (row) => formatDateTime(row.submittedAt || row.createdAt) },
         { key: 'status', header: 'Status', render: (row) => <RequestStatusBadge status={row.status} /> },
         { key: 'owner', header: 'Current Owner', render: (row) => label(row.currentAssignedRole) || '-' },

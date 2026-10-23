@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   cancelDraft,
+  checkDuplicateFuelClaim,
   createRequest,
   downloadDocument,
   downloadRequestSummary,
@@ -41,6 +42,7 @@ router.get(
   })
 );
 router.get('/my', listMyRequests);
+router.get('/duplicate-fuel-warning', checkDuplicateFuelClaim);
 router.get('/', listRequests);
 router.post('/', upload.array('files', 20), createRequest);
 router.get('/documents/:documentId', downloadDocument);

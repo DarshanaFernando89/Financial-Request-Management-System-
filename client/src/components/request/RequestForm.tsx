@@ -53,6 +53,8 @@ export function RequestForm() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
+  const [fuelDuplicateWarning, setFuelDuplicateWarning] = useState('');
+  const [fuelDuplicateCheckError, setFuelDuplicateCheckError] = useState('');
   const [requestData, setRequestData] = useState<Record<string, string>>({});
   const [lectureTimeSlots, setLectureTimeSlots] = useState(() => [newLectureTimeSlot()]);
   const [requiredFiles, setRequiredFiles] = useState<Record<number, File | undefined>>({});
@@ -72,6 +74,7 @@ export function RequestForm() {
   const uploadDescription = `Accepted: ${acceptedFileTypes.join(', ')}. Up to 10 MB per file.`;
   const lectureHoursRequest = isLectureHoursPayment(selectedType);
   const paperMarkingRequest = selectedType?.code === 'PAPER_MARKING' || selectedType?.name.trim().toLocaleLowerCase() === 'paper marking';
+  const fuelRequest = selectedType?.code === 'TRAVEL_FUEL' || selectedType?.name.trim().toLocaleLowerCase() === 'travel / fuel claims';
   const paperModuleField = selectedType?.fields.find((field) => ['module', 'courseName'].includes(field.name));
   const paperRatesByModule = paperModuleField?.validationRules?.ratePerPaperByModule || {};
   const selectedPaperRate = paperMarkingRequest && paperModuleField
@@ -112,6 +115,27 @@ export function RequestForm() {
       setRequestData((current) => ({ ...current, ratePerPaper: value }));
     }
   }, [paperMarkingRequest, paperModuleField?.name, selectedPaperRate, requestData.ratePerPaper]);
+
+  useEffect(() => {
+    setFuelDuplicateWarning('');
+    setFuelDuplicateCheckError('');
+    const requestAmount = Number(amount);
+    if (!fuelRequest || !selectedType?._id || !Number.isFinite(requestAmount) || requestAmount <= 0) return;
+    let active = true;
+    const timeout = window.setTimeout(() => {
+      requestApi.duplicateFuelWarning(selectedType._id, requestAmount)
+        .then((warning) => {
+          if (active) setFuelDuplicateWarning(warning || '');
+        })
+        .catch((err) => {
+          if (active) setFuelDuplicateCheckError(err instanceof Error ? err.message : 'Unable to check for similar fuel claims.');
+        });
+    }, 300);
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [fuelRequest, selectedType?._id, amount]);
 
   function updateField(name: string, value: string) {
     setRequestData((current) => ({ ...current, [name]: value }));
@@ -244,6 +268,16 @@ export function RequestForm() {
         {!loadingRules && !rules.length && !error && <p className="text-sm text-slate-500">No active claim types are available. Please contact the administrator.</p>}
         {selectedRule && (
           <p className="text-sm text-slate-500">Amount range: {selectedRule.minAmount} - {selectedRule.maxAmount ?? 'No upper limit'}</p>
+        )}
+        {fuelDuplicateWarning && (
+          <p role="alert" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
+            {fuelDuplicateWarning}
+          </p>
+        )}
+        {fuelDuplicateCheckError && (
+          <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+            Could not check for duplicate fuel claims: {fuelDuplicateCheckError}
+          </p>
         )}
         {selectedRule && selectedRule.requestTypes.length > 1 && (
           <Select

@@ -12,6 +12,12 @@ export const requestApi = {
     const { data } = await apiClient.get<{ items: RequestType[] }>('/requests/types/active');
     return data.items;
   },
+  async duplicateFuelWarning(requestType: string, amount: number) {
+    const { data } = await apiClient.get<{ warning?: string }>('/requests/duplicate-fuel-warning', {
+      params: { requestType, amount }
+    });
+    return data.warning;
+  },
   async list(params?: Record<string, unknown>) {
     const { data } = await apiClient.get<RequestListResponse>('/requests', { params });
     return data;

@@ -92,6 +92,7 @@ export type FinancialRequest = {
   amount: number;
   currency: string;
   requestData: Record<string, unknown>;
+  duplicateWarning?: string;
   documents: RequestDocument[];
   status: RequestStatus;
   currentStepIndex: number;

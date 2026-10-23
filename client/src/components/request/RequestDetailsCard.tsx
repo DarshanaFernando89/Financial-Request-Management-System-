@@ -18,6 +18,11 @@ export function RequestDetailsCard({ request }: { request: FinancialRequest }) {
         </div>
         <RequestStatusBadge status={request.status} />
       </div>
+      {request.duplicateWarning && (
+        <p role="alert" className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
+          {request.duplicateWarning}
+        </p>
+      )}
       <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <dt className="text-slate-500">Requester</dt>

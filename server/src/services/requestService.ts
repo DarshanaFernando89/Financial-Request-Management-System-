@@ -16,6 +16,7 @@ export async function createRequestForUser(input: {
   requestData?: Record<string, unknown>;
   lectureHoursClaimKey?: string;
   paperMarkingClaimKey?: string;
+  duplicateWarning?: string;
   documents?: unknown[];
   submit?: boolean;
 }) {
@@ -42,6 +43,7 @@ export async function createRequestForUser(input: {
     requestData: input.requestData || {},
     lectureHoursClaimKey: input.lectureHoursClaimKey,
     paperMarkingClaimKey: input.paperMarkingClaimKey,
+    duplicateWarning: input.duplicateWarning,
     documents: input.documents || [],
     status: input.submit ? REQUEST_STATUSES.SUBMITTED : REQUEST_STATUSES.DRAFT
   });

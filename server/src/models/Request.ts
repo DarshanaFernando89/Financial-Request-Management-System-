@@ -78,6 +78,7 @@ const requestSchema = new Schema(
     requestData: { type: Schema.Types.Mixed, default: {} },
     lectureHoursClaimKey: { type: String, trim: true },
     paperMarkingClaimKey: { type: String, trim: true },
+    duplicateWarning: { type: String, trim: true },
     documents: [documentSchema],
     status: { type: String, enum: REQUEST_STATUS_VALUES, default: REQUEST_STATUSES.DRAFT },
     currentStepIndex: { type: Number, default: -1 },
