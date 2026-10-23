@@ -22,6 +22,7 @@ import {
   STEP_STATUSES
 } from '../utils/constants.js';
 import { buildWorkflowSteps } from '../services/workflowService.js';
+import { PAPER_MARKING_BATCHES, PAPER_MARKING_MODULE_RATES } from '../utils/paperMarkingCatalog.js';
 
 const faculty = 'Faculty of Engineering, University of Ruhuna';
 const department = 'General';
@@ -131,13 +132,19 @@ async function seedRequestTypes() {
       name: 'Paper Marking',
       code: REQUEST_TYPE_CODES.PAPER_MARKING,
       description: 'Claim for examination paper marking.',
+      isVisibleToRequester: true,
       fields: [
-        field('examName', 'Exam name'),
-        field('courseName', 'Course/module name'),
+        field('examName', 'Exam name', 'text', true),
+        {
+          ...field('courseName', 'Module', 'select', true, Object.keys(PAPER_MARKING_MODULE_RATES)),
+          validationRules: { ratePerPaperByModule: PAPER_MARKING_MODULE_RATES }
+        },
+        field('batch', 'Batch', 'select', true, PAPER_MARKING_BATCHES),
+        field('examDate', 'Exam date', 'date', true),
         field('academicYear', 'Academic year'),
         field('semester', 'Semester', 'select', true, ['Semester 1', 'Semester 2']),
-        field('numberOfPapers', 'Number of papers', 'number'),
-        field('ratePerPaper', 'Rate per paper', 'number')
+        field('numberOfPapers', 'Total papers', 'number', true),
+        field('ratePerPaper', 'Rate per paper (LKR)', 'number', true)
       ],
       requiredDocuments: ['Marking allocation', 'Paper count confirmation']
     },
@@ -216,7 +223,7 @@ async function seedRules(types: any[]) {
   return ApprovalRuleModel.insertMany([
     {
       name: 'Small academic claims',
-      requestTypes: [byCode[REQUEST_TYPE_CODES.LECTURE_HOURS]._id, byCode[REQUEST_TYPE_CODES.PAPER_MARKING]._id, byCode[REQUEST_TYPE_CODES.EXAM_DUTIES]._id],
+      requestTypes: [byCode[REQUEST_TYPE_CODES.LECTURE_HOURS]._id, byCode[REQUEST_TYPE_CODES.EXAM_DUTIES]._id],
       minAmount: 0,
       maxAmount: 25000,
       workflowRoles: [ROLES.HOD],
@@ -225,7 +232,7 @@ async function seedRules(types: any[]) {
     },
     {
       name: 'Medium academic claims',
-      requestTypes: [byCode[REQUEST_TYPE_CODES.LECTURE_HOURS]._id, byCode[REQUEST_TYPE_CODES.PAPER_MARKING]._id, byCode[REQUEST_TYPE_CODES.EXAM_DUTIES]._id],
+      requestTypes: [byCode[REQUEST_TYPE_CODES.LECTURE_HOURS]._id, byCode[REQUEST_TYPE_CODES.EXAM_DUTIES]._id],
       minAmount: 25000.01,
       maxAmount: 75000,
       workflowRoles: [ROLES.HOD, ROLES.DEAN],
@@ -234,7 +241,34 @@ async function seedRules(types: any[]) {
     },
     {
       name: 'Large academic claims',
-      requestTypes: [byCode[REQUEST_TYPE_CODES.LECTURE_HOURS]._id, byCode[REQUEST_TYPE_CODES.PAPER_MARKING]._id, byCode[REQUEST_TYPE_CODES.EXAM_DUTIES]._id],
+      requestTypes: [byCode[REQUEST_TYPE_CODES.LECTURE_HOURS]._id, byCode[REQUEST_TYPE_CODES.EXAM_DUTIES]._id],
+      minAmount: 75000.01,
+      maxAmount: null,
+      workflowRoles: [ROLES.HOD, ROLES.DEAN],
+      priority: 10,
+      isActive: true
+    },
+    {
+      name: 'Paper Marking - Small',
+      requestTypes: [byCode[REQUEST_TYPE_CODES.PAPER_MARKING]._id],
+      minAmount: 0,
+      maxAmount: 25000,
+      workflowRoles: [ROLES.HOD],
+      priority: 10,
+      isActive: true
+    },
+    {
+      name: 'Paper Marking - Medium',
+      requestTypes: [byCode[REQUEST_TYPE_CODES.PAPER_MARKING]._id],
+      minAmount: 25000.01,
+      maxAmount: 75000,
+      workflowRoles: [ROLES.HOD, ROLES.DEAN],
+      priority: 10,
+      isActive: true
+    },
+    {
+      name: 'Paper Marking - Large',
+      requestTypes: [byCode[REQUEST_TYPE_CODES.PAPER_MARKING]._id],
       minAmount: 75000.01,
       maxAmount: null,
       workflowRoles: [ROLES.HOD, ROLES.DEAN],
@@ -340,7 +374,14 @@ async function seedRequests(users: any[], types: any[]) {
       requestType: byCode[REQUEST_TYPE_CODES.PAPER_MARKING]._id,
       title: 'Paper Marking - EE5202',
       amount: 60000,
-      requestData: { examName: 'End Semester', numberOfPapers: 120, ratePerPaper: 500 },
+      requestData: {
+        examName: 'End Semester',
+        courseName: 'EE5202',
+        batch: 'E/20',
+        examDate: '2026-06-12',
+        numberOfPapers: 120,
+        ratePerPaper: 500
+      },
       status: REQUEST_STATUSES.UNDER_REVIEW,
       currentStepIndex: 1,
       currentAssignedRole: ROLES.DEAN,

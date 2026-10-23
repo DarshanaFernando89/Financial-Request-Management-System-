@@ -71,6 +71,12 @@ export function RequestForm() {
   const acceptedFileTypes = selectedRule?.acceptedFileTypes ?? DEFAULT_FILE_TYPES;
   const uploadDescription = `Accepted: ${acceptedFileTypes.join(', ')}. Up to 10 MB per file.`;
   const lectureHoursRequest = isLectureHoursPayment(selectedType);
+  const paperMarkingRequest = selectedType?.code === 'PAPER_MARKING' || selectedType?.name.trim().toLocaleLowerCase() === 'paper marking';
+  const paperModuleField = selectedType?.fields.find((field) => ['module', 'courseName'].includes(field.name));
+  const paperRatesByModule = paperModuleField?.validationRules?.ratePerPaperByModule || {};
+  const selectedPaperRate = paperMarkingRequest && paperModuleField
+    ? paperRatesByModule[requestData[paperModuleField.name]] || ''
+    : '';
   const lectureBatches = selectedType?.fields.find((field) => field.name === 'batch')?.options || [];
   const lectureModules = selectedType?.fields.find((field) => field.name === 'module')?.options || [];
   const timeSlotsError = lectureHoursRequest ? validateLectureTimeSlots(lectureTimeSlots) : '';
@@ -86,14 +92,26 @@ export function RequestForm() {
       return;
     }
     const calculated = dynamicAmount(requestData);
+    if (paperMarkingRequest) {
+      setAmount(calculated > 0 ? String(calculated) : '');
+      return;
+    }
     if (calculated > 0) setAmount(String(calculated));
-  }, [requestData, lectureHoursRequest, calculatedLectureAmount]);
+  }, [requestData, lectureHoursRequest, paperMarkingRequest, calculatedLectureAmount]);
 
   useEffect(() => {
     if (!lectureHoursRequest) return;
     const value = calculatedLectureHours === undefined ? '' : String(calculatedLectureHours);
     if (requestData.lectureHours !== value) setRequestData((current) => ({ ...current, lectureHours: value }));
   }, [lectureHoursRequest, calculatedLectureHours, requestData.lectureHours]);
+
+  useEffect(() => {
+    if (!paperMarkingRequest || !paperModuleField) return;
+    const value = selectedPaperRate === '' ? '' : String(selectedPaperRate);
+    if (requestData.ratePerPaper !== value) {
+      setRequestData((current) => ({ ...current, ratePerPaper: value }));
+    }
+  }, [paperMarkingRequest, paperModuleField?.name, selectedPaperRate, requestData.ratePerPaper]);
 
   function updateField(name: string, value: string) {
     setRequestData((current) => ({ ...current, [name]: value }));
@@ -220,7 +238,7 @@ export function RequestForm() {
             }}
             options={rules.map((rule) => ({ label: rule.name, value: rule._id }))}
           />
-          <Input label="Amount" type="number" min={Math.max(selectedRule?.minAmount ?? 0, 0.01)} max={selectedRule?.maxAmount ?? undefined} step="0.01" readOnly={lectureHoursRequest} className={lectureHoursRequest ? 'bg-slate-100' : undefined} value={amount} required onChange={(event) => setAmount(event.target.value)} />
+          <Input label="Amount" type="number" min={Math.max(selectedRule?.minAmount ?? 0, 0.01)} max={selectedRule?.maxAmount ?? undefined} step="0.01" readOnly={lectureHoursRequest || paperMarkingRequest} className={lectureHoursRequest || paperMarkingRequest ? 'bg-slate-100' : undefined} value={amount} required onChange={(event) => setAmount(event.target.value)} />
         </div>
         {loadingRules && <p className="text-sm text-slate-500">Loading claim types...</p>}
         {!loadingRules && !rules.length && !error && <p className="text-sm text-slate-500">No active claim types are available. Please contact the administrator.</p>}
@@ -254,6 +272,11 @@ export function RequestForm() {
               For each slot, select the date, batch, module, start time, and end time, then enter its rate per hour. Times use 15-minute intervals. Add slots for different lectures, batches, modules, or rates. Total lecture hours and claim amount are calculated automatically.
             </p>
           )}
+          {paperMarkingRequest && (
+            <p className="mb-4 rounded-md bg-slate-50 p-3 text-sm text-slate-600">
+              Select a batch and module, then enter the exam date and total papers marked. Demo rate per paper is set automatically by module, and the total claim amount is calculated automatically. Confirm official module rates before processing payment. You can submit only one paper-marking claim for the same module and exam date.
+            </p>
+          )}
           <div className="grid gap-4 md:grid-cols-2">
             {selectedType.fields.filter((field) => !lectureHoursRequest || !['batch', 'module', 'ratePerHour'].includes(field.name)).map((field) => lectureHoursRequest && field.name === 'timeSlots' ? (
               <LectureTimeSlots key={field.name} slots={lectureTimeSlots} batches={lectureBatches} modules={lectureModules} onChange={setLectureTimeSlots} />
@@ -263,7 +286,7 @@ export function RequestForm() {
                 field={field}
                 value={requestData[field.name] || ''}
                 onChange={(value) => updateField(field.name, value)}
-                readOnly={lectureHoursRequest && field.name === 'lectureHours'}
+                readOnly={(lectureHoursRequest && field.name === 'lectureHours') || (paperMarkingRequest && field.name === 'ratePerPaper')}
               />
             ))}
           </div>

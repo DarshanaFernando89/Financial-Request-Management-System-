@@ -15,6 +15,7 @@ export async function createRequestForUser(input: {
   amount: number;
   requestData?: Record<string, unknown>;
   lectureHoursClaimKey?: string;
+  paperMarkingClaimKey?: string;
   documents?: unknown[];
   submit?: boolean;
 }) {
@@ -40,6 +41,7 @@ export async function createRequestForUser(input: {
     currency: DEFAULT_CURRENCY,
     requestData: input.requestData || {},
     lectureHoursClaimKey: input.lectureHoursClaimKey,
+    paperMarkingClaimKey: input.paperMarkingClaimKey,
     documents: input.documents || [],
     status: input.submit ? REQUEST_STATUSES.SUBMITTED : REQUEST_STATUSES.DRAFT
   });

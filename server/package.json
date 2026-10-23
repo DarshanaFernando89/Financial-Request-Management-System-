@@ -12,6 +12,7 @@
     "migrate:remove-requester-role": "tsx src/scripts/removeRequesterRole.ts",
     "migrate:lecture-hours-claim-fields": "tsx src/scripts/addLectureHoursClaimFields.ts",
     "migrate:lecture-hours-payment-rule": "tsx src/scripts/createLectureHoursPaymentRule.ts",
+    "migrate:paper-marking-claim-fields": "tsx src/scripts/addPaperMarkingClaimFields.ts",
     "test": "vitest run"
   },
   "dependencies": {

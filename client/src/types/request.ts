@@ -19,6 +19,9 @@ export type RequestField = {
   required: boolean;
   options?: string[];
   placeholder?: string;
+  validationRules?: {
+    ratePerPaperByModule?: Record<string, number>;
+  };
 };
 
 export type RequestType = {

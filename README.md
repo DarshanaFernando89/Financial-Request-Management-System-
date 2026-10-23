@@ -112,6 +112,8 @@ Seed the database:
 npm.cmd --prefix server run seed
 ```
 
+Warning: seeding deletes and recreates the application collections, so do not run it against an Atlas database containing data you want to keep. A fresh seed includes the separate Paper Marking claim type, demo batches (E/20-E/24), demo module rates (EE5202: LKR 500, EE5203: LKR 450, EE5204: LKR 400, EE5205: LKR 550 per paper), and separate Paper Marking approval rules. Demo rates are placeholders and should be confirmed before processing real payments.
+
 Start the backend:
 
 ```powershell
@@ -129,6 +131,15 @@ Open:
 ```text
 http://localhost:5173
 ```
+
+For an existing database, review and apply the Paper Marking request-field migration:
+
+```powershell
+npm.cmd --prefix server run migrate:paper-marking-claim-fields
+npm.cmd --prefix server run migrate:paper-marking-claim-fields -- --apply
+```
+
+The migration backs up the current Paper Marking fields and approval-rule configuration, updates its required batch, module, exam date, total papers, and rate fields, and creates a separate Paper Marking claim type using the active lecture-hours approval workflow. It removes Paper Marking from the Lecture Hours Payment claim type. The example batches are E/20-E/24; demo module codes EE5202-EE5205 use LKR 500, 450, 400, and 550 per paper respectively. These are placeholder values and must be confirmed before real payments. Paper-marking requests are checked for duplicates by requester, module, and exam date.
 
 The manual end-to-end demo checklist is in `docs/manual-test-scenario.md`.
 

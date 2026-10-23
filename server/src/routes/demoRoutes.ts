@@ -23,6 +23,8 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { resolveRoleCatalog, roleCatalogMetadata, validateAssignedRoles } from '../services/roleCatalogService.js';
 import { assertAvailableWorkflowRoles } from '../services/workflowRoleService.js';
 import { duplicateLectureHoursClaimMessage, isLectureHoursPayment, lectureHoursClaimKey, lectureHoursClaimsShareSlot, prepareLectureHoursClaim } from '../utils/lectureHoursClaim.js';
+import { duplicatePaperMarkingClaimMessage, isPaperMarkingPayment, paperMarkingClaimKey, paperMarkingClaimKeyForData, preparePaperMarkingClaim } from '../utils/paperMarkingClaim.js';
+import { PAPER_MARKING_BATCHES, PAPER_MARKING_MODULE_RATES } from '../utils/paperMarkingCatalog.js';
 import { documentPolicy, validateDocumentSettings, assertAcceptedDocuments, assertRequiredDocuments } from '../utils/documentPolicy.js';
 
 const router = Router();
@@ -119,9 +121,15 @@ const requestTypes: any[] = [
     isActive: true,
     fields: [
       { name: 'examName', label: 'Exam name', type: 'text', required: true },
-      { name: 'courseName', label: 'Course/module name', type: 'text', required: true },
-      { name: 'numberOfPapers', label: 'Number of papers', type: 'number', required: true },
-      { name: 'ratePerPaper', label: 'Rate per paper', type: 'number', required: true }
+      {
+        name: 'courseName', label: 'Module', type: 'select', required: true,
+        options: Object.keys(PAPER_MARKING_MODULE_RATES),
+        validationRules: { ratePerPaperByModule: PAPER_MARKING_MODULE_RATES }
+      },
+      { name: 'batch', label: 'Batch', type: 'select', required: true, options: PAPER_MARKING_BATCHES },
+      { name: 'examDate', label: 'Exam date', type: 'date', required: true },
+      { name: 'numberOfPapers', label: 'Total papers', type: 'number', required: true },
+      { name: 'ratePerPaper', label: 'Rate per paper (LKR)', type: 'number', required: true }
     ]
   },
   {
@@ -517,6 +525,30 @@ function duplicateLectureHoursRequest(userId: string, requestType: any, requestD
   return { key, request };
 }
 
+function duplicatePaperMarkingRequest(userId: string, requestType: any, requestData: Record<string, unknown>, excludeId?: string) {
+  const key = paperMarkingClaimKey(requestType.code, requestData, requestType.name);
+  if (!key) return { key };
+  const request = requests.find((item) =>
+    item._id !== excludeId && item.requester === userId &&
+    isPaperMarkingPayment(item.requestType?.code, item.requestType?.name) &&
+    (item.paperMarkingClaimKey === key || paperMarkingClaimKeyForData(item.requestData || {}) === key) &&
+    ![REQUEST_STATUSES.REJECTED, REQUEST_STATUSES.CANCELLED].includes(item.status)
+  );
+  return { key, request };
+}
+
+function prepareDemoClaim(requestType: any, requestData: Record<string, unknown>) {
+  const lectureClaim = prepareLectureHoursClaim(requestType.code, requestType.name, requestType.fields, requestData);
+  const paperClaim = preparePaperMarkingClaim(requestType.code, requestType.name, requestType.fields, lectureClaim.requestData);
+  const preparedData = paperClaim.requestData;
+  return {
+    requestData: preparedData,
+    amount: paperClaim.amount ?? lectureClaim.amount,
+    lectureHoursClaimKey: lectureHoursClaimKey(requestType.code, preparedData, requestType.name),
+    paperMarkingClaimKey: paperMarkingClaimKey(requestType.code, preparedData, requestType.name)
+  };
+}
+
 function statusForStep(step: any) {
   if (!step) return REQUEST_STATUSES.APPROVED;
   if (step.stepType === STEP_TYPES.VERIFICATION) return REQUEST_STATUSES.UNDER_VERIFICATION;
@@ -704,9 +736,6 @@ router.post('/requests', upload.array('files', 20), (req, res) => {
   const requestType = requestTypes.find((type) => type._id === req.body.requestType && type.isActive);
   if (!requestType) return res.status(422).json({ message: 'Request type is inactive or unavailable.' });
   let amount = Number(req.body.amount);
-  if (req.body.approvalRule && !matchingRule(requestType._id, amount, req.body.approvalRule)) {
-    return res.status(422).json({ message: 'The selected approval rule is unavailable or does not match this request type and amount.' });
-  }
   const submit = parseBodyBoolean(req.body.submit);
   const documents = demoUploadedDocuments(req, user);
 
@@ -716,14 +745,17 @@ router.post('/requests', upload.array('files', 20), (req, res) => {
   } catch {
     return res.status(400).json({ message: 'Request data must be valid JSON.' });
   }
-  let claimKey: string | undefined;
+  let claimKeys: { lectureHoursClaimKey?: string; paperMarkingClaimKey?: string } = {};
   try {
-    const preparedClaim = prepareLectureHoursClaim(requestType.code, requestType.name, requestType.fields, requestData);
+    const preparedClaim = prepareDemoClaim(requestType, requestData);
     requestData = preparedClaim.requestData;
     if (preparedClaim.amount !== undefined) amount = preparedClaim.amount;
-    claimKey = lectureHoursClaimKey(requestType.code, requestData, requestType.name);
+    claimKeys = {
+      lectureHoursClaimKey: preparedClaim.lectureHoursClaimKey,
+      paperMarkingClaimKey: preparedClaim.paperMarkingClaimKey
+    };
   } catch (error) {
-    return res.status(error instanceof ApiError ? error.statusCode : 400).json({ message: error instanceof Error ? error.message : 'Invalid lecture hours claim.' });
+    return res.status(error instanceof ApiError ? error.statusCode : 400).json({ message: error instanceof Error ? error.message : 'Invalid payment claim.' });
   }
   if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ message: 'Amount must be positive.' });
   if (req.body.approvalRule && !matchingRule(requestType._id, amount, req.body.approvalRule)) {
@@ -732,8 +764,10 @@ router.post('/requests', upload.array('files', 20), (req, res) => {
   const policy = documentPolicy(matchingRule(requestType._id, amount, req.body.approvalRule), requestType);
   assertAcceptedDocuments(documents, policy);
   if (submit) assertRequiredDocuments(documents, policy);
-  const duplicate = duplicateLectureHoursRequest(user._id, requestType, requestData).request;
-  if (duplicate) return res.status(409).json({ message: duplicateLectureHoursClaimMessage(duplicate.status, duplicate.requestId) });
+  const duplicateLecture = duplicateLectureHoursRequest(user._id, requestType, requestData).request;
+  if (duplicateLecture) return res.status(409).json({ message: duplicateLectureHoursClaimMessage(duplicateLecture.status, duplicateLecture.requestId) });
+  const duplicatePaper = duplicatePaperMarkingRequest(user._id, requestType, requestData).request;
+  if (duplicatePaper) return res.status(409).json({ message: duplicatePaperMarkingClaimMessage(duplicatePaper.status, duplicatePaper.requestId) });
 
   const request = {
     _id: `request-${Date.now()}`,
@@ -747,7 +781,7 @@ router.post('/requests', upload.array('files', 20), (req, res) => {
     amount,
     currency: 'LKR',
     requestData,
-    lectureHoursClaimKey: claimKey,
+    ...claimKeys,
     documents,
     status: submit ? REQUEST_STATUSES.SUBMITTED : REQUEST_STATUSES.DRAFT,
     currentStepIndex: -1,
@@ -804,12 +838,15 @@ router.post('/requests/:id/submit', (req, res) => {
   if (request.requester !== user._id) return res.status(403).json({ message: 'Only the requester can submit this request.' });
   if (request.status !== REQUEST_STATUSES.DRAFT) return res.status(422).json({ message: 'Only draft requests can be submitted.' });
   try {
-    const preparedClaim = prepareLectureHoursClaim(request.requestType.code, request.requestType.name, request.requestType.fields, request.requestData);
+    const preparedClaim = prepareDemoClaim(request.requestType, request.requestData);
     const match = duplicateLectureHoursRequest(user._id, request.requestType, preparedClaim.requestData, request._id);
     if (match.request) return res.status(409).json({ message: duplicateLectureHoursClaimMessage(match.request.status, match.request.requestId) });
+    const paperMatch = duplicatePaperMarkingRequest(user._id, request.requestType, preparedClaim.requestData, request._id);
+    if (paperMatch.request) return res.status(409).json({ message: duplicatePaperMarkingClaimMessage(paperMatch.request.status, paperMatch.request.requestId) });
     request.requestData = preparedClaim.requestData;
     if (preparedClaim.amount !== undefined) request.amount = preparedClaim.amount;
-    request.lectureHoursClaimKey = match.key;
+    request.lectureHoursClaimKey = preparedClaim.lectureHoursClaimKey;
+    request.paperMarkingClaimKey = paperMatch.key;
   } catch (error) {
     return res.status(400).json({ message: error instanceof Error ? error.message : 'Invalid lecture hours claim.' });
   }
@@ -825,15 +862,18 @@ router.post('/requests/:id/resubmit', (req, res) => {
   if (request.requester !== user._id) return res.status(403).json({ message: 'Only the requester can resubmit this request.' });
   if (request.status !== REQUEST_STATUSES.REJECTED) return res.status(422).json({ message: 'Only rejected requests can be resubmitted.' });
   try {
-    const preparedClaim = prepareLectureHoursClaim(request.requestType.code, request.requestType.name, request.requestType.fields, req.body.requestData ?? request.requestData);
+    const preparedClaim = prepareDemoClaim(request.requestType, req.body.requestData ?? request.requestData);
     const match = duplicateLectureHoursRequest(user._id, request.requestType, preparedClaim.requestData, request._id);
     if (match.request) return res.status(409).json({ message: duplicateLectureHoursClaimMessage(match.request.status, match.request.requestId) });
+    const paperMatch = duplicatePaperMarkingRequest(user._id, request.requestType, preparedClaim.requestData, request._id);
+    if (paperMatch.request) return res.status(409).json({ message: duplicatePaperMarkingClaimMessage(paperMatch.request.status, paperMatch.request.requestId) });
     if (req.body.title) request.title = req.body.title;
     if (req.body.description !== undefined) request.description = req.body.description;
     request.requestData = preparedClaim.requestData;
     if (preparedClaim.amount !== undefined) request.amount = preparedClaim.amount;
     else if (req.body.amount !== undefined) request.amount = Number(req.body.amount);
-    request.lectureHoursClaimKey = match.key;
+    request.lectureHoursClaimKey = preparedClaim.lectureHoursClaimKey;
+    request.paperMarkingClaimKey = paperMatch.key;
   } catch (error) {
     return res.status(400).json({ message: error instanceof Error ? error.message : 'Invalid lecture hours claim.' });
   }
