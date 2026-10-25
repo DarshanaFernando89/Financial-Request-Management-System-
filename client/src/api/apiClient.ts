@@ -1,5 +1,12 @@
 import axios from 'axios';
 
+export class ApiRequestError extends Error {
+  constructor(message: string, public status?: number, public retryAfterMs = 0) {
+    super(message);
+    this.name = 'ApiRequestError';
+  }
+}
+
 export const TOKEN_KEY = 'frms_token';
 let authToken: string | null = readStoredToken();
 
@@ -25,8 +32,15 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message = error.response?.data?.message || error.message || 'Request failed.';
-    return Promise.reject(new Error(message));
+    const status = error.response?.status;
+    const retryAfter = error.response?.headers?.['retry-after'];
+    const retryAfterMs = retryAfter
+      ? Math.max(0, Number.isFinite(Number(retryAfter)) ? Number(retryAfter) * 1000 : Date.parse(retryAfter) - Date.now())
+      : 0;
+    const message = error.response?.data?.message
+      || (status === 429 ? 'Too many requests. Please wait a moment and try again.' : error.message)
+      || 'Request failed.';
+    return Promise.reject(new ApiRequestError(message, status, Number.isFinite(retryAfterMs) ? retryAfterMs : 0));
   }
 );
 

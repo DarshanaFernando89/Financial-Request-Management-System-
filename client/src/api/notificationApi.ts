@@ -2,8 +2,8 @@ import { apiClient } from './apiClient';
 import type { Notification } from '../types/notification';
 
 export const notificationApi = {
-  async list() {
-    const { data } = await apiClient.get<{ items: Notification[] }>('/notifications');
+  async list(signal?: AbortSignal) {
+    const { data } = await apiClient.get<{ items: Notification[] }>('/notifications', { signal });
     return data.items;
   },
   async get(id: string) {

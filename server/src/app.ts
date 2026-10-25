@@ -1,6 +1,5 @@
 import cors from 'cors';
 import express from 'express';
-import rateLimit from 'express-rate-limit';
 import path from 'path';
 import accountRequestRoutes from './routes/accountRequestRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
@@ -15,6 +14,7 @@ import requestRoutes from './routes/requestRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import { env } from './config/env.js';
 import { errorMiddleware, notFoundMiddleware } from './middleware/errorMiddleware.js';
+import { apiRateLimiter } from './middleware/rateLimitMiddleware.js';
 
 const app = express();
 
@@ -33,19 +33,13 @@ app.use(
         callback(new Error(`CORS policy does not allow access from origin ${origin}`));
       }
     },
+    exposedHeaders: ['Retry-After'],
     credentials: true
   })
 );
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use(
-  rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 500,
-    standardHeaders: true,
-    legacyHeaders: false
-  })
-);
+app.use(apiRateLimiter);
 
 app.get('/', (_req, res) => {
   res.send('FRMS Server Setup Active');

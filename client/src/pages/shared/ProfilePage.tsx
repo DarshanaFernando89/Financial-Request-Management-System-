@@ -1,6 +1,6 @@
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Camera, Save } from 'lucide-react';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { userApi } from '../../api/userApi';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -25,13 +25,23 @@ export function ProfilePage() {
   const [error, setError] = useState('');
   const { refreshUser } = useAuth();
 
-  useEffect(() => {
-    userApi.profile().then((user) => {
+  const loadProfile = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const user = await userApi.profile();
       setProfile(user);
       setForm(profileForm(user));
-    }).catch((err) => setError(err instanceof Error ? err.message : 'Failed to load profile.'))
-      .finally(() => setLoading(false));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load profile.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadProfile();
+  }, [loadProfile]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -73,7 +83,15 @@ export function ProfilePage() {
   }
 
   if (loading) return <p className="text-sm text-slate-500">Loading profile...</p>;
-  if (!profile) return <p className="text-sm font-medium text-red-600">{error || 'Profile unavailable.'}</p>;
+  if (!profile) return (
+    <div className="space-y-5">
+      <PageHeader title="Profile" />
+      <Card className="space-y-3">
+        <p role="alert" className="text-sm font-medium text-red-600">{error || 'Profile unavailable.'}</p>
+        <Button variant="outline" onClick={() => void loadProfile()}>Try Again</Button>
+      </Card>
+    </div>
+  );
   return (
     <div className="space-y-5">
       <PageHeader title="Profile" />
