@@ -221,7 +221,7 @@ export function AdminDashboardPage() {
             { key: 'requestId', header: 'Request', render: (row) => row.requestId },
             { key: 'title', header: 'Title', render: (row) => row.title },
             { key: 'requestType', header: 'Type', render: (row) => row.requestType?.name || '-' },
-            { key: 'amount', header: 'Amount', render: (row) => formatCurrency(row.amount, row.currency) },
+            { key: 'amount', header: 'Amount', align: 'right', render: (row) => formatCurrency(row.amount, row.currency) },
             { key: 'status', header: 'Status', render: (row) => <Badge tone={row.status === 'PAID' ? 'green' : row.status === 'PAYMENT_PENDING' ? 'gold' : 'blue'}>{statusLabel(row.status)}</Badge> },
             { key: 'date', header: 'Created', render: (row) => formatDate(row.createdAt) },
             { key: 'requester', header: 'Requester', render: (row) => row.requester?.nameWithInitials || '-' },

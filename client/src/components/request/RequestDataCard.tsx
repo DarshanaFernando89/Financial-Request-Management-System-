@@ -51,9 +51,9 @@ export function RequestDataCard({ request }: { request: FinancialRequest }) {
               { key: 'module', header: 'Module', render: (slot) => slot.module || '\u2014' },
               { key: 'startTime', header: 'Start time', render: (slot) => slot.startTime },
               { key: 'endTime', header: 'End time', render: (slot) => slot.endTime },
-              { key: 'hours', header: 'Lecture hours', render: (slot) => slot.hours },
-              { key: 'rate', header: 'Rate per hour', render: (slot) => slot.ratePerHour === undefined ? '\u2014' : formatCurrency(slot.ratePerHour, request.currency), className: 'whitespace-nowrap' },
-              { key: 'amount', header: 'Slot amount', render: (slot) => slot.amount === undefined ? '\u2014' : formatCurrency(slot.amount, request.currency), className: 'whitespace-nowrap' }
+              { key: 'hours', header: 'Lecture hours', align: 'right', render: (slot) => slot.hours },
+              { key: 'rate', header: 'Rate per hour', align: 'right', render: (slot) => slot.ratePerHour === undefined ? '\u2014' : formatCurrency(slot.ratePerHour, request.currency) },
+              { key: 'amount', header: 'Slot amount', align: 'right', render: (slot) => slot.amount === undefined ? '\u2014' : formatCurrency(slot.amount, request.currency) }
             ]}
           />
         </section>

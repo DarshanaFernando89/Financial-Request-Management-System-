@@ -35,7 +35,7 @@ export function PaymentHistoryPage() {
                 );
               }
             },
-            { key: 'amount', header: 'Amount', render: (row) => formatCurrency(row.amount) },
+            { key: 'amount', header: 'Amount', align: 'right', render: (row) => formatCurrency(row.amount) },
             { key: 'ref', header: 'Reference', render: (row) => row.referenceNo },
             { key: 'date', header: 'Paid Date', render: (row) => formatDate(row.paidAt) },
             { key: 'remarks', header: 'Remarks', render: (row) => row.remarks || '-' }

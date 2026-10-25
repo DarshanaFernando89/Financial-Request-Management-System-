@@ -18,7 +18,7 @@ export function RequestTable({ requests, reviewBase = '/requests' }: { requests:
         { key: 'id', header: 'Request ID', render: (row) => <span className="font-semibold text-university-maroon">{row.requestId}</span> },
         { key: 'type', header: 'Type', render: (row) => (row.requestType as RequestType)?.name || '-' },
         { key: 'requester', header: 'Requester', render: (row) => row.requesterSnapshot?.name || '-' },
-        { key: 'amount', header: 'Amount', render: (row) => formatCurrency(row.amount, row.currency) },
+        { key: 'amount', header: 'Amount', align: 'right', render: (row) => formatCurrency(row.amount, row.currency) },
         {
           key: 'warning',
           header: 'Duplicate check',
