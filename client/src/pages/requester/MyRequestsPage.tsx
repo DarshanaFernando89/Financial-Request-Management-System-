@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/layout/PageHeader';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { requestApi } from '../../api/requestApi';
@@ -23,7 +24,7 @@ export function MyRequestsPage() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-slate-900">My Requests</h1>
+      <PageHeader title="My Requests" />
       <div className="grid gap-3 md:grid-cols-3">
         <SearchInput placeholder="Search requests" value={search} onChange={(event) => setSearch(event.target.value)} />
         <Select

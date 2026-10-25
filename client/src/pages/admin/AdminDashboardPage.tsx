@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/layout/PageHeader';
 import { ArrowRight, Banknote, CheckCircle2, CircleAlert, Clock3, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -91,11 +92,10 @@ export function AdminDashboardPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Admin Dashboard</h1>
-          <p className="text-sm text-slate-500">A quick view of requests, payments, and approval flow.</p>
-        </div>
+      <PageHeader
+        title="Admin Dashboard"
+        description="A quick view of requests, payments, and approval flow."
+        actions={
         <button
           type="button"
           className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
@@ -103,7 +103,8 @@ export function AdminDashboardPage() {
         >
           Open Reports <ArrowRight size={16} />
         </button>
-      </div>
+        }
+      />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatusCard

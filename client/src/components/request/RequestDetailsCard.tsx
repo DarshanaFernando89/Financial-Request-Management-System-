@@ -1,4 +1,5 @@
 import { Card } from '../ui/Card';
+import { PageHeader } from '../layout/PageHeader';
 import { RequestStatusBadge } from './RequestStatusBadge';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { useRoleLabel } from '../../hooks/useRoleLabel';
@@ -10,14 +11,12 @@ export function RequestDetailsCard({ request }: { request: FinancialRequest }) {
   const type = request.requestType as RequestType;
   return (
     <Card>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-university-maroon">{request.requestId}</p>
-          <h1 className="mt-1 text-xl font-bold text-slate-900">{request.title}</h1>
-          <p className="mt-1 text-sm text-slate-500">{type?.name || 'Request type'}</p>
-        </div>
-        <RequestStatusBadge status={request.status} />
-      </div>
+      <PageHeader
+        title={request.title}
+        eyebrow={request.requestId}
+        description={type?.name || 'Request type'}
+        actions={<RequestStatusBadge status={request.status} />}
+      />
       {request.duplicateWarning && (
         <p role="alert" className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
           {request.duplicateWarning}

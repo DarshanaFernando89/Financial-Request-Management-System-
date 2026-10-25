@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/layout/PageHeader';
 import { CheckCheck, UserCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { notificationApi } from '../../api/notificationApi';
@@ -23,10 +24,9 @@ export function NotificationsPage() {
   }
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-slate-900">Notifications</h1>
+      <PageHeader title="Notifications" actions={
         <Button variant="outline" icon={<CheckCheck size={16} />} onClick={() => void readAll()}>Mark All Read</Button>
-      </div>
+      } />
       {notifications.length ? (
         <div className="space-y-3">
           {notifications.map((item) => {

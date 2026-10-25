@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/layout/PageHeader';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { financeApi } from '../../api/financeApi';
@@ -14,7 +15,7 @@ export function FinanceDashboardPage() {
   }, []);
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-slate-900">Finance Dashboard</h1>
+      <PageHeader title="Finance Dashboard" />
       <div className="grid gap-4 md:grid-cols-3">
         <StatusCard title="Pending Payments" value={pending.length} tone="blue" onClick={() => navigate('/finance/pending-payments')} />
         <StatusCard title="Total Value" value={formatCurrency(pending.reduce((sum, request) => sum + request.amount, 0))} tone="gold" />

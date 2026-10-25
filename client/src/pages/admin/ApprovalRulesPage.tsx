@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/layout/PageHeader';
 import { Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -30,10 +31,9 @@ export function ApprovalRulesPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-slate-900">Approval Rules</h1>
+      <PageHeader title="Approval Rules" actions={
         <Link to="/admin/approval-rules/create"><Button icon={<Plus size={16} />}>Create Rule / Type</Button></Link>
-      </div>
+      } />
       <Table
         rows={rules}
         columns={[

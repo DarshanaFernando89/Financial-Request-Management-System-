@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/layout/PageHeader';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { userApi } from '../../api/userApi';
@@ -15,7 +16,7 @@ export function EditUserPage() {
   if (!user) return <div className="flex justify-center p-8"><LoadingSpinner /></div>;
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-slate-900">Edit User</h1>
+      <PageHeader title="Edit User" />
       <UserForm
         initial={user}
         onSubmit={async (payload) => {

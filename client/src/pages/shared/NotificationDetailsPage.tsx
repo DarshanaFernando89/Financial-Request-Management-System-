@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/layout/PageHeader';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { notificationApi } from '../../api/notificationApi';
@@ -28,8 +29,7 @@ export function NotificationDetailsPage() {
   return (
     <div className="space-y-5">
       <Card>
-        <p className="text-sm text-slate-500">{formatDate(notification.createdAt)}</p>
-        <h1 className="mt-2 text-2xl font-bold text-slate-900">{notification.title}</h1>
+        <PageHeader title={notification.title} eyebrow={formatDate(notification.createdAt)} />
         <p className="mt-3 text-slate-700">{notification.message}</p>
         {action && (
           <Link to={action.to}>

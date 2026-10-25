@@ -1,4 +1,5 @@
 import { FilePlus2 } from 'lucide-react';
+import { PageHeader } from '../../components/layout/PageHeader';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { requestApi } from '../../api/requestApi';
@@ -31,13 +32,11 @@ export function RequesterDashboardPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Requester Dashboard</h1>
-          <p className="text-sm text-slate-500">Financial and examination-related claims</p>
-        </div>
-        <Button icon={<FilePlus2 size={16} />} onClick={() => navigate('/requests/new')}>New Request</Button>
-      </div>
+      <PageHeader
+        title="Requester Dashboard"
+        description="Financial and examination-related claims"
+        actions={<Button icon={<FilePlus2 size={16} />} onClick={() => navigate('/requests/new')}>New Request</Button>}
+      />
       <div className="grid gap-4 md:grid-cols-4">
         {cards.map((card) => (
           <StatusCard key={card.status} title={card.title} value={counts[card.status] || 0} tone={card.tone} onClick={() => navigate(`/requests/my?status=${card.status}`)} />

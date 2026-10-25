@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/layout/PageHeader';
 import { useEffect, useState } from 'react';
 import { approvalApi } from '../../api/approvalApi';
 import { RequestTable } from '../../components/request/RequestTable';
@@ -10,7 +11,7 @@ export function ApprovalHistoryPage() {
   }, []);
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-slate-900">Approval History</h1>
+      <PageHeader title="Approval History" />
       <RequestTable requests={requests} reviewBase="/requests" />
     </div>
   );

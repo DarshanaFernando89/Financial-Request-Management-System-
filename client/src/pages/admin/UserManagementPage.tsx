@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/layout/PageHeader';
 import { CheckCircle2, KeyRound, Plus, ToggleLeft, ToggleRight, Trash2, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -168,12 +169,11 @@ export function UserManagementPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-slate-900">User Management</h1>
+      <PageHeader title="User Management" actions={
         <Link to="/admin/users/create">
           <Button icon={<Plus size={16} />}>Create User</Button>
         </Link>
-      </div>
+      } />
       <Toast message={message} tone="green" />
       <Toast message={error} tone="red" />
       <Card className="space-y-4">

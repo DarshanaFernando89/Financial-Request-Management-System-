@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/layout/PageHeader';
 import { useEffect, useState } from 'react';
 import { financeApi } from '../../api/financeApi';
 import { RequestTable } from '../../components/request/RequestTable';
@@ -10,7 +11,7 @@ export function PendingPaymentsPage() {
   }, []);
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-slate-900">Pending Payments</h1>
+      <PageHeader title="Pending Payments" />
       <RequestTable requests={requests} reviewBase="/finance/review" />
     </div>
   );

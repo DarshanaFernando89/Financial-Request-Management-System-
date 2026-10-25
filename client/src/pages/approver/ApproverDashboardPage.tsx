@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/layout/PageHeader';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { approvalApi } from '../../api/approvalApi';
@@ -13,7 +14,7 @@ export function ApproverDashboardPage() {
   }, []);
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-slate-900">Approver Dashboard</h1>
+      <PageHeader title="Approver Dashboard" />
       <div className="grid gap-4 md:grid-cols-3">
         <StatusCard title="Pending Requests" value={pending.length} tone="blue" onClick={() => navigate('/approvals/pending')} />
         <StatusCard title="Clarifications" value={pending.filter((request) => request.status === 'INFO_REQUESTED').length} tone="red" />

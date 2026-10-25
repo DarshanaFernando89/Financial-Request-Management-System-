@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/layout/PageHeader';
 import { Download } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { reportApi } from '../../api/reportApi';
@@ -15,7 +16,7 @@ export function ReportsPage() {
   }, [filters]);
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-slate-900">Reports</h1>
+      <PageHeader title="Reports" />
       <ReportFilters onApply={setFilters} />
       <div className="grid gap-4 md:grid-cols-3">
         <StatusCard title="Total Claims" value={summary?.totalAmount?.count || 0} tone="blue" />

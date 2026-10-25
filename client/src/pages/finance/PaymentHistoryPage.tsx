@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/layout/PageHeader';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { financeApi } from '../../api/financeApi';
@@ -14,7 +15,7 @@ export function PaymentHistoryPage() {
   }, []);
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-slate-900">Payment History</h1>
+      <PageHeader title="Payment History" />
       {payments.length ? (
         <Table
           rows={payments}

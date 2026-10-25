@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/layout/PageHeader';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { adminApi } from '../../api/adminApi';
@@ -23,7 +24,7 @@ export function EditApprovalRulePage() {
   const lectureHoursType = types.find((type) => rule.requestTypes.some((requestType) => requestType._id === type._id) && type.name.trim().toLocaleLowerCase() === 'lecture hours payment');
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-slate-900">Edit Approval Rule</h1>
+      <PageHeader title="Edit Approval Rule" />
       <RuleForm initial={rule} onSubmit={async (payload) => {
         await adminApi.updateRule(id, payload);
         navigate('/admin/approval-rules');

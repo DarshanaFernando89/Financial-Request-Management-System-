@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/layout/PageHeader';
 import { Camera, Save } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { userApi } from '../../api/userApi';
@@ -75,7 +76,7 @@ export function ProfilePage() {
   if (!profile) return <p className="text-sm font-medium text-red-600">{error || 'Profile unavailable.'}</p>;
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-slate-900">Profile</h1>
+      <PageHeader title="Profile" />
       <form className="space-y-5" onSubmit={(event) => void submit(event)}>
         <Card>
           <div className="mb-5 flex flex-wrap items-center gap-4">

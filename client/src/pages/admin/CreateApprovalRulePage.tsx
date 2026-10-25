@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/layout/PageHeader';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminApi } from '../../api/adminApi';
@@ -45,7 +46,7 @@ export function CreateApprovalRulePage() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-slate-900">Create Approval Rule</h1>
+      <PageHeader title="Create Approval Rule" />
       <p className="text-sm text-slate-500">The request type will use the same name as the rule.</p>
       <RuleWithTypeForm onSubmit={async (payload) => {
         const requestType = await ensureRequestType(payload.name, payload.description, payload.requiredDocuments);

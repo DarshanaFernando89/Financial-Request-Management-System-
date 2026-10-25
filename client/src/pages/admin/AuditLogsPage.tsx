@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/layout/PageHeader';
 import { useEffect, useState } from 'react';
 import { auditApi } from '../../api/auditApi';
 import { Table } from '../../components/ui/Table';
@@ -11,7 +12,7 @@ export function AuditLogsPage() {
   }, []);
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-slate-900">Audit Logs</h1>
+      <PageHeader title="Audit Logs" />
       <Table
         rows={logs}
         columns={[

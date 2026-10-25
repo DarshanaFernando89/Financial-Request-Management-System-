@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/layout/PageHeader';
 import { Plus, Trash2 } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { adminApi } from '../../api/adminApi';
@@ -64,7 +65,7 @@ export function RoleManagementPage() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-slate-900">Role Management</h1>
+      <PageHeader title="Role Management" />
       <form onSubmit={(event) => void submit(event)}>
         <Card className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
