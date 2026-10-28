@@ -11,10 +11,6 @@ import { submitAccountRequest } from '../services/accountRequestService.js';
 function userPayload(user: any, activeRole: string | undefined, catalog: RoleCatalogItem[]) {
   const roles = rolesFromCatalog(user.roles, catalog);
   const metadata = roleCatalogMetadata(catalog);
-  const approvalRolePasswordHashes = user.approvalRolePasswordHashes as Map<string, string> | undefined;
-  const approvalRolePasswordConfiguredRoles = approvalRolePasswordHashes
-    ? Array.from(approvalRolePasswordHashes.keys()).filter((role) => roles.includes(role) && metadata.approvalRoles.includes(role))
-    : undefined;
   const safeActiveRole = activeRole && roles.includes(activeRole) ? activeRole : undefined;
 
   return {
@@ -32,14 +28,9 @@ function userPayload(user: any, activeRole: string | undefined, catalog: RoleCat
     profileImageUrl: user.profileImageUrl,
     roles,
     ...metadata,
-    approvalRolePasswordConfiguredRoles,
     activeRole: safeActiveRole,
     isActive: user.isActive
   };
-}
-
-function requiresApprovalRolePassword(roles: string[], role: string, approvalRoles: string[]) {
-  return roles.length > 1 && approvalRoles.includes(role);
 }
 
 export const login = asyncHandler(async (req, res, next) => {
@@ -58,7 +49,7 @@ export const login = asyncHandler(async (req, res, next) => {
   const roles = rolesFromCatalog(user.roles, catalog);
   if (!roles.length) throw new ApiError(403, 'No roles are assigned to this account.');
 
-  const activeRole = roles.length === 1 ? roles[0] : undefined;
+  const activeRole = roles[0];
   const token = signAuthToken({
     userId: user._id.toString(),
     email: user.email,
@@ -72,57 +63,13 @@ export const login = asyncHandler(async (req, res, next) => {
     action: 'LOGIN',
     entityType: 'User',
     entityId: user._id.toString(),
-    description: activeRole ? `Logged in as ${activeRole}` : 'Authenticated and awaiting role selection.'
+    description: `Logged in as ${activeRole}`
   });
 
   res.json({
     token,
-    requiresRoleSelection: roles.length > 1,
     user: userPayload(user, activeRole, catalog)
   });
-});
-
-export const selectRole = asyncHandler(async (req, res) => {
-  const { role, approvalRolePassword } = req.body;
-  const session = (req as any).user;
-  if (!role) throw new ApiError(400, 'Role is required.');
-  if (!session.roles.includes(role)) throw new ApiError(403, 'Selected role is not assigned to this user.');
-
-  let user = session.user;
-  let approvalRoleVerifiedAt: number | undefined;
-  if (requiresApprovalRolePassword(session.roles, role, session.approvalRoles)) {
-    user = await UserModel.findById(session.userId).select('+approvalRolePasswordHashes');
-    if (!user) throw new ApiError(401, 'User account is inactive or unavailable.');
-
-    const approvalRolePasswordHash = (user as any).approvalRolePasswordHashes?.get(role);
-    if (!approvalRolePasswordHash) {
-      throw new ApiError(403, 'An administrator must set the approval password before this role can be selected.');
-    }
-    if (!approvalRolePassword) throw new ApiError(400, 'Approval role password is required.');
-
-    const isValid = await bcrypt.compare(String(approvalRolePassword), String(approvalRolePasswordHash));
-    if (!isValid) throw new ApiError(401, 'Invalid approval role password.');
-    approvalRoleVerifiedAt = Date.now();
-  }
-
-  const token = signAuthToken({
-    userId: session.userId,
-    email: session.email,
-    roles: session.roles,
-    activeRole: role,
-    approvalRoleVerifiedAt
-  });
-
-  await writeAuditLog({
-    actor: session.userId,
-    actorRole: role,
-    action: 'SELECT_ROLE',
-    entityType: 'User',
-    entityId: session.userId,
-    description: `Selected active role ${role}.`
-  });
-
-  res.json({ token, user: userPayload(user, role, session.roleCatalog) });
 });
 
 export const me = asyncHandler(async (req, res) => {

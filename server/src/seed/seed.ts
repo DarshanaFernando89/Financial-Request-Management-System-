@@ -82,7 +82,7 @@ async function seedUsers() {
       staffCategory: STAFF_CATEGORIES.ACADEMIC,
       department,
       faculty,
-      roles: [ROLES.HOD, ROLES.LECTURER],
+      roles: [ROLES.HOD],
       isActive: true
     },
     {
@@ -94,7 +94,7 @@ async function seedUsers() {
       staffCategory: STAFF_CATEGORIES.ACADEMIC,
       department,
       faculty,
-      roles: [ROLES.DEAN, ROLES.LECTURER],
+      roles: [ROLES.DEAN],
       isActive: true
     },
     {

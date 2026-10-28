@@ -21,9 +21,8 @@ export function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const response = await login(email, password);
-      if (response.requiresRoleSelection) navigate('/auth/select-role', { replace: true });
-      else navigate((location.state as any)?.from?.pathname || '/', { replace: true });
+      await login(email, password);
+      navigate((location.state as any)?.from?.pathname || '/', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to sign in.');
     } finally {
@@ -34,6 +33,7 @@ export function LoginPage() {
   return (
     <Card className="w-full max-w-md">
       <h2 className="text-xl font-bold text-slate-900">Sign In</h2>
+      <p className="mt-2 text-sm text-slate-600">Use your staff account to request claims, or your separate authority account to approve them.</p>
       <form className="mt-5 space-y-4" onSubmit={(event) => void submit(event)}>
         <Input label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
         <PasswordInput label="Password" value={password} onChange={(event) => setPassword(event.target.value)} required />

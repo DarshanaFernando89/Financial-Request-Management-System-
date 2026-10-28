@@ -10,7 +10,6 @@ import {
   REQUEST_TYPE_CODES,
   ROLES,
   RETIRED_ROLE_CODES,
-  sanitizeAssignedRoles,
   STAFF_CATEGORIES,
   STEP_STATUSES,
   STEP_TYPES
@@ -20,7 +19,7 @@ import { deleteUploadedFiles } from '../services/fileService.js';
 import { parseProfileUpdate } from '../utils/profileValidation.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { resolveRoleCatalog, roleCatalogMetadata, validateAssignedRoles } from '../services/roleCatalogService.js';
+import { resolveRoleCatalog, roleCatalogMetadata, rolesFromCatalog, validateAssignedRoles } from '../services/roleCatalogService.js';
 import { assertAvailableWorkflowRoles } from '../services/workflowRoleService.js';
 import { duplicateLectureHoursClaimMessage, isLectureHoursPayment, lectureHoursClaimKey, lectureHoursClaimsShareSlot, prepareLectureHoursClaim } from '../utils/lectureHoursClaim.js';
 import { duplicatePaperMarkingClaimMessage, isPaperMarkingPayment, paperMarkingClaimKey, paperMarkingClaimKeyForData, preparePaperMarkingClaim } from '../utils/paperMarkingClaim.js';
@@ -67,7 +66,7 @@ const users: any[] = [
     staffCategory: STAFF_CATEGORIES.ACADEMIC,
     department,
     faculty,
-    roles: [ROLES.HOD, ROLES.LECTURER],
+    roles: [ROLES.HOD],
     isActive: true
   },
   {
@@ -79,7 +78,7 @@ const users: any[] = [
     staffCategory: STAFF_CATEGORIES.ACADEMIC,
     department,
     faculty,
-    roles: [ROLES.DEAN, ROLES.LECTURER],
+    roles: [ROLES.DEAN],
     isActive: true
   },
   {
@@ -441,8 +440,9 @@ function demoOnly(req: any, res: any, next: any) {
 }
 
 function publicUser(user: any, activeRole?: string) {
-  const roles = sanitizeAssignedRoles(user.roles, resolveRoleCatalog(customRoles).map((role) => role.code));
-  return { ...user, roles, ...roleCatalogMetadata(resolveRoleCatalog(customRoles)), activeRole: activeRole && roles.includes(activeRole) ? activeRole : undefined };
+  const roles = rolesFromCatalog(user.roles, resolveRoleCatalog(customRoles));
+  const { password, passwordHash, approvalRolePasswords, approvalRolePasswordHashes, ...profile } = user;
+  return { ...profile, roles, ...roleCatalogMetadata(resolveRoleCatalog(customRoles)), activeRole: activeRole && roles.includes(activeRole) ? activeRole : undefined };
 }
 
 function getBearer(req: any) {
@@ -456,8 +456,12 @@ function demoAuth(req: any, res: any, next: any) {
   try {
     const decoded = jwt.verify(token, env.jwtSecret) as any;
     const user = users.find((item) => item._id === decoded.userId);
-    if (!user) return res.status(401).json({ message: 'Invalid token.' });
-    req.demoUser = publicUser(user, decoded.activeRole);
+    if (!user || !user.isActive) return res.status(401).json({ message: 'User account is inactive or unavailable.' });
+    const roles = rolesFromCatalog(user.roles, resolveRoleCatalog(customRoles));
+    if (!roles.length || (decoded.activeRole && decoded.activeRole !== roles[0])) {
+      return res.status(401).json({ message: 'Account role has changed or is unavailable. Sign in again.' });
+    }
+    req.demoUser = publicUser(user, roles[0]);
     next();
   } catch {
     res.status(401).json({ message: 'Invalid or expired token.' });
@@ -625,11 +629,12 @@ router.use(demoOnly);
 router.post('/auth/login', (req, res) => {
   const user = users.find((item) => item.email === String(req.body.email || '').toLowerCase());
   if (!user || req.body.password !== defaultPassword) return res.status(401).json({ message: 'Invalid email or password.' });
-  const roles = sanitizeAssignedRoles(user.roles, resolveRoleCatalog(customRoles).map((role) => role.code));
+  if (!user.isActive) return res.status(403).json({ message: 'User account is inactive.' });
+  const roles = rolesFromCatalog(user.roles, resolveRoleCatalog(customRoles));
   if (!roles.length) return res.status(403).json({ message: 'No roles are assigned to this account.' });
-  const activeRole = roles.length === 1 ? roles[0] : undefined;
+  const activeRole = roles[0];
   const token = signAuthToken({ userId: user._id, email: user.email, roles, activeRole });
-  res.json({ token, requiresRoleSelection: roles.length > 1, user: publicUser(user, activeRole) });
+  res.json({ token, user: publicUser(user, activeRole) });
 });
 
 router.post('/auth/forgot-password', (_req, res) => {
@@ -650,7 +655,7 @@ router.post('/auth/request-account', (req, res) => {
   const item = { _id: `account-request-${Date.now()}`, status: ACCOUNT_REQUEST_STATUSES.PENDING, createdAt: new Date().toISOString(), ...payload };
   accountRequests.unshift(item);
   users
-    .filter((user) => user.roles.includes(ROLES.ADMIN))
+    .filter((user) => rolesFromCatalog(user.roles, resolveRoleCatalog(customRoles)).includes(ROLES.ADMIN))
     .forEach((admin) => {
       notifications.unshift({
         _id: `notification-${Date.now()}-${admin._id}`,
@@ -669,10 +674,7 @@ router.post('/auth/request-account', (req, res) => {
 router.use(demoAuth);
 
 router.post('/auth/select-role', (req, res) => {
-  const user = currentUser(req);
-  if (!user.roles.includes(req.body.role)) return res.status(403).json({ message: 'Selected role is not assigned to this user.' });
-  const token = signAuthToken({ userId: user._id, email: user.email, roles: user.roles, activeRole: req.body.role });
-  res.json({ token, user: publicUser(user, req.body.role) });
+  res.status(410).json({ message: 'Role switching has been removed. Sign in with the separate account for that role.' });
 });
 
 router.get('/auth/me', (req, res) => {
@@ -756,7 +758,12 @@ router.get('/requests', (req, res) => {
   res.json({ items, total: items.length, page: 1, pages: 1 });
 });
 
-router.post('/requests', upload.array('files', 20), (req, res) => {
+router.post('/requests', (req, res, next) => {
+  if (currentUser(req).activeRole !== ROLES.LECTURER) {
+    return res.status(403).json({ message: 'Sign in with your Lecturer account to request claims.' });
+  }
+  next();
+}, upload.array('files', 20), (req, res) => {
   const user = currentUser(req);
   const requestType = requestTypes.find((type) => type._id === req.body.requestType && type.isActive);
   if (!requestType) return res.status(422).json({ message: 'Request type is inactive or unavailable.' });

@@ -32,7 +32,7 @@ function createLectureClaim(data: Record<string, unknown>, submit = false) {
 beforeAll(async () => {
   lecturerToken = (await request(app).post('/api/auth/login').send({ email: 'lecturer@uor.lk', password: 'Password123!' })).body.token;
   const hodLogin = await request(app).post('/api/auth/login').send({ email: 'hod@uor.lk', password: 'Password123!' });
-  hodToken = (await request(app).post('/api/auth/select-role').auth(hodLogin.body.token, { type: 'bearer' }).send({ role: 'HOD' })).body.token;
+  hodToken = hodLogin.body.token;
   financeToken = (await request(app).post('/api/auth/login').send({ email: 'finance@uor.lk', password: 'Password123!' })).body.token;
 });
 

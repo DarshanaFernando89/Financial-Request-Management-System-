@@ -23,11 +23,23 @@ export function roleCatalogMetadata(catalog: RoleCatalogItem[]) {
 }
 
 export function rolesFromCatalog(roles: string[] | undefined, catalog: RoleCatalogItem[]) {
-  return sanitizeAssignedRoles(roles, catalog.map((role) => role.code));
+  // Older accounts may store several assignments. Keep their first non-retired
+  // assignment, even if it is inactive, so disabling it never grants another role.
+  const primary = roles?.map(String).find((role) => !RETIRED_ROLE_CODES.includes(role));
+  return sanitizeAssignedRoles(primary ? [primary] : [], catalog.map((role) => role.code));
+}
+
+// Match the same primary assignment in database filters, including legacy records.
+export function primaryRoleFilter(role: string) {
+  return { $expr: { $eq: [{ $arrayElemAt: [{ $filter: {
+    input: '$roles', as: 'role', cond: { $not: [{ $in: ['$$role', RETIRED_ROLE_CODES] }] }
+  } }, 0] }, role] } };
 }
 
 export function validateAssignedRoles(roles: unknown, catalog: RoleCatalogItem[]) {
-  if (!Array.isArray(roles) || !roles.length) throw new ApiError(400, 'At least one available role is required.');
+  if (!Array.isArray(roles) || roles.length !== 1) {
+    throw new ApiError(400, 'Each account must have exactly one role. Create a separate account for another role.');
+  }
   const assigned = rolesFromCatalog(roles, catalog);
   if (roles.some((role) => !assigned.includes(role))) throw new ApiError(400, 'Select active roles from Role Management.');
   return assigned;

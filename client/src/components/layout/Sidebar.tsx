@@ -1,6 +1,5 @@
 import { BarChart3, Bell, ClipboardCheck, CreditCard, FilePlus2, Files, History, LayoutDashboard, ListChecks, LogOut, ShieldCheck, UserCog, UserCircle } from 'lucide-react';
-import { FormEvent, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../hooks/useNotifications';
@@ -9,8 +8,6 @@ import { roleLabel } from '../../utils/roleLabels';
 import type { Role } from '../../types/auth';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import { Modal } from '../ui/Modal';
-import { PasswordInput } from '../ui/PasswordInput';
 
 type NavItem = { to: string; label: string; icon: React.ReactNode; roles?: Role[] };
 
@@ -31,52 +28,11 @@ const items: NavItem[] = [
 ];
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
-  const { user, logout, switchRole } = useAuth();
+  const { user, logout } = useAuth();
   const { unreadCount } = useNotifications();
-  const navigate = useNavigate();
   const assignedRoles = visibleAssignedRoles(user?.roles, Object.keys(user?.roleLabels || {}));
   const activeRole = user?.activeRole && assignedRoles.includes(user.activeRole) ? user.activeRole : undefined;
   const visible = items.filter((item) => !item.roles || (activeRole && (item.roles === APPROVER_ROLES ? user?.approvalRoles || APPROVER_ROLES : item.roles).includes(activeRole)));
-  const [pendingRole, setPendingRole] = useState<Role | null>(null);
-  const [approvalRolePassword, setApprovalRolePassword] = useState('');
-  const [switchError, setSwitchError] = useState('');
-  const [switching, setSwitching] = useState(false);
-
-  function needsApprovalPassword(role: Role) {
-    return Boolean(user && assignedRoles.length > 1 && (user?.approvalRoles || APPROVER_ROLES).includes(role));
-  }
-
-  async function completeSwitch(role: Role, password?: string) {
-    await switchRole(role, password);
-    navigate('/');
-    onNavigate?.();
-  }
-
-  function handleSwitch(role: Role) {
-    setSwitchError('');
-    if (role === activeRole) return;
-    if (needsApprovalPassword(role)) {
-      setApprovalRolePassword('');
-      setPendingRole(role);
-      return;
-    }
-    void completeSwitch(role);
-  }
-
-  async function submitApprovalPassword(event: FormEvent) {
-    event.preventDefault();
-    if (!pendingRole) return;
-    setSwitchError('');
-    setSwitching(true);
-    try {
-      await completeSwitch(pendingRole, approvalRolePassword);
-      setPendingRole(null);
-    } catch (err) {
-      setSwitchError(err instanceof Error ? err.message : 'Failed to switch role.');
-    } finally {
-      setSwitching(false);
-    }
-  }
 
   async function handleLogout() {
     await logout();
@@ -134,22 +90,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               <Badge tone="gold" className="mt-2">{roleLabel(activeRole, user?.roleLabels)}</Badge>
             </div>
           </div>
-          {user && assignedRoles.length > 1 && (
-            <label className="mt-3 block">
-              <span className="mb-1 block text-xs font-semibold text-slate-500">Active role</span>
-              <select
-                value={activeRole || ''}
-                onChange={(event) => handleSwitch(event.target.value as Role)}
-                className="focus-ring h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700"
-              >
-                {assignedRoles.map((role) => (
-                  <option key={role} value={role}>
-                    {roleLabel(role, user?.roleLabels)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
           <Button
             variant="outline"
             className="mt-3 w-full justify-center border-red-200 text-red-700 hover:bg-red-50"
@@ -160,33 +100,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </Button>
         </div>
       </div>
-      <Modal
-        open={Boolean(pendingRole)}
-        title={`${roleLabel(pendingRole || '', user?.roleLabels)} Password`}
-        onClose={() => {
-          setPendingRole(null);
-          setSwitchError('');
-        }}
-      >
-        <form className="space-y-4" onSubmit={(event) => void submitApprovalPassword(event)}>
-          <PasswordInput
-            label="Approval password"
-            required
-            autoFocus
-            value={approvalRolePassword}
-            onChange={(event) => setApprovalRolePassword(event.target.value)}
-          />
-          {switchError && <p className="text-sm font-medium text-red-600">{switchError}</p>}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setPendingRole(null)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={switching}>
-              Switch
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </aside>
   );
 }

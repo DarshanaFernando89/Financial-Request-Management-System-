@@ -6,7 +6,6 @@ import { RoleGuard } from '../components/layout/RoleGuard';
 import { useAuth } from '../hooks/useAuth';
 import { ADMIN_ROLES, APPROVER_ROLES, FINANCE_ROLES, REQUESTER_ROLES } from '../utils/constants';
 import { LoginPage } from '../pages/auth/LoginPage';
-import { RoleSelectionPage } from '../pages/auth/RoleSelectionPage';
 import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage';
 import { RequestAccountPage } from '../pages/auth/RequestAccountPage';
 import { RequesterDashboardPage } from '../pages/requester/RequesterDashboardPage';
@@ -41,7 +40,7 @@ import { NotFoundPage } from '../pages/shared/NotFoundPage';
 function DashboardRouter() {
   const { user } = useAuth();
   const role = user?.activeRole;
-  if (!role) return <Navigate to="/auth/select-role" replace />;
+  if (!role) return <Navigate to="/auth/login" replace />;
   if (ADMIN_ROLES.includes(role)) return <AdminDashboardPage />;
   if (FINANCE_ROLES.includes(role)) return <FinanceDashboardPage />;
   if ((user?.approvalRoles || APPROVER_ROLES).includes(role)) return <ApproverDashboardPage />;
@@ -55,7 +54,7 @@ export function AppRoutes() {
       <Route path="/auth" element={<AuthLayout />}>
         <Route index element={<Navigate to="/auth/login" replace />} />
         <Route path="login" element={<LoginPage />} />
-        <Route path="select-role" element={<RoleSelectionPage />} />
+        <Route path="select-role" element={<Navigate to="/" replace />} />
         <Route path="forgot-password" element={<ForgotPasswordPage />} />
         <Route path="request-account" element={<RequestAccountPage />} />
       </Route>

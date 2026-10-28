@@ -1,15 +1,13 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { authApi } from '../api/authApi';
 import { getAuthToken, setAuthToken } from '../api/apiClient';
-import type { LoginResponse, Role, User } from '../types/auth';
+import type { LoginResponse, User } from '../types/auth';
 
 type AuthContextValue = {
   user: User | null;
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<LoginResponse>;
-  selectRole: (role: Role, approvalRolePassword?: string) => Promise<User>;
-  switchRole: (role: Role, approvalRolePassword?: string) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 };
@@ -54,14 +52,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return response;
   }, []);
 
-  const selectRole = useCallback(async (role: Role, approvalRolePassword?: string) => {
-    const response = await authApi.selectRole(role, approvalRolePassword);
-    setAuthToken(response.token);
-    setToken(response.token);
-    setUser(response.user);
-    return response.user;
-  }, []);
-
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
@@ -74,8 +64,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, token, isLoading, login, selectRole, switchRole: selectRole, logout, refreshUser }),
-    [user, token, isLoading, login, selectRole, logout, refreshUser]
+    () => ({ user, token, isLoading, login, logout, refreshUser }),
+    [user, token, isLoading, login, logout, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

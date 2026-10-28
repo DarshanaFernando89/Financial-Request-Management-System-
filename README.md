@@ -11,7 +11,7 @@ The written specification is treated as the source of truth. Approval thresholds
 ## Features
 
 - JWT authentication with bcrypt password hashing.
-- Multi-role login with role selection after credential validation.
+- Single-role accounts: sign in directly to the assigned dashboard. Use separate staff and approving-authority accounts.
 - Role-based dashboards for Lecturers, Approvers, Finance Officer, and Admin.
 - Dynamic request types with custom fields and required documents.
 - Configurable approval rules stored in MongoDB.
@@ -27,7 +27,7 @@ The written specification is treated as the source of truth. Approval thresholds
 - In-app notifications plus email/SMS-ready service stubs.
 - Audit logging for important system actions.
 - Admin user, role, account request, approval rule, and request type management.
-- Admin can assign active system and custom roles when creating or editing users. Custom roles retain their display names in profiles and sessions and use the approver dashboard for claims assigned to them. Multi-role accounts require separate approval-role passwords for custom approver roles, as they do for HoD and Dean.
+- Admin assigns exactly one active system or custom role to each account. Custom roles retain their display names in profiles and sessions and use the approver dashboard for claims assigned to them. Authority accounts use their own email and login password; the Lecturer account is used to request claims.
 - PDF and Excel report export.
 - Basic backend tests and TypeScript build verification.
 
@@ -182,7 +182,7 @@ Password123!
 
 ## Current Database Accounts
 
-Verified on 4 October 2026 against the configured development database after the requester-role migration. This snapshot includes manually created accounts; reseeding does not recreate every account below.
+The account inventory below was verified on 4 October 2026 against the configured development database. Roles shown reflect the single-role login policy, which keeps the first stored assignment for legacy accounts. This snapshot includes manually created accounts; reseeding does not recreate every account below.
 
 All 15 accounts are marked active, and each login password was verified as `Password123!`.
 
@@ -190,10 +190,10 @@ All 15 accounts are marked active, and each login password was verified as `Pass
 | --- | --- | --- |
 | admin@uor.lk | Admin | Available |
 | lecturer@uor.lk | Lecturer | Available |
-| hod@uor.lk | Head of Department, Lecturer | Available |
-| dean@uor.lk | Dean, Lecturer | Available |
+| hod@uor.lk | Head of Department | Available |
+| dean@uor.lk | Dean | Available |
 | finance@uor.lk | Finance Officer | Available |
-| multirole@uor.lk | Lecturer, Head of Department | Available |
+| multirole@uor.lk | Lecturer (first stored assignment) | Available |
 | requester@uor.lk | Lecturer | Available |
 | coordinator@uor.lk | Lecturer | Available |
 | jayathu@uor.lk | Lecturer | Available |
@@ -204,13 +204,15 @@ All 15 accounts are marked active, and each login password was verified as `Pass
 | approving.authority@uor.lk | No supported role | Blocked until a supported role is assigned |
 | finance.division@uor.lk | No supported role | Blocked until a supported role is assigned |
 
-Selecting Head of Department or Dean on a multi-role account requires a separate approval-role password. The configured approval-role passwords for `hod@uor.lk` and `dean@uor.lk` differ from `Password123!` and cannot be recovered from their stored hashes. The Head of Department approval-role password for `multirole@uor.lk` is not configured; an Admin must set it before that role can be selected.
+Each login now uses one role. Existing accounts with multiple stored assignments keep their first non-retired assignment, preserving the original account ID, login password, and claim history. If that role is inactive or unavailable, login is blocked until an Admin assigns an active role; the account does not fall through to another role. Tokens for a different role must sign in again.
+
+Use **Admin > Users > Edit** to save a single role for an existing account. Create a separate account with a different email and its own login password for any additional authority or Lecturer access. Former approval-role passwords are no longer used. No reseeding or database migration is required.
 
 ## API Overview
 
 Base URL: `http://localhost:5000/api`
 
-- Auth: `/auth/login`, `/auth/select-role`, `/auth/me`, `/auth/logout`, `/auth/forgot-password`, `/auth/request-account`
+- Auth: `/auth/login`, `/auth/me`, `/auth/logout`, `/auth/forgot-password`, `/auth/request-account`
 - Account requests: `/account-requests`
 - Users: `/users`
 - Requests: `/requests`
