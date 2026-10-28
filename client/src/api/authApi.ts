@@ -1,13 +1,9 @@
 import { apiClient } from './apiClient';
-import type { LoginResponse, Role, User } from '../types/auth';
+import type { LoginResponse, User } from '../types/auth';
 
 export const authApi = {
   async login(email: string, password: string) {
     const { data } = await apiClient.post<LoginResponse>('/auth/login', { email, password });
-    return data;
-  },
-    async selectRole(role: Role, approvalRolePassword?: string) {
-    const { data } = await apiClient.post<{ token: string; user: User }>('/auth/select-role', { role, approvalRolePassword });
     return data;
   },
   async me() {

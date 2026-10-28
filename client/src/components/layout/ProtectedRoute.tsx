@@ -15,6 +15,6 @@ export function ProtectedRoute() {
   }
 
   if (!token || !user) return <Navigate to="/auth/login" replace state={{ from: location }} />;
-  if (user.roles.length > 1 && !user.activeRole) return <Navigate to="/auth/select-role" replace />;
+  if (!user.activeRole) return <Navigate to="/auth/login" replace />;
   return <Outlet />;
 }

@@ -18,6 +18,8 @@ import {
 import { RequestTypeModel } from '../models/RequestType.js';
 import { ApprovalRuleModel } from '../models/ApprovalRule.js';
 import { authMiddleware, requireActiveRole } from '../middleware/authMiddleware.js';
+import { requireRoles } from '../middleware/roleMiddleware.js';
+import { ROLES } from '../utils/constants.js';
 import { upload } from '../middleware/uploadMiddleware.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -44,7 +46,7 @@ router.get(
 router.get('/my', listMyRequests);
 router.get('/duplicate-fuel-warning', checkDuplicateFuelClaim);
 router.get('/', listRequests);
-router.post('/', upload.array('files', 20), createRequest);
+router.post('/', requireRoles(ROLES.LECTURER), upload.array('files', 20), createRequest);
 router.get('/documents/:documentId', downloadDocument);
 router.get('/:id', getRequest);
 router.get('/:id/document-policy', getRequestDocumentPolicy);

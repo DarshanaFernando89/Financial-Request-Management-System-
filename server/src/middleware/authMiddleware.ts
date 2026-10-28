@@ -10,7 +10,6 @@ export type JwtPayload = {
   email: string;
   roles: string[];
   activeRole?: string;
-  approvalRoleVerifiedAt?: number;
 };
 
 export function signAuthToken(payload: JwtPayload) {
@@ -28,7 +27,11 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
     if (!user || !user.isActive) throw new ApiError(401, 'User account is inactive or unavailable.');
     const catalog = await getRoleCatalog();
     const roles = rolesFromCatalog(user.roles.map(String), catalog);
-    const activeRole = decoded.activeRole && roles.includes(decoded.activeRole) ? decoded.activeRole : undefined;
+    // Existing tokens cannot retain an old role after the account assignment changes.
+    if (!roles.length || (decoded.activeRole && decoded.activeRole !== roles[0])) {
+      throw new ApiError(401, 'Account role has changed or is unavailable. Sign in again.');
+    }
+    const activeRole = roles[0];
 
     (req as any).user = {
       userId: user._id.toString(),
@@ -37,7 +40,6 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
       roleCatalog: catalog,
       ...roleCatalogMetadata(catalog),
       activeRole,
-      approvalRoleVerifiedAt: decoded.approvalRoleVerifiedAt,
       user
     };
     next();
@@ -48,15 +50,6 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
 
 export function requireActiveRole(req: Request, _res: Response, next: NextFunction) {
   const activeRole = (req as any).user?.activeRole;
-  if (!activeRole) return next(new ApiError(403, 'Select an active role before continuing.'));
-  const session = (req as any).user;
-  if (session.roles.length > 1 && session.approvalRoles.includes(activeRole)) {
-    if (!session.approvalRoleVerifiedAt) {
-      return next(new ApiError(403, 'Approval role password verification is required.'));
-    }
-    if (session.approvalRoleVerifiedAt < session.user.updatedAt.getTime()) {
-      return next(new ApiError(403, 'Approval role password verification is expired.'));
-    }
-  }
+  if (!activeRole) return next(new ApiError(403, 'An assigned account role is required.'));
   next();
 }

@@ -1,6 +1,7 @@
 import { NotificationModel } from '../models/Notification.js';
 import { UserModel } from '../models/User.js';
 import { ROLES } from '../utils/constants.js';
+import { primaryRoleFilter } from './roleCatalogService.js';
 
 type NotificationInput = {
   user: string;
@@ -30,7 +31,7 @@ export async function notifyRole(input: RoleNotificationInput) {
 }
 
 export async function notifyAdmins(title: string, message: string, options: AdminNotificationOptions = {}) {
-  const admins = await UserModel.find({ roles: ROLES.ADMIN, isActive: true }).select('_id');
+  const admins = await UserModel.find({ ...primaryRoleFilter(ROLES.ADMIN), isActive: true }).select('_id');
   await NotificationModel.insertMany(
     admins.map((admin) => ({
       user: admin._id,

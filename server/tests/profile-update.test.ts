@@ -42,11 +42,11 @@ function update(body: unknown) {
 describe('editable profile details', () => {
   it.each([
     { stored: ['REQUESTER', 'LECTURER'], visible: ['LECTURER'] },
-    { stored: ['DEAN', 'LECTURER', 'REQUESTER'], visible: ['DEAN', 'LECTURER'] },
-    { stored: ['REQUESTER', 'LECTURER', 'HOD'], visible: ['LECTURER', 'HOD'] }
+    { stored: ['DEAN', 'LECTURER', 'REQUESTER'], visible: ['DEAN'] },
+    { stored: ['REQUESTER', 'LECTURER', 'HOD'], visible: ['LECTURER'] }
   ])('returns matching roles in profile and session: $stored', async ({ stored, visible }) => {
     user.roles = stored;
-    token = signAuthToken({ userId: user._id, email: user.email, roles: stored, activeRole: 'LECTURER' });
+    token = signAuthToken({ userId: user._id, email: user.email, roles: stored, activeRole: visible[0] });
     const session = await request(app).get('/api/auth/me').auth(token, { type: 'bearer' });
     const profile = await request(app).get('/api/users/me/profile').auth(token, { type: 'bearer' });
     expect(session.status).toBe(200);
@@ -55,7 +55,7 @@ describe('editable profile details', () => {
     expect(profile.body.roles).toEqual(visible);
     const saved = await update({ contactNo: '+94710000001' });
     expect(saved.body.roles).toEqual(visible);
-    expect((await request(app).post('/api/auth/select-role').auth(token, { type: 'bearer' }).send({ role: 'REQUESTER' })).status).toBe(403);
+    expect((await request(app).post('/api/auth/select-role').auth(token, { type: 'bearer' }).send({ role: 'REQUESTER' })).status).toBe(410);
   });
 
   it('filters stored roles consistently in the admin user list', async () => {

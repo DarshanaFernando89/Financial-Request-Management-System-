@@ -18,7 +18,6 @@ export type User = {
   roles: Role[];
   roleLabels?: Record<string, string>;
   approvalRoles?: Role[];
-  approvalRolePasswordConfiguredRoles?: Role[];
   activeRole?: Role;
   isActive: boolean;
   createdAt?: string;
@@ -27,6 +26,5 @@ export type User = {
 
 export type LoginResponse = {
   token: string;
-  requiresRoleSelection: boolean;
   user: User;
 };

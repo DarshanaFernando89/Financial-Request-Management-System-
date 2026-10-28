@@ -6,11 +6,10 @@ import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
-import { APPROVER_ROLES, ROLES, visibleAssignedRoles } from '../../utils/constants';
+import { ROLES, visibleAssignedRoles } from '../../utils/constants';
 import { isPhoneNumber } from '../../utils/validation';
 import { roleLabel } from '../../utils/roleLabels';
 import type { Role, User } from '../../types/auth';
-import { PasswordInput } from '../ui/PasswordInput';
 
 type UserFormProps = {
   initial?: Partial<User>;
@@ -31,8 +30,7 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
     faculty: initial?.faculty || 'Faculty of Engineering, University of Ruhuna',
     contactNo: initial?.contactNo || '',
     address: initial?.address || '',
-    roles: initial ? visibleAssignedRoles(initial.roles, Object.keys(initial.roleLabels || Object.fromEntries(ROLES.map((code) => [code, code])))) : ['LECTURER'],
-    approvalRolePasswords: {}
+    roles: initial ? visibleAssignedRoles(initial.roles, Object.keys(initial.roleLabels || Object.fromEntries(ROLES.map((code) => [code, code])))).slice(0, 1) : ['LECTURER']
   });
   const [availableRoles, setAvailableRoles] = useState<Array<{ code: string; displayName: string; isActive: boolean }>>(
     []
@@ -41,8 +39,6 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
   const [saving, setSaving] = useState(false);
   const [rolesLoading, setRolesLoading] = useState(true);
   const [rolesError, setRolesError] = useState('');
-  const approvalRoles = availableRoles.filter((role) => APPROVER_ROLES.includes(role.code) || !ROLES.includes(role.code)).map((role) => role.code);
-  const roleName = (code: string) => availableRoles.find((role) => role.code === code)?.displayName || roleLabel(code, initial?.roleLabels);
 
   useEffect(() => {
     adminApi
@@ -56,24 +52,6 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  function toggleRole(role: Role) {
-    setForm((current) => {
-      const roles = new Set(current.roles as Role[]);
-      if (roles.has(role)) roles.delete(role);
-      else roles.add(role);
-      return { ...current, roles: Array.from(roles) };
-    });
-  }
-  function setApprovalRolePassword(role: Role, value: string) {
-    setForm((current) => ({
-      ...current,
-      approvalRolePasswords: {
-        ...(current.approvalRolePasswords || {}),
-        [role]: value
-      }
-    }));
-  }
-
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError('');
@@ -82,29 +60,14 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
       return;
     }
     const selectedRoles = form.roles as Role[];
-    if (rolesLoading || rolesError || !selectedRoles.length || selectedRoles.some((code) => !availableRoles.some((role) => role.code === code))) {
-      setError('Select at least one available role.');
+    if (rolesLoading || rolesError || selectedRoles.length !== 1 || selectedRoles.some((code) => !availableRoles.some((role) => role.code === code))) {
+      setError('Select one available role.');
       return;
-    }
-    if (selectedRoles.length > 1) {
-      const missingApprovalRole = selectedRoles.find(
-        (role) =>
-          approvalRoles.includes(role) &&
-          !initial?.approvalRolePasswordConfiguredRoles?.includes(role) &&
-          !String(form.approvalRolePasswords?.[role] || '').trim()
-      );
-      if (missingApprovalRole) {
-        setError(`Approval password is required for ${roleName(missingApprovalRole)}.`);
-        return;
-      }
     }
     setSaving(true);
     try {
       const payload = { ...form };
       if (!includePassword) delete payload.password;
-      payload.approvalRolePasswords = Object.fromEntries(
-        Object.entries(form.approvalRolePasswords || {}).filter(([, value]) => String(value || '').trim())
-      );
       await onSubmit(payload);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save user.');
@@ -145,45 +108,13 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
         </div>
         <Textarea label="Address" value={form.address} onChange={(event) => setValue('address', event.target.value)} />
         <div>
-          <p className="mb-2 text-sm font-semibold text-slate-700">Roles</p>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {availableRoles.map((role) => (
-              <label key={role.code} className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm">
-                <input type="checkbox" checked={(form.roles as Role[]).includes(role.code)} onChange={() => toggleRole(role.code)} />
-                <span>{role.displayName || roleLabel(role.code)}</span>
-              </label>
-            ))}
-          </div>
-          {!rolesLoading && (form.roles as Role[]).filter((code) => !availableRoles.some((role) => role.code === code)).map((code) => (
-            <div key={code} className="mt-2 flex items-center gap-2 text-sm text-slate-600">
-              <span>{roleName(code) || 'Unavailable role'}</span>
-              <Button variant="ghost" onClick={() => toggleRole(code)}>Remove</Button>
-            </div>
-          ))}
+          <Select label="Account role" required value={form.roles[0] || ''} disabled={rolesLoading || Boolean(rolesError)}
+            onChange={(event) => setValue('roles', [event.target.value])}
+            options={availableRoles.map((role) => ({ value: role.code, label: role.displayName || roleLabel(role.code) }))} />
+          <p className="mt-2 text-sm text-slate-500">Each account has one role. Create a separate authority account for approvals and use a Lecturer account to request claims.</p>
         </div>
         {rolesLoading && <p className="text-sm text-slate-500">Loading roles...</p>}
         {rolesError && <p className="text-sm font-medium text-red-600">{rolesError}</p>}
-        {(form.roles as Role[]).some((role) => approvalRoles.includes(role)) && (
-          <div>
-            <p className="mb-2 text-sm font-semibold text-slate-700">Approving role passwords</p>
-            <div className="grid gap-4 md:grid-cols-2">
-              {(form.roles as Role[])
-                .filter((role) => approvalRoles.includes(role))
-                .map((role) => {
-                  const configured = initial?.approvalRolePasswordConfiguredRoles?.includes(role);
-                  return (
-                    <PasswordInput
-                      key={role}
-                      label={`${roleName(role)} password${configured ? ' (set)' : ''}`}
-                      placeholder={configured ? 'Leave blank to keep current' : 'Required for multi-role users'}
-                      value={form.approvalRolePasswords[role] || ''}
-                      onChange={(event) => setApprovalRolePassword(role, event.target.value)}
-                    />
-                  );
-                })}
-            </div>
-          </div>
-        )}
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
         <div className="flex justify-end">
           <Button type="submit" icon={<Save size={16} />} disabled={saving || rolesLoading || Boolean(rolesError)}>Save User</Button>

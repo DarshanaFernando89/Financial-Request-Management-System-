@@ -9,7 +9,7 @@ vi.mock('../src/models/User.js', () => ({ UserModel: {
   findById: (id: string) => query(records.get(String(id))),
   findOne: (filter: any) => query([...records.values()].find((user) => user.email === filter.email)),
   create: async (body: any) => {
-    const user = { ...body, _id: 'created-user', updatedAt: new Date(), approvalRolePasswordHashes: new Map(body.approvalRolePasswordHashes) };
+    const user = { ...body, _id: records.has('created-user') ? 'second-user' : 'created-user', updatedAt: new Date() };
     records.set(user._id, user);
     return user;
   },
@@ -29,6 +29,7 @@ import authRoutes from '../src/routes/authRoutes.js';
 import userRoutes from '../src/routes/userRoutes.js';
 import approvalRoutes from '../src/routes/approvalRoutes.js';
 import financeRoutes from '../src/routes/financeRoutes.js';
+import requestRoutes from '../src/routes/requestRoutes.js';
 import { signAuthToken } from '../src/middleware/authMiddleware.js';
 import { errorMiddleware } from '../src/middleware/errorMiddleware.js';
 import { visibleAssignedRoles } from '../../client/src/utils/constants.ts';
@@ -40,10 +41,10 @@ app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/approvals', approvalRoutes);
 app.use('/finance', financeRoutes);
+app.use('/requests', requestRoutes);
 app.use(errorMiddleware);
 let adminToken: string;
 const password = 'Password123!';
-const rolePassword = 'CustomApproval123!';
 const newUser = { nameWithInitials: 'C. Reviewer', fullName: 'Custom Reviewer', email: 'custom@uor.lk', password,
   staffCategory: 'ACADEMIC', department: 'Engineering', faculty: 'Engineering', roles: ['001'] };
 
@@ -68,7 +69,7 @@ describe('system and custom user role assignments', () => {
     expect(edited.body.roles).toEqual(['001']);
     const login = await request(app).post('/auth/login').send({ email: newUser.email, password });
     expect(login.status).toBe(200);
-    expect(login.body.requiresRoleSelection).toBe(false);
+    expect(login.body).not.toHaveProperty('requiresRoleSelection');
     expect(login.body.user.activeRole).toBe('001');
     const token = login.body.token;
     const session = await request(app).get('/auth/me').auth(token, { type: 'bearer' });
@@ -80,47 +81,70 @@ describe('system and custom user role assignments', () => {
     expect((await request(app).get('/approvals/pending').auth(token, { type: 'bearer' })).status).toBe(200);
     expect((await request(app).get('/users').auth(token, { type: 'bearer' })).status).toBe(403);
     expect((await request(app).get('/finance/pending-payments').auth(token, { type: 'bearer' })).status).toBe(403);
+    expect((await request(app).post('/requests').auth(token, { type: 'bearer' }).send({ title: 'Authority claim' })).status).toBe(403);
   });
 
-  it('assigns mixed roles and enforces the custom approval password when selecting the role', async () => {
-    const created = await request(app).post('/users').auth(adminToken, { type: 'bearer' }).send({ ...newUser, roles: ['LECTURER', '001'], approvalRolePasswords: { '001': rolePassword } });
-    expect(created.status).toBe(201);
-    expect(created.body.roles).toEqual(['LECTURER', '001']);
-    expect(created.body.approvalRolePasswordConfiguredRoles).toEqual(['001']);
-    const fetched = await request(app).get('/users/created-user').auth(adminToken, { type: 'bearer' });
-    expect(fetched.body.roles).toEqual(['LECTURER', '001']);
-    const hash = records.get('created-user').approvalRolePasswordHashes.get('001');
-    expect(await bcrypt.compare(rolePassword, hash)).toBe(true);
-    const reassigned = await request(app).patch('/users/created-user/roles').auth(adminToken, { type: 'bearer' }).send({ roles: ['001', 'LECTURER'] });
-    expect(reassigned.status).toBe(200);
-    expect(records.get('created-user').approvalRolePasswordHashes.get('001')).toBe(hash);
+  it('rejects multiple roles on create, edit, and role reassignment', async () => {
+    const mixed = { ...newUser, roles: ['LECTURER', '001'] };
+    expect((await request(app).post('/users').auth(adminToken, { type: 'bearer' }).send(mixed)).status).toBe(400);
+    expect(records.has('created-user')).toBe(false);
+    await request(app).post('/users').auth(adminToken, { type: 'bearer' }).send(newUser);
+    for (const method of ['put', 'patch'] as const) {
+      const url = method === 'put' ? '/users/created-user' : '/users/created-user/roles';
+      const response = await request(app)[method](url).auth(adminToken, { type: 'bearer' }).send(mixed);
+      expect(response.status).toBe(400);
+      expect(records.get('created-user').roles).toEqual(['001']);
+    }
+  });
+
+  it('uses independent credentials for the normal staff account and authority account', async () => {
+    await request(app).post('/users').auth(adminToken, { type: 'bearer' }).send(newUser);
+    await request(app).post('/users').auth(adminToken, { type: 'bearer' }).send({ ...newUser,
+      email: 'staff@uor.lk', password: 'StaffPassword123!', roles: ['LECTURER'] });
+    expect((await request(app).post('/auth/login').send({ email: newUser.email, password: 'StaffPassword123!' })).status).toBe(401);
+    const authority = await request(app).post('/auth/login').send({ email: newUser.email, password });
+    const staff = await request(app).post('/auth/login').send({ email: 'staff@uor.lk', password: 'StaffPassword123!' });
+    expect(authority.body.user.activeRole).toBe('001');
+    expect(staff.body.user.activeRole).toBe('LECTURER');
+    expect((await request(app).get('/approvals/pending').auth(staff.body.token, { type: 'bearer' })).status).toBe(403);
+    expect((await request(app).get('/approvals/pending').auth(authority.body.token, { type: 'bearer' })).status).toBe(200);
+    expect((await request(app).post('/auth/select-role').auth(staff.body.token, { type: 'bearer' }).send({ role: '001' })).status).toBe(410);
+  });
+
+  it.each([['001', 'LECTURER'], ['LECTURER', '001']])('keeps the first legacy assignment: %s then %s', async (first, second) => {
+    records.set('legacy', { ...newUser, _id: 'legacy', isActive: true, roles: [first, second],
+      passwordHash: await bcrypt.hash(password, 10), approvalRolePasswordHashes: new Map([['001', 'unused-legacy-hash']]) });
     const login = await request(app).post('/auth/login').send({ email: newUser.email, password });
-    expect(login.body.requiresRoleSelection).toBe(true);
-    const token = login.body.token;
-    expect((await request(app).post('/auth/select-role').auth(token, { type: 'bearer' }).send({ role: '001' })).status).toBe(400);
-    expect((await request(app).post('/auth/select-role').auth(token, { type: 'bearer' }).send({ role: '001', approvalRolePassword: 'wrong' })).status).toBe(401);
-    const selected = await request(app).post('/auth/select-role').auth(token, { type: 'bearer' }).send({ role: '001', approvalRolePassword: rolePassword });
-    expect(selected.status).toBe(200);
-    expect(selected.body.user.activeRole).toBe('001');
-    expect((await request(app).get('/approvals/pending').auth(selected.body.token, { type: 'bearer' })).status).toBe(200);
-    catalog.mockResolvedValue([{ code: '001', displayName: 'Department Coordinator', isActive: false }]);
-    expect((await request(app).get('/approvals/pending').auth(selected.body.token, { type: 'bearer' })).status).toBe(403);
+    expect(login.status).toBe(200);
+    expect(login.body.user.roles).toEqual([first]);
+    expect(login.body.user.activeRole).toBe(first);
+    expect(login.body.user).not.toHaveProperty('approvalRolePasswordHashes');
+    const session = await request(app).get('/auth/me').auth(login.body.token, { type: 'bearer' });
+    expect(session.body.user.roles).toEqual([first]);
+    const oldToken = signAuthToken({ userId: 'legacy', email: newUser.email, roles: [first, second], activeRole: second });
+    expect((await request(app).get('/auth/me').auth(oldToken, { type: 'bearer' })).status).toBe(401);
+  });
+
+  it('does not fall through to a secondary role when the first assignment is inactive', async () => {
+    records.set('legacy', { ...newUser, _id: 'legacy', isActive: true, roles: ['ARCHIVED', 'LECTURER'], passwordHash: await bcrypt.hash(password, 10) });
+    expect((await request(app).post('/auth/login').send({ email: newUser.email, password })).status).toBe(403);
   });
 
   it.each(['REQUESTER', 'UNKNOWN', 'ARCHIVED'])('rejects assignment of unavailable role %s', async (code) => {
-    const response = await request(app).post('/users').auth(adminToken, { type: 'bearer' }).send({ ...newUser, roles: ['LECTURER', code] });
+    const response = await request(app).post('/users').auth(adminToken, { type: 'bearer' }).send({ ...newUser, roles: [code] });
     expect(response.status).toBe(400);
     expect(records.has('created-user')).toBe(false);
   });
 
-  it('requires an approval password when adding a custom role to a multi-role user', async () => {
-    await request(app).post('/users').auth(adminToken, { type: 'bearer' }).send({ ...newUser, roles: ['LECTURER'] });
-    const missingPassword = await request(app).put('/users/created-user').auth(adminToken, { type: 'bearer' }).send({ roles: ['LECTURER', '001'] });
-    expect(missingPassword.status).toBe(400);
-    expect(records.get('created-user').roles).toEqual(['LECTURER']);
-    const updated = await request(app).put('/users/created-user').auth(adminToken, { type: 'bearer' }).send({ roles: ['LECTURER', '001'], approvalRolePasswords: { '001': rolePassword } });
+  it('invalidates an existing session after admin changes its assigned role', async () => {
+    await request(app).post('/users').auth(adminToken, { type: 'bearer' }).send(newUser);
+    const login = await request(app).post('/auth/login').send({ email: newUser.email, password });
+    const updated = await request(app).patch('/users/created-user/roles').auth(adminToken, { type: 'bearer' }).send({ roles: ['LECTURER'] });
     expect(updated.status).toBe(200);
-    expect(updated.body.roles).toEqual(['LECTURER', '001']);
+    expect(updated.body.roles).toEqual(['LECTURER']);
+    expect((await request(app).get('/approvals/pending').auth(login.body.token, { type: 'bearer' })).status).toBe(401);
+    const nextLogin = await request(app).post('/auth/login').send({ email: newUser.email, password });
+    expect(nextLogin.body.user.activeRole).toBe('LECTURER');
   });
 
   it('lets a custom approver complete only the step assigned to their role', async () => {

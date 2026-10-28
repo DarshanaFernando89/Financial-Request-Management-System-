@@ -27,12 +27,19 @@ const userSchema = new Schema(
     },
     address: { type: String, trim: true },
     profileImageUrl: { type: String, trim: true },
-    roles: [{ type: String, required: true }],
+    roles: {
+      type: [{ type: String, required: true }],
+      required: true,
+      validate: {
+        validator: (roles: string[]) => roles.length === 1,
+        message: 'Each account must have exactly one role.'
+      }
+    },
+    // Keep old hashes hidden while existing records are phased out.
     approvalRolePasswordHashes: {
       type: Map,
       of: String,
-      select: false,
-      default: {}
+      select: false
     },
     isActive: { type: Boolean, default: true }
   },

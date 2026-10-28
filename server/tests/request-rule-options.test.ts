@@ -10,10 +10,12 @@ app.use(express.json());
 app.use('/api', demoRoutes);
 app.use(errorMiddleware);
 let token: string;
+let adminToken: string;
 
 beforeAll(async () => {
   const login = await request(app).post('/api/auth/login').send({ email: 'admin@uor.lk', password: 'Password123!' });
-  token = login.body.token;
+  adminToken = login.body.token;
+  token = (await request(app).post('/api/auth/login').send({ email: 'lecturer@uor.lk', password: 'Password123!' })).body.token;
 });
 
 function options() {
@@ -26,7 +28,7 @@ describe('requester rule choices in demo mode', () => {
   });
 
   it('shows the same rule names as admin and keeps the linked forms', async () => {
-    const admin = await request(app).get('/api/admin/approval-rules').auth(token, { type: 'bearer' });
+    const admin = await request(app).get('/api/admin/approval-rules').auth(adminToken, { type: 'bearer' });
     const response = await options();
     expect(response.status).toBe(200);
     expect(response.body.items.map((rule: any) => rule.name)).toEqual(admin.body.items.map((rule: any) => rule.name));
@@ -44,19 +46,22 @@ describe('requester rule choices in demo mode', () => {
       { requestType: 'type-lecture-hours', approvalRule: 'missing-rule', amount: 100 }
     ]) {
       const response = await request(app).post('/api/requests').auth(token, { type: 'bearer' })
-        .send({ ...payload, title: 'Invalid rule selection', submit: false });
+        .send({ ...payload, title: 'Invalid rule selection', submit: false,
+          requestData: payload.requestType === 'type-lecture-hours'
+            ? { batch: 'E/26', module: 'EE6101', timeSlots: 'Monday 08:00-10:00', ratePerHour: payload.amount / 2 }
+            : {} });
       expect(response.status).toBe(422);
     }
   });
 
   it('updates choices after admin edits and preserves the chosen rule for drafts and submission', async () => {
-    const createdType = await request(app).post('/api/admin/request-types').auth(token, { type: 'bearer' })
+    const createdType = await request(app).post('/api/admin/request-types').auth(adminToken, { type: 'bearer' })
       .send({ name: 'Test claim form', code: 'TEST_CLAIM', fields: [], requiredDocuments: [], isActive: true });
     const typeId = createdType.body._id;
-    const createdRule = await request(app).post('/api/admin/approval-rules').auth(token, { type: 'bearer' })
+    const createdRule = await request(app).post('/api/admin/approval-rules').auth(adminToken, { type: 'bearer' })
       .send({ name: 'Exact admin claim name', requestTypes: [typeId], minAmount: 100, maxAmount: 500, workflowRoles: ['DEAN'], isActive: true });
     const ruleId = createdRule.body._id;
-    const updateRule = (body: any) => request(app).put(`/api/admin/approval-rules/${ruleId}`).auth(token, { type: 'bearer' }).send(body);
+    const updateRule = (body: any) => request(app).put(`/api/admin/approval-rules/${ruleId}`).auth(adminToken, { type: 'bearer' }).send(body);
     const choice = async () => (await options()).body.items.find((rule: any) => rule._id === ruleId);
 
     expect((await choice()).name).toBe('Exact admin claim name');
@@ -85,11 +90,11 @@ describe('requester rule choices in demo mode', () => {
       expect(multipart.body.currentAssignedRole).toBe('DEAN');
     }
 
-    await request(app).put(`/api/admin/request-types/${typeId}`).auth(token, { type: 'bearer' }).send({ isActive: false });
+    await request(app).put(`/api/admin/request-types/${typeId}`).auth(adminToken, { type: 'bearer' }).send({ isActive: false });
     expect(await choice()).toBeUndefined();
-    await request(app).put(`/api/admin/request-types/${typeId}`).auth(token, { type: 'bearer' }).send({ isActive: true });
+    await request(app).put(`/api/admin/request-types/${typeId}`).auth(adminToken, { type: 'bearer' }).send({ isActive: true });
     expect(await choice()).toBeDefined();
-    expect((await request(app).delete(`/api/admin/approval-rules/${ruleId}`).auth(token, { type: 'bearer' })).status).toBe(200);
+    expect((await request(app).delete(`/api/admin/approval-rules/${ruleId}`).auth(adminToken, { type: 'bearer' })).status).toBe(200);
     expect(await choice()).toBeUndefined();
     expect((await request(app).post('/api/requests').auth(token, { type: 'bearer' })
       .send({ approvalRule: ruleId, requestType: typeId, amount: 200, title: 'Stale selection', submit: false })).status).toBe(422);
