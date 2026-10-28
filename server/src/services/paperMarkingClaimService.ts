@@ -23,7 +23,7 @@ export async function assertNoDuplicatePaperMarkingClaim(input: {
 
   const previousClaims = await RequestModel.find({
     ...filter,
-    'requestData.examDate': { $exists: true }
+    'requestData.batch': { $exists: true }
   }).select('status requestId requestData requestType paperMarkingClaimKey').populate('requestType', 'code name').lean();
   const conflict = previousClaims.find((claim: any) =>
     isPaperMarkingPayment(claim.requestType?.code, claim.requestType?.name) &&

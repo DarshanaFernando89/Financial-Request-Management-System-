@@ -124,10 +124,15 @@ const requestTypes: any[] = [
       {
         name: 'courseName', label: 'Module', type: 'select', required: true,
         options: Object.keys(PAPER_MARKING_MODULE_RATES),
-        validationRules: { ratePerPaperByModule: PAPER_MARKING_MODULE_RATES }
+        validationRules: {
+          ratePerPaperByModule: PAPER_MARKING_MODULE_RATES,
+          studentCountByBatchAndModule: Object.fromEntries(PAPER_MARKING_BATCHES.map((batch) => [
+            batch,
+            Object.fromEntries(Object.keys(PAPER_MARKING_MODULE_RATES).map((module) => [module, 150]))
+          ]))
+        }
       },
       { name: 'batch', label: 'Batch', type: 'select', required: true, options: PAPER_MARKING_BATCHES },
-      { name: 'examDate', label: 'Exam date', type: 'date', required: true },
       { name: 'numberOfPapers', label: 'Total papers', type: 'number', required: true },
       { name: 'ratePerPaper', label: 'Rate per paper (LKR)', type: 'number', required: true }
     ]
@@ -337,7 +342,7 @@ const requests: any[] = [
     title: 'Approved Request Pending Payment',
     amount: 18000,
     currency: 'LKR',
-    requestData: { examName: 'Mid Semester', numberOfPapers: 45, ratePerPaper: 400 },
+    requestData: { examName: 'Mid Semester', courseName: 'EE5204', batch: 'E/20', numberOfPapers: 45, ratePerPaper: 400 },
     documents: [],
     status: REQUEST_STATUSES.PAYMENT_PENDING,
     currentStepIndex: 1,

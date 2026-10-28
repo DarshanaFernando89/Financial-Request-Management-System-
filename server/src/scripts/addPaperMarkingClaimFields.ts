@@ -15,19 +15,29 @@ async function migrate() {
   if (!requestType) throw new Error('Paper Marking request type was not found.');
 
   const previousFields = requestType.fields.map((field: any) => field.toObject());
-  const fields = previousFields.map((field: any) => {
+  const moduleField = previousFields.find((field: any) => ['module', 'courseName'].includes(field.name));
+  const configuredRates = moduleField?.validationRules?.ratePerPaperByModule || PAPER_MARKING_MODULE_RATES;
+  const configuredStudentCounts = moduleField?.validationRules?.studentCountByBatchAndModule || {};
+  const modules = moduleField?.options?.length ? moduleField.options : Object.keys(configuredRates);
+  const batchField = previousFields.find((field: any) => field.name === 'batch');
+  const batches = batchField?.options?.length ? batchField.options : PAPER_MARKING_BATCHES;
+  const fields = previousFields.filter((field: any) => field.name !== 'examDate').map((field: any) => {
     if (['module', 'courseName'].includes(field.name)) {
       return {
         ...field,
         label: 'Module',
         type: 'select',
         required: true,
-        options: Object.keys(PAPER_MARKING_MODULE_RATES),
-        validationRules: { ratePerPaperByModule: PAPER_MARKING_MODULE_RATES }
+        options: modules,
+        validationRules: {
+          ...field.validationRules,
+          ratePerPaperByModule: configuredRates,
+          studentCountByBatchAndModule: configuredStudentCounts
+        }
       };
     }
     if (field.name === 'batch') {
-      return { ...field, label: 'Batch', type: 'select', required: true, options: PAPER_MARKING_BATCHES };
+      return { ...field, label: 'Batch', type: 'select', required: true, options: batches };
     }
     if (field.name === 'numberOfPapers') return { ...field, label: 'Total papers', required: true };
     if (field.name === 'examName') return { ...field, required: true };
@@ -41,8 +51,11 @@ async function migrate() {
       label: 'Module',
       type: 'select',
       required: true,
-      options: Object.keys(PAPER_MARKING_MODULE_RATES),
-      validationRules: { ratePerPaperByModule: PAPER_MARKING_MODULE_RATES }
+      options: modules,
+      validationRules: {
+        ratePerPaperByModule: configuredRates,
+        studentCountByBatchAndModule: configuredStudentCounts
+      }
     });
   }
   if (!fields.some((field: any) => field.name === 'batch')) {
@@ -52,20 +65,8 @@ async function migrate() {
       label: 'Batch',
       type: 'select',
       required: true,
-      options: PAPER_MARKING_BATCHES
+      options: batches
     });
-  }
-  if (!fields.some((field: any) => field.name === 'examDate')) {
-    const moduleIndex = fields.findIndex((field: any) => ['module', 'courseName'].includes(field.name));
-    fields.splice(moduleIndex < 0 ? fields.length : moduleIndex + 1, 0, {
-      name: 'examDate',
-      label: 'Exam date',
-      type: 'date',
-      required: true
-    });
-  } else {
-    const examDate = fields.find((field: any) => field.name === 'examDate');
-    Object.assign(examDate, { label: 'Exam date', type: 'date', required: true });
   }
   if (!fields.some((field: any) => field.name === 'numberOfPapers')) {
     fields.push({ name: 'numberOfPapers', label: 'Total papers', type: 'number', required: true });
@@ -120,7 +121,7 @@ async function migrate() {
     lectureRulesToUnlink: rulesToUnlink.map((rule: any) => ({ _id: rule._id, name: rule.name }))
   }, null, 2));
   if (!process.argv.includes('--apply')) {
-    console.log('Dry run only. Use --apply to create a separate Paper Marking claim type and remove Paper Marking from the lecture-hours claim type.');
+    console.log('Dry run only. Use --apply to remove the Paper Marking exam-date field and configure batch-based claims.');
     return;
   }
 

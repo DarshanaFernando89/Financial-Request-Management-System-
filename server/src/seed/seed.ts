@@ -138,10 +138,15 @@ async function seedRequestTypes() {
         field('examName', 'Exam name', 'text', true),
         {
           ...field('courseName', 'Module', 'select', true, Object.keys(PAPER_MARKING_MODULE_RATES)),
-          validationRules: { ratePerPaperByModule: PAPER_MARKING_MODULE_RATES }
+          validationRules: {
+            ratePerPaperByModule: PAPER_MARKING_MODULE_RATES,
+            studentCountByBatchAndModule: Object.fromEntries(PAPER_MARKING_BATCHES.map((batch) => [
+              batch,
+              Object.fromEntries(Object.keys(PAPER_MARKING_MODULE_RATES).map((module) => [module, 150]))
+            ]))
+          }
         },
         field('batch', 'Batch', 'select', true, PAPER_MARKING_BATCHES),
-        field('examDate', 'Exam date', 'date', true),
         field('academicYear', 'Academic year'),
         field('semester', 'Semester', 'select', true, ['Semester 1', 'Semester 2']),
         field('numberOfPapers', 'Total papers', 'number', true),
@@ -379,7 +384,6 @@ async function seedRequests(users: any[], types: any[]) {
         examName: 'End Semester',
         courseName: 'EE5202',
         batch: 'E/20',
-        examDate: '2026-06-12',
         numberOfPapers: 120,
         ratePerPaper: 500
       },
@@ -464,8 +468,6 @@ async function seedRequests(users: any[], types: any[]) {
         examName: 'Mid Semester',
         courseName: 'EE5204',
         batch: 'E/20',
-        examDate: '2026-06-13',
-        semester: 'Semester 1',
         numberOfPapers: 45,
         ratePerPaper: 400
       },

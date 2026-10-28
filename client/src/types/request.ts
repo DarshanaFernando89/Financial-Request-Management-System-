@@ -21,6 +21,7 @@ export type RequestField = {
   placeholder?: string;
   validationRules?: {
     ratePerPaperByModule?: Record<string, number>;
+    studentCountByBatchAndModule?: Record<string, Record<string, number>>;
   };
 };
 

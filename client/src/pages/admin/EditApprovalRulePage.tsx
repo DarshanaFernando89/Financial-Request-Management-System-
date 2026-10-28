@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { adminApi } from '../../api/adminApi';
 import { RuleForm } from '../../components/admin/RuleForm';
 import { LectureHoursCatalogForm } from '../../components/admin/LectureHoursCatalogForm';
+import { PaperMarkingCatalogForm } from '../../components/admin/PaperMarkingCatalogForm';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import type { ApprovalRule } from '../../types/rule';
 import type { RequestType } from '../../types/request';
@@ -22,6 +23,7 @@ export function EditApprovalRulePage() {
   const rule = rules.find((item) => item._id === id);
   if (!rule) return <div className="flex justify-center p-8"><LoadingSpinner /></div>;
   const lectureHoursType = types.find((type) => rule.requestTypes.some((requestType) => requestType._id === type._id) && type.name.trim().toLocaleLowerCase() === 'lecture hours payment');
+  const paperMarkingType = types.find((type) => rule.requestTypes.some((requestType) => requestType._id === type._id) && (type.code === 'PAPER_MARKING' || type.name.trim().toLocaleLowerCase() === 'paper marking'));
   return (
     <div className="space-y-5">
       <PageHeader title="Edit Approval Rule" />
@@ -30,6 +32,7 @@ export function EditApprovalRulePage() {
         navigate('/admin/approval-rules');
       }} />
       {lectureHoursType && <LectureHoursCatalogForm requestType={lectureHoursType} onUpdated={(updated) => setTypes((current) => current.map((type) => type._id === updated._id ? updated : type))} />}
+      {paperMarkingType && <PaperMarkingCatalogForm requestType={paperMarkingType} onUpdated={(updated) => setTypes((current) => current.map((type) => type._id === updated._id ? updated : type))} />}
     </div>
   );
 }
