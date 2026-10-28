@@ -1,3 +1,4 @@
+import { Toast } from '../../components/ui/Toast';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Camera, Save } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
@@ -148,8 +149,8 @@ export function ProfilePage() {
             disabled={saving}
             onChange={(event) => setForm({ ...form, contactNo: event.target.value })}
           />
-          {error && <p className="text-sm font-medium text-red-600">{error}</p>}
-          {message && <p className="text-sm font-medium text-green-700">{message}</p>}
+          {error && <Toast tone="red" message={error} />}
+          {message && <Toast tone="green" message={message} />}
           <Button type="submit" icon={<Save size={16} />} disabled={saving}>{saving ? 'Saving...' : 'Save Profile'}</Button>
         </Card>
       </form>

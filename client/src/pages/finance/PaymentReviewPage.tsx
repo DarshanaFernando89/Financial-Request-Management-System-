@@ -1,3 +1,4 @@
+import { Toast } from '../../components/ui/Toast';
 import { CheckCircle2, FileDown, RotateCcw, XCircle } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -83,7 +84,7 @@ export function PaymentReviewPage() {
               <DateInput label="Payment date" required value={form.paidAt} onChange={(event) => setForm({ ...form, paidAt: event.target.value })} />
               <Input label="Payment reference number" required value={form.referenceNo} onChange={(event) => setForm({ ...form, referenceNo: event.target.value })} />
               <Textarea label="Remarks" value={form.remarks} onChange={(event) => setForm({ ...form, remarks: event.target.value })} />
-              {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+              {error && <Toast tone="red" message={error} />}
               <div className="grid gap-2">
                 <Button type="submit" icon={<CheckCircle2 size={16} />}>Mark as Paid</Button>
                 <Button variant="secondary" icon={<FileDown size={16} />} onClick={() => void financeApi.downloadPaymentReceipt(request._id)}>Download Payment Receipt PDF</Button>

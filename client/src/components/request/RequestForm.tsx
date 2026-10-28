@@ -1,3 +1,4 @@
+import { Toast } from '../ui/Toast';
 import { FileText, Save, Send, X } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -376,7 +377,7 @@ export function RequestForm() {
         </Card>
       )}
 
-      {error && <p role="alert" className="rounded-md bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</p>}
+      {error && <Toast tone="red" message={error} />}
       <div className="flex flex-wrap justify-end gap-3">
         <Button variant="outline" icon={<Save size={16} />} disabled={saving || loadingRules || !rules.length} onClick={(event) => void submit(event as unknown as FormEvent, false)}>
           Save as Draft

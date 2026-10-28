@@ -5,7 +5,7 @@ import { formatDate } from '../../utils/formatDate';
 import { Badge } from '../ui/Badge';
 
 export function DocumentList({ documents }: { documents: RequestDocument[] }) {
-  if (!documents?.length) return <EmptyState title="No documents attached" />;
+  if (!documents?.length) return <EmptyState title="No documents attached" description="Supporting documents will appear here when they are uploaded to this claim." />;
   const orderedDocuments = [...documents].sort((first, second) => {
     const firstTime = new Date(first.clarificationRespondedAt || first.uploadedAt || 0).getTime();
     const secondTime = new Date(second.clarificationRespondedAt || second.uploadedAt || 0).getTime();

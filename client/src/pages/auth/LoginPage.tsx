@@ -1,3 +1,4 @@
+import { Toast } from '../../components/ui/Toast';
 import { LogIn } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -37,7 +38,7 @@ export function LoginPage() {
       <form className="mt-5 space-y-4" onSubmit={(event) => void submit(event)}>
         <Input label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
         <PasswordInput label="Password" value={password} onChange={(event) => setPassword(event.target.value)} required />
-        {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+        {error && <Toast tone="red" message={error} />}
         <Button className="w-full" type="submit" icon={<LogIn size={16} />} disabled={loading}>Sign In</Button>
       </form>
       <div className="mt-4 flex justify-between text-sm font-medium text-university-maroon">

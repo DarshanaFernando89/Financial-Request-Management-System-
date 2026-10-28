@@ -1,3 +1,4 @@
+import { Toast } from '../ui/Toast';
 import { Save } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { Button } from '../ui/Button';
@@ -50,7 +51,7 @@ export function RequestTypeForm({ initial, onSubmit }: { initial?: Partial<Reque
           />
           Show in requester new-request dropdown
         </label>
-        {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+        {error && <Toast tone="red" message={error} />}
         <div className="flex justify-end">
           <Button type="submit" icon={<Save size={16} />}>Save Request Type</Button>
         </div>

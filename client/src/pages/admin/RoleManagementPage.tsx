@@ -1,3 +1,4 @@
+import { Toast } from '../../components/ui/Toast';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Plus, Trash2 } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
@@ -73,7 +74,7 @@ export function RoleManagementPage() {
             <Input label="Role code" value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} />
           </div>
           <Textarea label="Description" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
-          {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+          {error && <Toast tone="red" message={error} />}
           <div className="flex justify-end">
             <Button type="submit" icon={<Plus size={16} />}>Create Role</Button>
           </div>

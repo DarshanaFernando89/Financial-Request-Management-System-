@@ -1,3 +1,4 @@
+import { Toast } from '../../components/ui/Toast';
 import { CheckCircle2, RotateCcw, Send, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -79,7 +80,7 @@ export function ReviewRequestPage() {
           </Card>
           <Card className="space-y-3">
             <Textarea label="Remarks" value={remarks} onChange={(event) => setRemarks(event.target.value)} />
-            {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+            {error && <Toast tone="red" message={error} />}
             <div className="grid gap-2">
               {isVerification ? (
                 <Button icon={<Send size={16} />} onClick={() => void action('verify')}>Verify & Forward</Button>

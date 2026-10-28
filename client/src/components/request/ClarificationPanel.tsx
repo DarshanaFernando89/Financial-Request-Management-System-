@@ -1,3 +1,4 @@
+import { Toast } from '../ui/Toast';
 import { FileText, RefreshCcw, Send, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { requestApi } from '../../api/requestApi';
@@ -172,7 +173,7 @@ export function ClarificationPanel({ requestId, onDone }: { requestId: string; o
         ))}
       </section>
 
-      {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+      {error && <Toast tone="red" message={error} />}
       <Button icon={<Send size={16} />} disabled={saving || loading} onClick={() => void submit()}>
         Submit Response
       </Button>

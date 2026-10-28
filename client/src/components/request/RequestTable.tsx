@@ -10,7 +10,7 @@ import type { FinancialRequest, RequestType } from '../../types/request';
 
 export function RequestTable({ requests, reviewBase = '/requests' }: { requests: FinancialRequest[]; reviewBase?: string }) {
   const label = useRoleLabel();
-  if (!requests.length) return <EmptyState title="No requests found" />;
+  if (!requests.length) return <EmptyState title="No requests found" description="There are no requests in this view. If filters are applied, try adjusting them." />;
   return (
     <Table
       rows={requests}

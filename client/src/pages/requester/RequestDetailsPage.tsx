@@ -1,3 +1,4 @@
+import { Toast } from '../../components/ui/Toast';
 import { RefreshCcw, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -81,7 +82,7 @@ export function RequestDetailsPage() {
   return (
     <div className="space-y-5">
       <RequestDetailsCard request={request} />
-      {actionError && <p role="alert" className="rounded-md bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{actionError}</p>}
+      {actionError && <Toast tone="red" message={actionError} />}
       {isRequester && request.status === 'DRAFT' && (
         <Card className="flex justify-end">
           <Button disabled={saving} icon={<Send size={16} />} onClick={() => void submitDraft()}>Submit Request</Button>

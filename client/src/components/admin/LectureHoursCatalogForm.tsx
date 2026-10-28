@@ -1,3 +1,4 @@
+import { Toast } from '../ui/Toast';
 import { Plus, Save, X } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 import { adminApi } from '../../api/adminApi';
@@ -83,7 +84,7 @@ export function LectureHoursCatalogForm({ requestType, onUpdated }: { requestTyp
           <OptionEditor label="Batches" options={batches} onChange={setBatches} />
           <OptionEditor label="Modules" options={modules} onChange={setModules} />
         </div>
-        {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+        {error && <Toast tone="red" message={error} />}
         <div className="flex justify-end"><Button type="submit" disabled={saving} icon={<Save size={16} />}>{saving ? 'Saving...' : 'Save batches and modules'}</Button></div>
       </Card>
     </form>

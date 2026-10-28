@@ -1,3 +1,4 @@
+import { Toast } from '../ui/Toast';
 import { Save } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { adminApi } from '../../api/adminApi';
@@ -115,7 +116,7 @@ export function UserForm({ initial, includePassword = false, onSubmit }: UserFor
         </div>
         {rolesLoading && <p className="text-sm text-slate-500">Loading roles...</p>}
         {rolesError && <p className="text-sm font-medium text-red-600">{rolesError}</p>}
-        {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+        {error && <Toast tone="red" message={error} />}
         <div className="flex justify-end">
           <Button type="submit" icon={<Save size={16} />} disabled={saving || rolesLoading || Boolean(rolesError)}>Save User</Button>
         </div>
