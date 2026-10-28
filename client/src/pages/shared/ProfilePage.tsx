@@ -101,7 +101,7 @@ export function ProfilePage() {
             <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-xl font-bold text-university-maroon">
               {form.profileImageUrl ? <img src={form.profileImageUrl} alt="" className="h-full w-full object-cover" /> : profile.fullName.slice(0, 2).toUpperCase()}
             </div>
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+            <label className="button-hover inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
               <Camera size={16} />
               Upload Profile Picture
               <input className="sr-only" type="file" accept="image/*" disabled={saving} onChange={(event) => handleImage(event.target.files?.[0])} />

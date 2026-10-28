@@ -28,7 +28,7 @@ export function PageHeader({ title, description, eyebrow, actions }: PageHeaderP
       <Link
         to="/notifications"
         aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'}
-        className={`focus-ring relative col-start-2 row-start-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-university-maroon shadow-sm transition hover:bg-slate-50 ${actions ? 'sm:col-start-3' : ''}`}
+        className={`button-hover focus-ring relative col-start-2 row-start-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-university-maroon shadow-sm transition hover:bg-slate-50 ${actions ? 'sm:col-start-3' : ''}`}
       >
         <Bell size={22} strokeWidth={2.2} aria-hidden="true" />
         {unreadCount > 0 && (

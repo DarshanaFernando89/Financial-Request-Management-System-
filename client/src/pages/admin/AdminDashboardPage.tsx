@@ -85,7 +85,7 @@ export function AdminDashboardPage() {
           <div className="grid gap-4 md:grid-cols-3">
             {summaries.map((summary) => (
               <Link key={summary.label} to={summary.to}
-                className="focus-ring rounded-lg border border-slate-200 bg-white p-5 transition-colors hover:border-slate-400">
+                className="button-hover focus-ring rounded-lg border border-slate-200 bg-white p-5 transition-colors hover:border-slate-400">
                 <h2 className="text-sm font-medium text-slate-600">{summary.label}</h2>
                 <p className="mt-3 text-3xl font-semibold tabular-nums text-slate-900">{summary.value}</p>
                 <p className="mt-2 text-sm text-slate-500">{summary.detail}</p>

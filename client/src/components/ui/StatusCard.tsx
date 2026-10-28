@@ -22,7 +22,7 @@ export function StatusCard({ title, value, caption, tone = 'gray', onClick }: St
   return (
     <Component
       onClick={onClick}
-      className={clsx('rounded-lg border p-4 text-left shadow-soft transition', tones[tone], onClick && 'hover:-translate-y-0.5 hover:shadow-lg')}
+      className={clsx('rounded-lg border p-4 text-left shadow-soft transition', tones[tone])}
     >
       <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</span>
       <span className="mt-2 block text-2xl font-bold text-slate-900">{value}</span>

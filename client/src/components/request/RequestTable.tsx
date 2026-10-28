@@ -37,7 +37,7 @@ export function RequestTable({ requests, reviewBase = '/requests' }: { requests:
           header: 'Actions',
           render: (row) => (
             <Link
-              className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="button-hover inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               to={`${reviewBase}/${row._id}`}
             >
               <Eye size={15} />

@@ -17,7 +17,7 @@ export function DocumentList({ documents }: { documents: RequestDocument[] }) {
       {orderedDocuments.map((document, index) => (
         <a
           key={document._id || document.filename}
-          className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50"
+          className="button-hover flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50"
           href={document.fileUrl.startsWith('http') ? document.fileUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${document.fileUrl}`}
           target="_blank"
           rel="noreferrer"

@@ -8,7 +8,7 @@ type FileUploadProps = InputHTMLAttributes<HTMLInputElement> & {
 
 export function FileUpload({ label = 'Upload document', description, ...props }: FileUploadProps) {
   return (
-    <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-700 hover:border-university-gold">
+    <label className="button-hover flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-700 hover:border-university-gold">
       <UploadCloud size={22} className="text-university-maroon" />
       <span>
         <span className="block font-medium">{label}</span>

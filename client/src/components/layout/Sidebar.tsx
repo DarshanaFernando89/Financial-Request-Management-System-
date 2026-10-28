@@ -50,7 +50,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             onClick={onNavigate}
             className={({ isActive }) =>
               clsx(
-                'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold transition',
+                'button-hover flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold transition',
                 isActive ? 'bg-university-maroon text-white' : 'text-slate-700 hover:bg-slate-100'
               )
             }
