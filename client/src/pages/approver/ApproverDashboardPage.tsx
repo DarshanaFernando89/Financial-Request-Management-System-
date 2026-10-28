@@ -1,3 +1,5 @@
+import { formatCurrency } from '../../utils/formatCurrency';
+import { ClipboardCheck, MessageSquare, Wallet } from 'lucide-react';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -15,10 +17,10 @@ export function ApproverDashboardPage() {
   return (
     <div className="space-y-5">
       <PageHeader title="Approver Dashboard" />
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatusCard title="Pending Requests" value={pending.length} tone="blue" onClick={() => navigate('/approvals/pending')} />
-        <StatusCard title="Clarifications" value={pending.filter((request) => request.status === 'INFO_REQUESTED').length} tone="red" />
-        <StatusCard title="Total Value" value={`LKR ${pending.reduce((sum, request) => sum + request.amount, 0).toLocaleString()}`} tone="gold" />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <StatusCard title="Pending Requests" caption="Assigned to your approval queue" icon={<ClipboardCheck size={20} />} value={pending.length} tone="blue" onClick={() => navigate('/approvals/pending')} />
+        <StatusCard title="Clarifications" caption="Additional information requested" icon={<MessageSquare size={20} />} value={pending.filter((request) => request.status === 'INFO_REQUESTED').length} tone="red" />
+        <StatusCard title="Total Value" caption="Combined value of queued claims" icon={<Wallet size={20} />} value={formatCurrency(pending.reduce((sum, request) => sum + request.amount, 0))} tone="gold" />
       </div>
       <RequestTable requests={pending} reviewBase="/approvals/review" />
     </div>

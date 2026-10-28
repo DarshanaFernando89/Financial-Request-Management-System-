@@ -1,4 +1,5 @@
-import { ArrowRight } from 'lucide-react';
+import { StatusCard } from '../../components/ui/StatusCard';
+import { ArrowRight, CreditCard, UserPlus, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { adminApi } from '../../api/adminApi';
@@ -48,18 +49,24 @@ export function AdminDashboardPage() {
   const summaries = data ? [
     {
       label: 'Pending account requests',
+      tone: 'gold' as const,
+      icon: <UserPlus size={20} />,
       value: data.pendingAccountRequests,
       detail: data.pendingAccountRequests ? 'Review access requests' : 'No requests awaiting review',
       to: '/admin/users'
     },
     {
       label: 'User accounts',
+      tone: 'blue' as const,
+      icon: <Users size={20} />,
       value: data.users,
       detail: data.activeUsers === undefined ? 'Manage accounts' : `${data.activeUsers} active`,
       to: '/admin/users'
     },
     {
       label: 'Awaiting payment',
+      tone: 'green' as const,
+      icon: <CreditCard size={20} />,
       value: data.pendingPayments,
       detail: data.amountSummary ? formatCurrency(data.amountSummary.pendingPaymentAmount) : 'View claims in reports',
       to: '/admin/reports'
@@ -82,14 +89,9 @@ export function AdminDashboardPage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {summaries.map((summary) => (
-              <Link key={summary.label} to={summary.to}
-                className="button-hover focus-ring rounded-lg border border-slate-200 bg-white p-5 transition-colors hover:border-slate-400">
-                <h2 className="text-sm font-medium text-slate-600">{summary.label}</h2>
-                <p className="mt-3 text-3xl font-semibold tabular-nums text-slate-900">{summary.value}</p>
-                <p className="mt-2 text-sm text-slate-500">{summary.detail}</p>
-              </Link>
+              <StatusCard key={summary.label} to={summary.to} title={summary.label} value={summary.value} caption={summary.detail} icon={summary.icon} tone={summary.tone} />
             ))}
           </div>
 
