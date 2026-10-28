@@ -38,6 +38,12 @@ describe('single-role accounts in demo mode', () => {
 });
 
 describe('stored role validation', () => {
+  it('serializes a populated requester summary when roles are not selected', () => {
+    const requester = UserModel.hydrate({ nameWithInitials: 'A. Staff' }, { nameWithInitials: 1 });
+    expect(requester.toJSON()).toMatchObject({ nameWithInitials: 'A. Staff' });
+    expect(requester.toJSON()).not.toHaveProperty('roles');
+  });
+
   it.each([{ roles: [] }, { roles: ['LECTURER', 'HOD'] }])('rejects an invalid role assignment $roles', async ({ roles }) => {
     const user = new UserModel({ roles });
     await expect(user.validate(['roles'])).rejects.toThrow('Each account must have exactly one role.');
