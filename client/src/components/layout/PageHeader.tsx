@@ -17,8 +17,8 @@ export function PageHeader({ title, description, eyebrow, actions }: PageHeaderP
     <div className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3 text-left ${actions ? 'sm:grid-cols-[minmax(0,1fr)_auto_auto]' : ''}`}>
       <div className="min-w-0">
         {eyebrow && <p className="mb-1 text-sm font-semibold text-university-maroon">{eyebrow}</p>}
-        <h1 className="break-words text-2xl font-bold leading-tight text-slate-900">{title}</h1>
-        {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+        <h1 className="break-words text-2xl font-bold leading-tight tracking-tight text-slate-900 sm:text-3xl">{title}</h1>
+        {description && <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{description}</p>}
       </div>
       {actions && (
         <div className="col-span-2 row-start-2 flex flex-wrap items-center gap-2 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:justify-end">

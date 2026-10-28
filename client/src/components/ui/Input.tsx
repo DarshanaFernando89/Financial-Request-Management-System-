@@ -10,7 +10,7 @@ export function Input({ label, error, className, id, ...props }: InputProps) {
   const inputId = id || props.name;
   return (
     <label className="block text-sm font-medium text-slate-700" htmlFor={inputId}>
-      {label && <span className="mb-1 block">{label}</span>}
+      {label && <span className="mb-1.5 block font-semibold">{label}</span>}
       <input
         id={inputId}
         className={clsx(
