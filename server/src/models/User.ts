@@ -47,7 +47,7 @@ const userSchema = new Schema(
     timestamps: true,
     toJSON: {
       transform(_doc, ret) {
-        ret.roles = ret.roles.filter((role: string) => !RETIRED_ROLE_CODES.includes(role));
+        if (ret.roles) ret.roles = ret.roles.filter((role: string) => !RETIRED_ROLE_CODES.includes(role));
         delete ret.passwordHash;
         delete ret.approvalRolePasswordHashes;
         delete ret.__v;
