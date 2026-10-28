@@ -1,6 +1,6 @@
 import { FileText, Save, Send, X } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { requestApi } from '../../api/requestApi';
 import type { RequestField } from '../../types/request';
 import type { RequestRuleOption } from '../../types/rule';
@@ -53,7 +53,11 @@ export function RequestForm() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
-  const [fuelDuplicateWarning, setFuelDuplicateWarning] = useState('');
+  const [fuelDuplicateWarning, setFuelDuplicateWarning] = useState<{
+    warning?: string;
+    duplicateRequestId?: string;
+    duplicateRequestReference?: string;
+  }>({});
   const [fuelDuplicateCheckError, setFuelDuplicateCheckError] = useState('');
   const [requestData, setRequestData] = useState<Record<string, string>>({});
   const [lectureTimeSlots, setLectureTimeSlots] = useState(() => [newLectureTimeSlot()]);
@@ -117,15 +121,16 @@ export function RequestForm() {
   }, [paperMarkingRequest, paperModuleField?.name, selectedPaperRate, requestData.ratePerPaper]);
 
   useEffect(() => {
-    setFuelDuplicateWarning('');
+    setFuelDuplicateWarning({});
     setFuelDuplicateCheckError('');
     const requestAmount = Number(amount);
-    if (!fuelRequest || !selectedType?._id || !Number.isFinite(requestAmount) || requestAmount <= 0) return;
+    const travelDate = requestData.travelDate;
+    if (!fuelRequest || !selectedType?._id || !Number.isFinite(requestAmount) || requestAmount <= 0 || !travelDate) return;
     let active = true;
     const timeout = window.setTimeout(() => {
-      requestApi.duplicateFuelWarning(selectedType._id, requestAmount)
+      requestApi.duplicateFuelWarning(selectedType._id, requestAmount, travelDate)
         .then((warning) => {
-          if (active) setFuelDuplicateWarning(warning || '');
+          if (active) setFuelDuplicateWarning(warning);
         })
         .catch((err) => {
           if (active) setFuelDuplicateCheckError(err instanceof Error ? err.message : 'Unable to check for similar fuel claims.');
@@ -135,7 +140,7 @@ export function RequestForm() {
       active = false;
       window.clearTimeout(timeout);
     };
-  }, [fuelRequest, selectedType?._id, amount]);
+  }, [fuelRequest, selectedType?._id, amount, requestData.travelDate]);
 
   function updateField(name: string, value: string) {
     setRequestData((current) => ({ ...current, [name]: value }));
@@ -269,9 +274,12 @@ export function RequestForm() {
         {selectedRule && (
           <p className="text-sm text-slate-500">Amount range: {selectedRule.minAmount} - {selectedRule.maxAmount ?? 'No upper limit'}</p>
         )}
-        {fuelDuplicateWarning && (
+        {fuelDuplicateWarning.warning && (
           <p role="alert" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
-            {fuelDuplicateWarning}
+            {fuelDuplicateWarning.warning}{' '}
+            {fuelDuplicateWarning.duplicateRequestId && fuelDuplicateWarning.duplicateRequestReference && (
+              <>Similar request: <Link className="underline" to={`/requests/${fuelDuplicateWarning.duplicateRequestId}`}>{fuelDuplicateWarning.duplicateRequestReference}</Link>.</>
+            )}
           </p>
         )}
         {fuelDuplicateCheckError && (

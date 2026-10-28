@@ -93,6 +93,8 @@ export type FinancialRequest = {
   currency: string;
   requestData: Record<string, unknown>;
   duplicateWarning?: string;
+  duplicateWarningRequestId?: string;
+  duplicateWarningReference?: string;
   documents: RequestDocument[];
   status: RequestStatus;
   currentStepIndex: number;

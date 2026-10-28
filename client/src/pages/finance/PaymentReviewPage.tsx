@@ -61,7 +61,7 @@ export function PaymentReviewPage() {
 
   return (
     <div className="space-y-5">
-      <RequestDetailsCard request={request} />
+      <RequestDetailsCard request={request} duplicateWarningBase="/finance/review" />
       <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
         <div className="space-y-5">
           <Card>

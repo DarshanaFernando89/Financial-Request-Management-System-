@@ -24,7 +24,7 @@ import { assertAvailableWorkflowRoles } from '../services/workflowRoleService.js
 import { duplicateLectureHoursClaimMessage, isLectureHoursPayment, lectureHoursClaimKey, lectureHoursClaimsShareSlot, prepareLectureHoursClaim } from '../utils/lectureHoursClaim.js';
 import { duplicatePaperMarkingClaimMessage, isPaperMarkingPayment, paperMarkingClaimKey, paperMarkingClaimKeyForData, preparePaperMarkingClaim } from '../utils/paperMarkingClaim.js';
 import { PAPER_MARKING_BATCHES, PAPER_MARKING_MODULE_RATES } from '../utils/paperMarkingCatalog.js';
-import { fuelDuplicateWarning } from '../services/fuelDuplicateClaimService.js';
+import { assertFuelTravelDate, fuelDuplicateWarning } from '../services/fuelDuplicateClaimService.js';
 import { documentPolicy, validateDocumentSettings, assertAcceptedDocuments, assertRequiredDocuments } from '../utils/documentPolicy.js';
 
 const router = Router();
@@ -542,8 +542,9 @@ function duplicatePaperMarkingRequest(userId: string, requestType: any, requestD
   return { key, request };
 }
 
-function findDemoDuplicateFuelClaim(userId: string, requestType: any, amount: number, excludeId?: string) {
+function findDemoDuplicateFuelClaim(userId: string, requestType: any, amount: number, travelDate: unknown, excludeId?: string) {
   if (requestType.code !== REQUEST_TYPE_CODES.TRAVEL_FUEL) return undefined;
+  if (typeof travelDate !== 'string' || !travelDate) return undefined;
   return requests.find((item) => {
     const type = item.requestType;
     const typeId = typeof type === 'string' ? type : type?._id;
@@ -551,6 +552,7 @@ function findDemoDuplicateFuelClaim(userId: string, requestType: any, amount: nu
       item.requester === userId &&
       typeId === requestType._id &&
       Number(item.amount).toFixed(2) === Number(amount).toFixed(2) &&
+      item.requestData?.travelDate === travelDate &&
       ![REQUEST_STATUSES.DRAFT, REQUEST_STATUSES.REJECTED, REQUEST_STATUSES.CANCELLED].includes(item.status);
   });
 }
@@ -735,11 +737,21 @@ router.get('/requests/duplicate-fuel-warning', (req, res) => {
   const user = currentUser(req);
   const requestType = requestTypes.find((type) => type._id === String(req.query.requestType) && type.isActive);
   const amount = Number(req.query.amount);
-  if (!requestType || !Number.isFinite(amount) || amount <= 0) {
-    return res.status(400).json({ message: 'A request type and positive amount are required.' });
+  const travelDate = String(req.query.travelDate || '');
+  if (!requestType || !Number.isFinite(amount) || amount <= 0 || !travelDate) {
+    return res.status(400).json({ message: 'A request type, positive amount, and travel date are required.' });
   }
-  const duplicate = findDemoDuplicateFuelClaim(user._id, requestType, amount);
-  res.json({ warning: duplicate ? fuelDuplicateWarning(duplicate.requestId) : undefined });
+  try {
+    assertFuelTravelDate(requestType.code, requestType.name, { travelDate });
+  } catch (error) {
+    return res.status(error instanceof ApiError ? error.statusCode : 400).json({ message: error instanceof Error ? error.message : 'Travel date is required.' });
+  }
+  const duplicate = findDemoDuplicateFuelClaim(user._id, requestType, amount, travelDate);
+  res.json({
+    warning: duplicate ? fuelDuplicateWarning() : undefined,
+    duplicateRequestId: duplicate?._id,
+    duplicateRequestReference: duplicate?.requestId
+  });
 });
 
 router.get('/requests/my', (req, res) => {
@@ -771,7 +783,7 @@ router.post('/requests', (req, res, next) => {
   const submit = parseBodyBoolean(req.body.submit);
   const documents = demoUploadedDocuments(req, user);
 
-  let requestData = {};
+  let requestData: Record<string, unknown> = {};
   try {
     requestData = parseRequestDataBody(req.body.requestData);
   } catch {
@@ -790,6 +802,13 @@ router.post('/requests', (req, res, next) => {
     return res.status(error instanceof ApiError ? error.statusCode : 400).json({ message: error instanceof Error ? error.message : 'Invalid payment claim.' });
   }
   if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ message: 'Amount must be positive.' });
+  if (submit) {
+    try {
+      assertFuelTravelDate(requestType.code, requestType.name, requestData);
+    } catch (error) {
+      return res.status(error instanceof ApiError ? error.statusCode : 400).json({ message: error instanceof Error ? error.message : 'Travel date is required.' });
+    }
+  }
   if (req.body.approvalRule && !matchingRule(requestType._id, amount, req.body.approvalRule)) {
     return res.status(422).json({ message: 'The selected approval rule is unavailable or does not match this request type and amount.' });
   }
@@ -800,7 +819,7 @@ router.post('/requests', (req, res, next) => {
   if (duplicateLecture) return res.status(409).json({ message: duplicateLectureHoursClaimMessage(duplicateLecture.status, duplicateLecture.requestId) });
   const duplicatePaper = duplicatePaperMarkingRequest(user._id, requestType, requestData).request;
   if (duplicatePaper) return res.status(409).json({ message: duplicatePaperMarkingClaimMessage(duplicatePaper.status, duplicatePaper.requestId) });
-  const duplicateFuel = findDemoDuplicateFuelClaim(user._id, requestType, amount);
+  const duplicateFuel = findDemoDuplicateFuelClaim(user._id, requestType, amount, requestData.travelDate);
 
   const request = {
     _id: `request-${Date.now()}`,
@@ -815,7 +834,9 @@ router.post('/requests', (req, res, next) => {
     currency: 'LKR',
     requestData,
     ...claimKeys,
-    duplicateWarning: duplicateFuel ? fuelDuplicateWarning(duplicateFuel.requestId) : undefined,
+    duplicateWarning: duplicateFuel ? fuelDuplicateWarning() : undefined,
+    duplicateWarningRequestId: duplicateFuel?._id,
+    duplicateWarningReference: duplicateFuel?.requestId,
     documents,
     status: submit ? REQUEST_STATUSES.SUBMITTED : REQUEST_STATUSES.DRAFT,
     currentStepIndex: -1,
@@ -873,16 +894,19 @@ router.post('/requests/:id/submit', (req, res) => {
   if (request.status !== REQUEST_STATUSES.DRAFT) return res.status(422).json({ message: 'Only draft requests can be submitted.' });
   try {
     const preparedClaim = prepareDemoClaim(request.requestType, request.requestData);
+    assertFuelTravelDate(request.requestType.code, request.requestType.name, preparedClaim.requestData);
     const match = duplicateLectureHoursRequest(user._id, request.requestType, preparedClaim.requestData, request._id);
     if (match.request) return res.status(409).json({ message: duplicateLectureHoursClaimMessage(match.request.status, match.request.requestId) });
     const paperMatch = duplicatePaperMarkingRequest(user._id, request.requestType, preparedClaim.requestData, request._id);
     if (paperMatch.request) return res.status(409).json({ message: duplicatePaperMarkingClaimMessage(paperMatch.request.status, paperMatch.request.requestId) });
-    const duplicateFuel = findDemoDuplicateFuelClaim(user._id, request.requestType, preparedClaim.amount ?? request.amount, request._id);
+    const duplicateFuel = findDemoDuplicateFuelClaim(user._id, request.requestType, preparedClaim.amount ?? request.amount, preparedClaim.requestData.travelDate, request._id);
     request.requestData = preparedClaim.requestData;
     if (preparedClaim.amount !== undefined) request.amount = preparedClaim.amount;
     request.lectureHoursClaimKey = preparedClaim.lectureHoursClaimKey;
     request.paperMarkingClaimKey = paperMatch.key;
-    request.duplicateWarning = duplicateFuel ? fuelDuplicateWarning(duplicateFuel.requestId) : undefined;
+    request.duplicateWarning = duplicateFuel ? fuelDuplicateWarning() : undefined;
+    request.duplicateWarningRequestId = duplicateFuel?._id;
+    request.duplicateWarningReference = duplicateFuel?.requestId;
   } catch (error) {
     return res.status(400).json({ message: error instanceof Error ? error.message : 'Invalid lecture hours claim.' });
   }
@@ -899,11 +923,12 @@ router.post('/requests/:id/resubmit', (req, res) => {
   if (request.status !== REQUEST_STATUSES.REJECTED) return res.status(422).json({ message: 'Only rejected requests can be resubmitted.' });
   try {
     const preparedClaim = prepareDemoClaim(request.requestType, req.body.requestData ?? request.requestData);
+    assertFuelTravelDate(request.requestType.code, request.requestType.name, preparedClaim.requestData);
     const match = duplicateLectureHoursRequest(user._id, request.requestType, preparedClaim.requestData, request._id);
     if (match.request) return res.status(409).json({ message: duplicateLectureHoursClaimMessage(match.request.status, match.request.requestId) });
     const paperMatch = duplicatePaperMarkingRequest(user._id, request.requestType, preparedClaim.requestData, request._id);
     if (paperMatch.request) return res.status(409).json({ message: duplicatePaperMarkingClaimMessage(paperMatch.request.status, paperMatch.request.requestId) });
-    const duplicateFuel = findDemoDuplicateFuelClaim(user._id, request.requestType, preparedClaim.amount ?? Number(req.body.amount ?? request.amount), request._id);
+    const duplicateFuel = findDemoDuplicateFuelClaim(user._id, request.requestType, preparedClaim.amount ?? Number(req.body.amount ?? request.amount), preparedClaim.requestData.travelDate, request._id);
     if (req.body.title) request.title = req.body.title;
     if (req.body.description !== undefined) request.description = req.body.description;
     request.requestData = preparedClaim.requestData;
@@ -911,7 +936,9 @@ router.post('/requests/:id/resubmit', (req, res) => {
     else if (req.body.amount !== undefined) request.amount = Number(req.body.amount);
     request.lectureHoursClaimKey = preparedClaim.lectureHoursClaimKey;
     request.paperMarkingClaimKey = paperMatch.key;
-    request.duplicateWarning = duplicateFuel ? fuelDuplicateWarning(duplicateFuel.requestId) : undefined;
+    request.duplicateWarning = duplicateFuel ? fuelDuplicateWarning() : undefined;
+    request.duplicateWarningRequestId = duplicateFuel?._id;
+    request.duplicateWarningReference = duplicateFuel?.requestId;
   } catch (error) {
     return res.status(400).json({ message: error instanceof Error ? error.message : 'Invalid lecture hours claim.' });
   }

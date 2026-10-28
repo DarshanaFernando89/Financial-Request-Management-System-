@@ -79,6 +79,8 @@ const requestSchema = new Schema(
     lectureHoursClaimKey: { type: String, trim: true },
     paperMarkingClaimKey: { type: String, trim: true },
     duplicateWarning: { type: String, trim: true },
+    duplicateWarningRequestId: { type: String, trim: true },
+    duplicateWarningReference: { type: String, trim: true },
     documents: [documentSchema],
     status: { type: String, enum: REQUEST_STATUS_VALUES, default: REQUEST_STATUSES.DRAFT },
     currentStepIndex: { type: Number, default: -1 },
