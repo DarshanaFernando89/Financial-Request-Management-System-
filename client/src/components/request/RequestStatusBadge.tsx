@@ -13,5 +13,5 @@ export function RequestStatusBadge({ status }: { status: RequestStatus }) {
           : status === 'DRAFT'
             ? 'gray'
             : 'gold';
-  return <Badge tone={tone}>{statusLabel(status)}</Badge>;
+  return <Badge tone={tone}><span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />{statusLabel(status)}</Badge>;
 }

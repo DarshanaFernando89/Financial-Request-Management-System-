@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { adminApi } from '../../api/adminApi';
 import { PageHeader } from '../../components/layout/PageHeader';
-import { Badge } from '../../components/ui/Badge';
+import { RequestStatusBadge } from '../../components/request/RequestStatusBadge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -13,7 +13,6 @@ import { Table } from '../../components/ui/Table';
 import type { FinancialRequest } from '../../types/request';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDate } from '../../utils/formatDate';
-import { statusLabel } from '../../utils/statusLabels';
 
 type RecentClaim = Pick<FinancialRequest,
   '_id' | 'requestId' | 'title' | 'requester' | 'requesterSnapshot' | 'amount' | 'currency' | 'status' | 'createdAt'
@@ -121,7 +120,7 @@ export function AdminDashboardPage() {
                   { key: 'amount', header: 'Amount', align: 'right', render: (row) => formatCurrency(row.amount, row.currency) },
                   {
                     key: 'status', header: 'Status', render: (row) => (
-                      <Badge tone={row.status === 'PAID' ? 'green' : row.status === 'PAYMENT_PENDING' ? 'gold' : 'gray'}>{statusLabel(row.status)}</Badge>
+                      <RequestStatusBadge status={row.status} />
                     )
                   },
                   { key: 'created', header: 'Created', render: (row) => formatDate(row.createdAt) }
