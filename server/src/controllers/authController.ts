@@ -33,9 +33,7 @@ function userPayload(user: any, activeRole: string | undefined, catalog: RoleCat
   };
 }
 
-export const login = asyncHandler(async (req, res, next) => {
-  if (req.app.locals.demoMode) return next('router');
-
+export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) throw new ApiError(400, 'Email and password are required.');
 

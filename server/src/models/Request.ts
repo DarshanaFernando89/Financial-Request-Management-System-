@@ -25,7 +25,16 @@ const documentSchema = new Schema(
     storageType: { type: String, enum: ['db', 'disk'], default: 'db' },
     fileBuffer: { type: Buffer, default: undefined }
   },
-  { _id: false }
+  {
+    _id: false,
+    toJSON: {
+      transform(_doc, ret) {
+        // Retain bytes for persistence and downloads, but never embed them in JSON.
+        delete ret.fileBuffer;
+        return ret;
+      }
+    }
+  }
 );
 
 const workflowStepSchema = new Schema(

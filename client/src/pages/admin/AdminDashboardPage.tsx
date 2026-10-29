@@ -1,18 +1,19 @@
-import { ArrowRight } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowRight, CreditCard, UserPlus, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { adminApi } from '../../api/adminApi';
 import { PageHeader } from '../../components/layout/PageHeader';
-import { Badge } from '../../components/ui/Badge';
+import { RequestStatusBadge } from '../../components/request/RequestStatusBadge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { DashboardSkeleton } from '../../components/ui/DashboardSkeleton';
+import { StatusCard } from '../../components/ui/StatusCard';
+import { Toast } from '../../components/ui/Toast';
+import { useDashboardData } from '../../hooks/useDashboardData';
 import { Table } from '../../components/ui/Table';
 import type { FinancialRequest } from '../../types/request';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDate } from '../../utils/formatDate';
-import { statusLabel } from '../../utils/statusLabels';
 
 type RecentClaim = Pick<FinancialRequest,
   '_id' | 'requestId' | 'title' | 'requester' | 'requesterSnapshot' | 'amount' | 'currency' | 'status' | 'createdAt'
@@ -28,38 +29,29 @@ type DashboardData = {
 };
 
 export function AdminDashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [error, setError] = useState('');
-  const [attempt, setAttempt] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    setError('');
-    adminApi.dashboard()
-      .then((result: DashboardData) => {
-        if (!cancelled) setData(result);
-      })
-      .catch(() => {
-        if (!cancelled) setError('Unable to load the dashboard. Please try again.');
-      });
-    return () => { cancelled = true; };
-  }, [attempt]);
+  const { data, loading, error, retry } = useDashboardData<DashboardData>(adminApi.dashboard);
 
   const summaries = data ? [
     {
       label: 'Pending account requests',
+      tone: 'gold' as const,
+      icon: <UserPlus size={20} />,
       value: data.pendingAccountRequests,
       detail: data.pendingAccountRequests ? 'Review access requests' : 'No requests awaiting review',
       to: '/admin/users'
     },
     {
       label: 'User accounts',
+      tone: 'blue' as const,
+      icon: <Users size={20} />,
       value: data.users,
       detail: data.activeUsers === undefined ? 'Manage accounts' : `${data.activeUsers} active`,
       to: '/admin/users'
     },
     {
       label: 'Awaiting payment',
+      tone: 'green' as const,
+      icon: <CreditCard size={20} />,
       value: data.pendingPayments,
       detail: data.amountSummary ? formatCurrency(data.amountSummary.pendingPaymentAmount) : 'View claims in reports',
       to: '/admin/reports'
@@ -69,27 +61,15 @@ export function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Admin Dashboard" />
+      <PageHeader title="Admin Dashboard" description="An overview of accounts, claims, and payment activity." />
 
-      {error ? (
-        <Card className="flex flex-wrap items-center justify-between gap-4">
-          <p role="alert" className="text-sm text-red-700">{error}</p>
-          <Button variant="outline" onClick={() => setAttempt((value) => value + 1)}>Try again</Button>
-        </Card>
-      ) : !data ? (
-        <div role="status" className="flex items-center gap-3 py-10 text-sm text-slate-500">
-          <LoadingSpinner /> Loading dashboard...
-        </div>
+      {loading ? <DashboardSkeleton /> : error ? (
+        <Toast tone="red" message={error} action={<Button variant="outline" onClick={retry}>Try again</Button>} />
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {summaries.map((summary) => (
-              <Link key={summary.label} to={summary.to}
-                className="focus-ring rounded-lg border border-slate-200 bg-white p-5 transition-colors hover:border-slate-400">
-                <h2 className="text-sm font-medium text-slate-600">{summary.label}</h2>
-                <p className="mt-3 text-3xl font-semibold tabular-nums text-slate-900">{summary.value}</p>
-                <p className="mt-2 text-sm text-slate-500">{summary.detail}</p>
-              </Link>
+              <StatusCard key={summary.label} to={summary.to} title={summary.label} value={summary.value} caption={summary.detail} icon={summary.icon} tone={summary.tone} />
             ))}
           </div>
 
@@ -119,13 +99,13 @@ export function AdminDashboardPage() {
                   { key: 'amount', header: 'Amount', align: 'right', render: (row) => formatCurrency(row.amount, row.currency) },
                   {
                     key: 'status', header: 'Status', render: (row) => (
-                      <Badge tone={row.status === 'PAID' ? 'green' : row.status === 'PAYMENT_PENDING' ? 'gold' : 'gray'}>{statusLabel(row.status)}</Badge>
+                      <RequestStatusBadge status={row.status} />
                     )
                   },
                   { key: 'created', header: 'Created', render: (row) => formatDate(row.createdAt) }
                 ]}
               />
-            ) : <EmptyState title="No claims yet" />}
+            ) : <EmptyState title="No claims yet" description="Newly submitted claims will appear here with their latest status and payment details." />}
           </Card>
         </>
       )}

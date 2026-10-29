@@ -364,7 +364,7 @@ export function UserManagementPage() {
         <div className="space-y-4">
           <p className="text-sm text-slate-600">Create an account for {approveRequest?.fullName}. The default password will be {defaultResetPassword}.</p>
           <Select label="Assigned role" required value={approvalRole} disabled={isProcessingAccountRequest} onChange={(event) => setApprovalRole(event.target.value)} options={availableRoles.map((role) => ({ value: role.code, label: role.displayName }))} />
-          {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+          {error && <Toast tone="red" message={error} />}
           <div className="flex justify-end gap-3">
             <Button variant="outline" disabled={isProcessingAccountRequest} onClick={() => setApproveRequest(null)}>Cancel</Button>
             <Button disabled={isProcessingAccountRequest || !availableCodes.includes(approvalRole)} onClick={() => void confirmApproveAccountRequest()}>Approve</Button>

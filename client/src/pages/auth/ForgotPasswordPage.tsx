@@ -1,3 +1,4 @@
+import { Toast } from '../../components/ui/Toast';
 import { FormEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authApi } from '../../api/authApi';
@@ -20,7 +21,7 @@ export function ForgotPasswordPage() {
       <h2 className="text-xl font-bold text-slate-900">Forgot Password</h2>
       <form className="mt-5 space-y-4" onSubmit={(event) => void submit(event)}>
         <Input label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-        {message && <p className="rounded-md bg-green-50 p-3 text-sm font-medium text-green-700">{message}</p>}
+        {message && <Toast tone="green" message={message} />}
         <Button className="w-full" type="submit">Send Request</Button>
       </form>
       <Link className="mt-4 block text-sm font-semibold text-university-maroon" to="/auth/login">Back to Login</Link>

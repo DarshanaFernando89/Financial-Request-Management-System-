@@ -9,10 +9,7 @@ connectDB()
     });
   })
   .catch((error) => {
-    app.locals.demoMode = true;
-    console.warn('MongoDB unavailable. Starting FRMS API in demo mode.');
-    console.warn(error?.message || error);
-    app.listen(env.port, () => {
-      console.log(`FRMS API demo mode running on http://localhost:${env.port}`);
-    });
+    console.error('MongoDB Atlas unavailable. API startup stopped; local and demo fallback are disabled.');
+    console.error(String(error?.message || error).replace(/mongodb(?:\+srv)?:\/\/\S+/g, '[redacted database URI]'));
+    process.exit(1);
   });

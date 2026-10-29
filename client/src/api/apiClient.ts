@@ -38,6 +38,7 @@ apiClient.interceptors.response.use(
       ? Math.max(0, Number.isFinite(Number(retryAfter)) ? Number(retryAfter) * 1000 : Date.parse(retryAfter) - Date.now())
       : 0;
     const message = error.response?.data?.message
+      || (!error.response && error.code === 'ERR_NETWORK' ? 'Cannot reach the server. Please check your connection and that the backend is running.' : '')
       || (status === 429 ? 'Too many requests. Please wait a moment and try again.' : error.message)
       || 'Request failed.';
     return Promise.reject(new ApiRequestError(message, status, Number.isFinite(retryAfterMs) ? retryAfterMs : 0));

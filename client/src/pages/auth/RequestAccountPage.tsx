@@ -1,3 +1,4 @@
+import { Toast } from '../../components/ui/Toast';
 import { FormEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authApi } from '../../api/authApi';
@@ -125,8 +126,8 @@ export function RequestAccountPage() {
         </div>
         <Textarea label="Address" value={form.address} onChange={(event) => setValue('address', event.target.value)} />
         <Textarea label="Message/reason" value={form.message} onChange={(event) => setValue('message', event.target.value)} />
-        {message && <p className="rounded-md bg-green-50 p-3 text-sm font-medium text-green-700">{message}</p>}
-        {error && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-700">{error}</p>}
+        {message && <Toast tone="green" message={message} />}
+        {error && <Toast tone="red" message={error} />}
         <Button type="submit">Submit Request</Button>
       </form>
       <Link className="mt-4 block text-sm font-semibold text-university-maroon" to="/auth/login">Back to Login</Link>

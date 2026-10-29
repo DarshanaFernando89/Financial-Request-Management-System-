@@ -1,3 +1,4 @@
+import { Toast } from '../ui/Toast';
 import { FileText, RefreshCcw, Send, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { requestApi } from '../../api/requestApi';
@@ -142,7 +143,7 @@ export function ClarificationPanel({ requestId, onDone }: { requestId: string; o
                 </a>
                 {id && (
                   <div className="flex items-center gap-2">
-                    <label className="focus-ring inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                    <label className="button-hover focus-ring inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                       <RefreshCcw size={14} /> Replace
                       <input className="sr-only" type="file" disabled={loading || saving} accept={acceptedFileTypes.join(',')} onChange={(event) => { replaceDocument(document, event.target.files?.[0]); event.target.value = ''; }} />
                     </label>
@@ -172,7 +173,7 @@ export function ClarificationPanel({ requestId, onDone }: { requestId: string; o
         ))}
       </section>
 
-      {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+      {error && <Toast tone="red" message={error} />}
       <Button icon={<Send size={16} />} disabled={saving || loading} onClick={() => void submit()}>
         Submit Response
       </Button>

@@ -1,18 +1,18 @@
 import { PageHeader } from '../../components/layout/PageHeader';
-import { useEffect, useState } from 'react';
 import { approvalApi } from '../../api/approvalApi';
 import { RequestTable } from '../../components/request/RequestTable';
-import type { FinancialRequest } from '../../types/request';
+import { useDashboardData } from '../../hooks/useDashboardData';
+import { Button } from '../../components/ui/Button';
+import { Toast } from '../../components/ui/Toast';
 
 export function PendingRequestsPage() {
-  const [requests, setRequests] = useState<FinancialRequest[]>([]);
-  useEffect(() => {
-    approvalApi.pending().then(setRequests).catch(() => setRequests([]));
-  }, []);
+  const { data, loading, error, retry } = useDashboardData(approvalApi.pending, 30000);
   return (
     <div className="space-y-5">
       <PageHeader title="Pending Requests" />
-      <RequestTable requests={requests} reviewBase="/approvals/review" />
+      {loading ? <p>Loading requests…</p> : error
+        ? <Toast tone="red" message={error} action={<Button variant="outline" onClick={retry}>Try again</Button>} />
+        : <RequestTable requests={data || []} reviewBase="/approvals/review" />}
     </div>
   );
 }

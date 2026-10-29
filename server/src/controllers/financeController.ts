@@ -13,13 +13,14 @@ export const pendingPayments = asyncHandler(async (_req, res) => {
     currentAssignedRole: 'FINANCE_OFFICER',
     status: REQUEST_STATUSES.PAYMENT_PENDING
   })
+    .select('-documents.fileBuffer')
     .populate('requestType requester', '-passwordHash')
     .sort({ updatedAt: 1 });
   res.json({ items });
 });
 
 export const paymentHistory = asyncHandler(async (_req, res) => {
-  const items = await PaymentModel.find().populate({ path: 'request', populate: { path: 'requestType requester' } }).sort({ paidAt: -1 });
+  const items = await PaymentModel.find().populate({ path: 'request', select: '-documents.fileBuffer', populate: { path: 'requestType requester' } }).sort({ paidAt: -1 });
   res.json({ items });
 });
 
@@ -27,7 +28,7 @@ export const financeRequestDetails = asyncHandler(async (req, res) => {
   const requestId = String(req.params.requestId);
   const request = await RequestModel.findOne(
     requestId.match(/^[a-f\d]{24}$/i) ? { _id: requestId } : { requestId }
-  ).populate('requestType requester', '-passwordHash');
+  ).select('-documents.fileBuffer').populate('requestType requester', '-passwordHash');
   if (!request) throw new ApiError(404, 'Request not found.');
   res.json(request);
 });

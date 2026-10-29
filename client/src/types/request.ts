@@ -61,6 +61,7 @@ export type WorkflowStep = {
   action?: string;
   remarks?: string;
   actedAt?: string;
+  actedBy?: string | Pick<User, '_id' | 'nameWithInitials' | 'fullName'> | null;
 };
 
 export type HistoryEntry = {

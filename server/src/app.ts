@@ -6,7 +6,6 @@ import adminRoutes from './routes/adminRoutes.js';
 import approvalRoutes from './routes/approvalRoutes.js';
 import auditRoutes from './routes/auditRoutes.js';
 import authRoutes from './routes/authRoutes.js';
-import demoRoutes from './routes/demoRoutes.js';
 import financeRoutes from './routes/financeRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
@@ -51,7 +50,6 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/uploads', express.static(path.resolve(env.uploadDir)));
 
-app.use('/api', demoRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/account-requests', accountRequestRoutes);
 app.use('/api/users', userRoutes);

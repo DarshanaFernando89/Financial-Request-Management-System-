@@ -1,3 +1,4 @@
+import { Toast } from '../ui/Toast';
 import { useEffect, useState } from 'react';
 import { requestApi } from '../../api/requestApi';
 import type { FinancialRequest } from '../../types/request';
@@ -41,7 +42,7 @@ export function DocumentAttachmentForm({ request, onUploaded }: { request: Finan
         <FileUpload label="Add supporting document" description="Optional" accept={policy.acceptedFileTypes.join(',')} disabled={uploading} onChange={(event) => void upload(event.target.files?.[0], 'Additional supporting document')} />
       </> : !error && <p className="text-sm text-slate-500">Loading document requirements...</p>}
       {uploading && <p className="text-sm text-slate-500">Uploading document...</p>}
-      {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+      {error && <Toast tone="red" message={error} />}
     </div>
   );
 }

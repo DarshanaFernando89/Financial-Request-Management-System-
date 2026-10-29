@@ -1,3 +1,4 @@
+import { Toast } from '../../components/ui/Toast';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Camera, Save } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
@@ -101,7 +102,7 @@ export function ProfilePage() {
             <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-xl font-bold text-university-maroon">
               {form.profileImageUrl ? <img src={form.profileImageUrl} alt="" className="h-full w-full object-cover" /> : profile.fullName.slice(0, 2).toUpperCase()}
             </div>
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+            <label className="button-hover inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
               <Camera size={16} />
               Upload Profile Picture
               <input className="sr-only" type="file" accept="image/*" disabled={saving} onChange={(event) => handleImage(event.target.files?.[0])} />
@@ -148,8 +149,8 @@ export function ProfilePage() {
             disabled={saving}
             onChange={(event) => setForm({ ...form, contactNo: event.target.value })}
           />
-          {error && <p className="text-sm font-medium text-red-600">{error}</p>}
-          {message && <p className="text-sm font-medium text-green-700">{message}</p>}
+          {error && <Toast tone="red" message={error} />}
+          {message && <Toast tone="green" message={message} />}
           <Button type="submit" icon={<Save size={16} />} disabled={saving}>{saving ? 'Saving...' : 'Save Profile'}</Button>
         </Card>
       </form>

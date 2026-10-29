@@ -19,6 +19,7 @@ export const pendingApprovals = asyncHandler(async (req, res) => {
     currentAssignedRole: activeRole,
     status: { $in: activeReviewStatuses }
   })
+    .select('-documents.fileBuffer')
     .populate('requestType requester', '-passwordHash')
     .sort({ submittedAt: -1, createdAt: -1 });
   res.json({ items });
@@ -26,7 +27,7 @@ export const pendingApprovals = asyncHandler(async (req, res) => {
 
 export const approvalHistory = asyncHandler(async (req, res) => {
   const activeRole = (req as any).user.activeRole;
-  const items = await RequestModel.find({ 'approvalHistory.role': activeRole }).populate('requestType requester', '-passwordHash');
+  const items = await RequestModel.find({ 'approvalHistory.role': activeRole }).select('-documents.fileBuffer').populate('requestType requester', '-passwordHash');
   res.json({ items });
 });
 
