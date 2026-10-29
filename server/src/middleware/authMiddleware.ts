@@ -23,9 +23,11 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
     if (!token) throw new ApiError(401, 'Authentication token is required.');
 
     const decoded = jwt.verify(token, env.jwtSecret) as JwtPayload;
-    const user = await UserModel.findById(decoded.userId);
+    const [user, catalog] = await Promise.all([
+      UserModel.findById(decoded.userId),
+      getRoleCatalog()
+    ]);
     if (!user || !user.isActive) throw new ApiError(401, 'User account is inactive or unavailable.');
-    const catalog = await getRoleCatalog();
     const roles = rolesFromCatalog(user.roles.map(String), catalog);
     // Existing tokens cannot retain an old role after the account assignment changes.
     if (!roles.length || (decoded.activeRole && decoded.activeRole !== roles[0])) {

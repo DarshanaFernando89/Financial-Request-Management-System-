@@ -69,6 +69,7 @@ export const adminDashboard = asyncHandler(async (_req, res) => {
       { $project: { _id: 0, requestTypeId: '$_id', name: { $ifNull: ['$requestType.name', 'Unknown'] }, count: 1, amount: 1 } }
     ]),
     RequestModel.find()
+      .select('-documents.fileBuffer')
       .populate('requestType', 'name code')
       .populate('requester', 'nameWithInitials department')
       .sort({ createdAt: -1 })

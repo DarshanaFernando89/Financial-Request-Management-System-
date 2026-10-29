@@ -13,7 +13,7 @@ import { useDashboardData } from '../../hooks/useDashboardData';
 import { formatCurrency } from '../../utils/formatCurrency';
 
 export function ApproverDashboardPage() {
-  const { data, loading, error, retry } = useDashboardData(approvalApi.pending);
+  const { data, loading, error, retry } = useDashboardData(approvalApi.pending, 30000);
   const pending = data || [];
   const navigate = useNavigate();
   return (

@@ -11,7 +11,7 @@ export type Notification = {
   message: string;
   type: string;
   isRead: boolean;
-  relatedRequest?: FinancialRequest;
+  relatedRequest?: Pick<FinancialRequest, '_id' | 'requestId' | 'status' | 'currentAssignedRole'>;
   relatedAccountRequest?: AccountRequestNotificationTarget | string;
   createdAt: string;
 };

@@ -21,7 +21,7 @@ vi.mock('../src/models/User.js', () => ({ UserModel: {
 } }));
 vi.mock('../src/models/CustomRole.js', () => ({ CustomRoleModel: { find: catalog } }));
 vi.mock('../src/services/auditService.js', () => ({ writeAuditLog: async () => {} }));
-vi.mock('../src/models/Request.js', () => ({ RequestModel: { find: () => ({ populate: () => ({ sort: pending }) }), findOne: claimById } }));
+vi.mock('../src/models/Request.js', () => ({ RequestModel: { find: () => ({ select: () => ({ populate: () => ({ sort: pending }) }) }), findOne: claimById } }));
 vi.mock('../src/models/Approval.js', () => ({ ApprovalModel: { create: recordApproval } }));
 vi.mock('../src/services/notificationService.js', () => ({ notifyRole: async () => {}, notifyUser: async () => {} }));
 

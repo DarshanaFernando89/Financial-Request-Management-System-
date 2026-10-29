@@ -294,6 +294,7 @@ export async function restartWorkflowForResubmission(request: any) {
 export async function getRequestByIdOrRequestId(id: string) {
   const query = id.match(/^[a-f\d]{24}$/i) ? { _id: id } : { requestId: id };
   return RequestModel.findOne(query)
+    .select('-documents.fileBuffer')
     .populate('requestType requester', '-passwordHash')
     .populate('workflowSteps.actedBy', 'nameWithInitials fullName');
 }

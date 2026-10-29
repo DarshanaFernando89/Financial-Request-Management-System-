@@ -1,10 +1,19 @@
 import request from 'supertest';
+import express from 'express';
 import { describe, expect, it } from 'vitest';
-import app from '../src/app.js';
+import demoRoutes from '../src/routes/demoRoutes.js';
+import { apiRateLimiter } from '../src/middleware/rateLimitMiddleware.js';
+
+// Use an isolated fixture; the real application never mounts demo routes.
+const app = express();
+app.locals.demoMode = true;
+app.use(express.json());
+app.use(apiRateLimiter);
+app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+app.use('/api', demoRoutes);
 
 describe('notification polling rate limits', () => {
   it('keeps profile access available after polling is throttled, while limiting both budgets', async () => {
-    app.locals.demoMode = true;
     const login = await request(app).post('/api/auth/login')
       .send({ email: 'admin@uor.lk', password: 'Password123!' });
     expect(login.status).toBe(200);

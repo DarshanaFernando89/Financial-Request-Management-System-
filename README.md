@@ -69,7 +69,7 @@ Server defaults:
 
 ```text
 PORT=5000
-MONGO_URI=mongodb://127.0.0.1:27017/financial_request_system
+MONGO_URI=mongodb+srv://<username>:<password>@cluster0.zd5sxzv.mongodb.net/?appName=Cluster0
 JWT_SECRET=replace_with_secret
 JWT_EXPIRES_IN=7d
 CLIENT_URL=http://localhost:5173
@@ -96,17 +96,17 @@ npm.cmd --prefix server install
 npm.cmd --prefix client install
 ```
 
-If Docker is available, start the local MongoDB service:
+Configure the supplied MongoDB Atlas URI in `server/.env`. The backend requires an Atlas SRV URI and has no local MongoDB default or demo fallback. If Atlas cannot be reached, startup fails instead of serving sample data. No data is synchronized to a local database.
 
-```powershell
-docker compose up -d
-```
+If startup reports `querySrv ECONNREFUSED` or `getaddrinfo ENOTFOUND`, set `DNS_SERVERS=1.1.1.1,8.8.8.8` in `server/.env` and restart the backend. This configures Atlas discovery and database socket hostname resolution for the backend process only, without changing Windows DNS or TLS verification. The supplied URI has no database path, so MongoDB uses the `test` database. Everyone sharing requests must use the same Atlas cluster and database name; separate localhost servers can still share this database.
+
+Request lists and detail pages fetch document metadata without attachment bytes. Notifications fetch only the linked request ID, status, and current role. Attachment contents remain stored in Atlas and are fetched by the document download endpoint when opened.
 
 ## Run Locally
 
-Start MongoDB locally or update `MONGO_URI` to MongoDB Atlas.
+Ensure the configured MongoDB Atlas cluster is reachable before starting the backend.
 
-Seed the database:
+Optional: seed an empty database only when sample data is explicitly wanted:
 
 ```powershell
 npm.cmd --prefix server run seed

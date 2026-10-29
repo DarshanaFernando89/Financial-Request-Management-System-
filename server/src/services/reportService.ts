@@ -29,7 +29,7 @@ export async function getSummary(query: any = {}) {
     RequestModel.aggregate([{ $match: filter }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
     RequestModel.aggregate([{ $match: filter }, { $group: { _id: '$requestType', count: { $sum: 1 }, amount: { $sum: '$amount' } } }]),
     RequestModel.aggregate([{ $match: filter }, { $group: { _id: null, amount: { $sum: '$amount' }, count: { $sum: 1 } } }]),
-    RequestModel.find(filter).populate('requestType').sort({ createdAt: -1 }).limit(50)
+    RequestModel.find(filter).select('-documents.fileBuffer').populate('requestType').sort({ createdAt: -1 }).limit(50)
   ]);
   return {
     statusCounts,
@@ -78,7 +78,7 @@ export async function paymentHistory(query: any = {}) {
     if (query.startDate) filter.paidAt.$gte = new Date(query.startDate);
     if (query.endDate) filter.paidAt.$lte = new Date(query.endDate);
   }
-  return PaymentModel.find(filter).populate({ path: 'request', populate: { path: 'requestType' } }).sort({ paidAt: -1 });
+  return PaymentModel.find(filter).populate({ path: 'request', select: '-documents.fileBuffer', populate: { path: 'requestType' } }).sort({ paidAt: -1 });
 }
 
 export async function buildPdfBuffer(title: string, rows: any[]) {

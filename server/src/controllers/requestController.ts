@@ -153,6 +153,7 @@ export const listRequests = asyncHandler(async (req, res) => {
 
   const [items, total] = await Promise.all([
     RequestModel.find(filter)
+      .select('-documents.fileBuffer')
       .populate('requestType requester', '-passwordHash')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
@@ -166,7 +167,7 @@ export const listRequests = asyncHandler(async (req, res) => {
 export const listMyRequests = asyncHandler(async (req, res) => {
   const session = (req as any).user;
   const filter = { ...requestFilterFromQuery(req.query), requester: session.userId };
-  const items = await RequestModel.find(filter).populate('requestType').sort({ createdAt: -1 });
+  const items = await RequestModel.find(filter).select('-documents.fileBuffer').populate('requestType').sort({ createdAt: -1 });
   res.json({ items });
 });
 
