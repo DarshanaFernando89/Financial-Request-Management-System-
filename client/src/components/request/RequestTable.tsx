@@ -25,7 +25,12 @@ export function RequestTable({ requests, reviewBase = '/requests' }: { requests:
           render: (row) => row.duplicateWarning ? (
             <span className="inline-flex items-start gap-1 text-xs font-semibold text-amber-800">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              <span>{row.duplicateWarning}</span>
+              <span>
+                {row.duplicateWarning}{' '}
+                {row.duplicateWarningRequestId && row.duplicateWarningReference && (
+                  <>Similar request: <Link className="underline" to={`${reviewBase}/${row.duplicateWarningRequestId}`}>{row.duplicateWarningReference}</Link>.</>
+                )}
+              </span>
             </span>
           ) : <span className="text-slate-400">-</span>
         },

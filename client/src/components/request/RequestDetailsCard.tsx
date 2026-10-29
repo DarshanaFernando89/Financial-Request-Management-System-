@@ -4,9 +4,10 @@ import { RequestStatusBadge } from './RequestStatusBadge';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { useRoleLabel } from '../../hooks/useRoleLabel';
 import { formatDateTime } from '../../utils/formatDateTime';
+import { Link } from 'react-router-dom';
 import type { FinancialRequest, RequestType } from '../../types/request';
 
-export function RequestDetailsCard({ request }: { request: FinancialRequest }) {
+export function RequestDetailsCard({ request, duplicateWarningBase = '/requests' }: { request: FinancialRequest; duplicateWarningBase?: string }) {
   const label = useRoleLabel();
   const type = request.requestType as RequestType;
   return (
@@ -19,7 +20,10 @@ export function RequestDetailsCard({ request }: { request: FinancialRequest }) {
       />
       {request.duplicateWarning && (
         <p role="alert" className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
-          {request.duplicateWarning}
+          {request.duplicateWarning}{' '}
+          {request.duplicateWarningRequestId && request.duplicateWarningReference && (
+            <>Similar request: <Link className="underline" to={`${duplicateWarningBase}/${request.duplicateWarningRequestId}`}>{request.duplicateWarningReference}</Link>.</>
+          )}
         </p>
       )}
       <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">

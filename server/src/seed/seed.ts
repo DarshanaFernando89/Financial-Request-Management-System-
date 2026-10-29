@@ -22,6 +22,7 @@ import {
   STEP_STATUSES
 } from '../utils/constants.js';
 import { buildWorkflowSteps } from '../services/workflowService.js';
+import { fuelDuplicateWarning } from '../services/fuelDuplicateClaimService.js';
 import { PAPER_MARKING_BATCHES, PAPER_MARKING_MODULE_RATES } from '../utils/paperMarkingCatalog.js';
 
 const faculty = 'Faculty of Engineering, University of Ruhuna';
@@ -137,10 +138,15 @@ async function seedRequestTypes() {
         field('examName', 'Exam name', 'text', true),
         {
           ...field('courseName', 'Module', 'select', true, Object.keys(PAPER_MARKING_MODULE_RATES)),
-          validationRules: { ratePerPaperByModule: PAPER_MARKING_MODULE_RATES }
+          validationRules: {
+            ratePerPaperByModule: PAPER_MARKING_MODULE_RATES,
+            studentCountByBatchAndModule: Object.fromEntries(PAPER_MARKING_BATCHES.map((batch) => [
+              batch,
+              Object.fromEntries(Object.keys(PAPER_MARKING_MODULE_RATES).map((module) => [module, 150]))
+            ]))
+          }
         },
         field('batch', 'Batch', 'select', true, PAPER_MARKING_BATCHES),
-        field('examDate', 'Exam date', 'date', true),
         field('academicYear', 'Academic year'),
         field('semester', 'Semester', 'select', true, ['Semester 1', 'Semester 2']),
         field('numberOfPapers', 'Total papers', 'number', true),
@@ -166,7 +172,7 @@ async function seedRequestTypes() {
       code: REQUEST_TYPE_CODES.TRAVEL_FUEL,
       description: 'Travel and fuel reimbursement claims.',
       fields: [
-        field('travelDate', 'Travel date', 'date'),
+        field('travelDate', 'Travel date', 'date', true),
         field('startingLocation', 'Starting location'),
         field('destination', 'Destination'),
         field('distanceKm', 'Distance in kilometers', 'number'),
@@ -378,7 +384,6 @@ async function seedRequests(users: any[], types: any[]) {
         examName: 'End Semester',
         courseName: 'EE5202',
         batch: 'E/20',
-        examDate: '2026-06-12',
         numberOfPapers: 120,
         ratePerPaper: 500
       },
@@ -459,7 +464,29 @@ async function seedRequests(users: any[], types: any[]) {
       requestType: byCode[REQUEST_TYPE_CODES.PAPER_MARKING]._id,
       title: 'Approved Request Pending Payment',
       amount: 18000,
-      requestData: { examName: 'Mid Semester', numberOfPapers: 45, ratePerPaper: 400 },
+      requestData: {
+        examName: 'Mid Semester',
+        courseName: 'EE5204',
+        batch: 'E/20',
+        numberOfPapers: 45,
+        ratePerPaper: 400
+      },
+      status: REQUEST_STATUSES.PAYMENT_PENDING,
+      currentStepIndex: 1,
+      currentAssignedRole: ROLES.FINANCE_OFFICER,
+      workflowSteps: makeSteps([ROLES.HOD], 1)
+    },
+    {
+      ...common,
+      requestId: '12000071',
+      requestType: byCode[REQUEST_TYPE_CODES.TRAVEL_FUEL]._id,
+      title: 'Possible Duplicate Fuel Claim',
+      description: 'Seed example for the duplicate fuel claim warning.',
+      amount: 20000,
+      requestData: { travelDate: '2026-06-01', destination: 'Galle', distanceKm: 120 },
+      duplicateWarning: fuelDuplicateWarning(),
+      duplicateWarningRequestId: '12000065',
+      duplicateWarningReference: '12000065',
       status: REQUEST_STATUSES.PAYMENT_PENDING,
       currentStepIndex: 1,
       currentAssignedRole: ROLES.FINANCE_OFFICER,

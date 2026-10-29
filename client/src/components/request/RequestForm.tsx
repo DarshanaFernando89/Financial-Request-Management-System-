@@ -1,7 +1,7 @@
 import { Toast } from '../ui/Toast';
 import { FileText, Save, Send, X } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { requestApi } from '../../api/requestApi';
 import type { RequestField } from '../../types/request';
 import type { RequestRuleOption } from '../../types/rule';
@@ -30,7 +30,7 @@ function dynamicAmount(data: Record<string, string>) {
   return Number(data.amount || 0);
 }
 
-function FieldControl({ field, value, onChange, readOnly = false }: { field: RequestField; value: string; onChange: (value: string) => void; readOnly?: boolean }) {
+function FieldControl({ field, value, onChange, readOnly = false, max }: { field: RequestField; value: string; onChange: (value: string) => void; readOnly?: boolean; max?: number }) {
   if (field.type === 'textarea') return <Textarea label={field.label} required={field.required} placeholder={field.placeholder} value={value} onChange={(event) => onChange(event.target.value)} />;
   if (field.type === 'select') {
     return (
@@ -43,7 +43,7 @@ function FieldControl({ field, value, onChange, readOnly = false }: { field: Req
       />
     );
   }
-  return <Input label={field.label} type={field.type} required={field.required} readOnly={readOnly} className={readOnly ? 'bg-slate-100' : undefined} value={value} onChange={(event) => onChange(event.target.value)} />;
+  return <Input label={field.label} type={field.type} required={field.required} readOnly={readOnly} max={max} className={readOnly ? 'bg-slate-100' : undefined} value={value} onChange={(event) => onChange(event.target.value)} />;
 }
 
 export function RequestForm() {
@@ -54,7 +54,11 @@ export function RequestForm() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
-  const [fuelDuplicateWarning, setFuelDuplicateWarning] = useState('');
+  const [fuelDuplicateWarning, setFuelDuplicateWarning] = useState<{
+    warning?: string;
+    duplicateRequestId?: string;
+    duplicateRequestReference?: string;
+  }>({});
   const [fuelDuplicateCheckError, setFuelDuplicateCheckError] = useState('');
   const [requestData, setRequestData] = useState<Record<string, string>>({});
   const [lectureTimeSlots, setLectureTimeSlots] = useState(() => [newLectureTimeSlot()]);
@@ -81,6 +85,9 @@ export function RequestForm() {
   const selectedPaperRate = paperMarkingRequest && paperModuleField
     ? paperRatesByModule[requestData[paperModuleField.name]] || ''
     : '';
+  const paperStudentLimit = paperMarkingRequest && paperModuleField
+    ? paperModuleField.validationRules?.studentCountByBatchAndModule?.[requestData.batch]?.[requestData[paperModuleField.name]]
+    : undefined;
   const lectureBatches = selectedType?.fields.find((field) => field.name === 'batch')?.options || [];
   const lectureModules = selectedType?.fields.find((field) => field.name === 'module')?.options || [];
   const timeSlotsError = lectureHoursRequest ? validateLectureTimeSlots(lectureTimeSlots) : '';
@@ -118,15 +125,16 @@ export function RequestForm() {
   }, [paperMarkingRequest, paperModuleField?.name, selectedPaperRate, requestData.ratePerPaper]);
 
   useEffect(() => {
-    setFuelDuplicateWarning('');
+    setFuelDuplicateWarning({});
     setFuelDuplicateCheckError('');
     const requestAmount = Number(amount);
-    if (!fuelRequest || !selectedType?._id || !Number.isFinite(requestAmount) || requestAmount <= 0) return;
+    const travelDate = requestData.travelDate;
+    if (!fuelRequest || !selectedType?._id || !Number.isFinite(requestAmount) || requestAmount <= 0 || !travelDate) return;
     let active = true;
     const timeout = window.setTimeout(() => {
-      requestApi.duplicateFuelWarning(selectedType._id, requestAmount)
+      requestApi.duplicateFuelWarning(selectedType._id, requestAmount, travelDate)
         .then((warning) => {
-          if (active) setFuelDuplicateWarning(warning || '');
+          if (active) setFuelDuplicateWarning(warning);
         })
         .catch((err) => {
           if (active) setFuelDuplicateCheckError(err instanceof Error ? err.message : 'Unable to check for similar fuel claims.');
@@ -136,7 +144,7 @@ export function RequestForm() {
       active = false;
       window.clearTimeout(timeout);
     };
-  }, [fuelRequest, selectedType?._id, amount]);
+  }, [fuelRequest, selectedType?._id, amount, requestData.travelDate]);
 
   function updateField(name: string, value: string) {
     setRequestData((current) => ({ ...current, [name]: value }));
@@ -214,6 +222,17 @@ export function RequestForm() {
       setError('Select an available batch and module for every lecture time slot.');
       return;
     }
+    if (paperMarkingRequest) {
+      const paperCount = Number(requestData.numberOfPapers);
+      if (typeof paperStudentLimit !== 'number' || !Number.isInteger(paperStudentLimit) || paperStudentLimit <= 0) {
+        setError('The student count for this module and batch has not been configured. Please contact an administrator.');
+        return;
+      }
+      if (paperCount > paperStudentLimit) {
+        setError(`Total papers cannot exceed the ${paperStudentLimit} students enrolled in this module and batch.`);
+        return;
+      }
+    }
     const requestAmount = Number(amount);
     if (!Number.isFinite(requestAmount) || requestAmount <= 0) {
       setError('Amount must be positive.');
@@ -270,9 +289,12 @@ export function RequestForm() {
         {selectedRule && (
           <p className="text-sm text-slate-500">Amount range: {selectedRule.minAmount} - {selectedRule.maxAmount ?? 'No upper limit'}</p>
         )}
-        {fuelDuplicateWarning && (
+        {fuelDuplicateWarning.warning && (
           <p role="alert" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
-            {fuelDuplicateWarning}
+            {fuelDuplicateWarning.warning}{' '}
+            {fuelDuplicateWarning.duplicateRequestId && fuelDuplicateWarning.duplicateRequestReference && (
+              <>Similar request: <Link className="underline" to={`/requests/${fuelDuplicateWarning.duplicateRequestId}`}>{fuelDuplicateWarning.duplicateRequestReference}</Link>.</>
+            )}
           </p>
         )}
         {fuelDuplicateCheckError && (
@@ -309,7 +331,7 @@ export function RequestForm() {
           )}
           {paperMarkingRequest && (
             <p className="mb-4 rounded-md bg-slate-50 p-3 text-sm text-slate-600">
-              Select a batch and module, then enter the exam date and total papers marked. Demo rate per paper is set automatically by module, and the total claim amount is calculated automatically. Confirm official module rates before processing payment. You can submit only one paper-marking claim for the same module and exam date.
+              Select a batch and module, then enter the total papers marked. The amount is calculated using the configured rate per paper. Only one paper-marking claim is allowed for each module and batch, and the paper count cannot exceed the number of students enrolled.
             </p>
           )}
           <div className="grid gap-4 md:grid-cols-2">
@@ -322,9 +344,17 @@ export function RequestForm() {
                 value={requestData[field.name] || ''}
                 onChange={(value) => updateField(field.name, value)}
                 readOnly={(lectureHoursRequest && field.name === 'lectureHours') || (paperMarkingRequest && field.name === 'ratePerPaper')}
+                max={paperMarkingRequest && field.name === 'numberOfPapers' ? paperStudentLimit : undefined}
               />
             ))}
           </div>
+          {paperMarkingRequest && requestData.batch && requestData[paperModuleField?.name || ''] && (
+            <p className="mt-3 text-sm text-slate-600">
+              {paperStudentLimit
+                ? `Students enrolled in ${requestData[paperModuleField?.name || '']} (${requestData.batch}): ${paperStudentLimit}.`
+                : 'Student count has not been configured for this module and batch.'}
+            </p>
+          )}
           {lectureHoursRequest && timeSlotsError && lectureTimeSlots.some((slot) => slot.date || slot.startTime || slot.endTime) && (
             <p className="mt-3 text-sm font-medium text-red-600">{timeSlotsError}</p>
           )}

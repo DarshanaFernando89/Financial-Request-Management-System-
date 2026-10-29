@@ -19,7 +19,7 @@ import { assertNoDuplicateLectureHoursClaim } from '../services/lectureHoursClai
 import { prepareLectureHoursClaim } from '../utils/lectureHoursClaim.js';
 import { assertNoDuplicatePaperMarkingClaim } from '../services/paperMarkingClaimService.js';
 import { preparePaperMarkingClaim } from '../utils/paperMarkingClaim.js';
-import { findDuplicateFuelClaim, fuelDuplicateWarning } from '../services/fuelDuplicateClaimService.js';
+import { assertFuelTravelDate, findDuplicateFuelClaim, fuelDuplicateWarning } from '../services/fuelDuplicateClaimService.js';
 import { documentPolicy, assertAcceptedDocuments, assertRequiredDocuments } from '../utils/documentPolicy.js';
 import { getDocumentPolicy } from '../services/documentPolicyService.js';
 
@@ -175,19 +175,26 @@ export const checkDuplicateFuelClaim = asyncHandler(async (req, res) => {
   const session = (req as any).user;
   const requestTypeId = String(req.query.requestType || '');
   const amount = Number(req.query.amount);
-  if (!requestTypeId || !Number.isFinite(amount) || amount <= 0) {
-    throw new ApiError(400, 'A request type and positive amount are required.');
+  const travelDate = String(req.query.travelDate || '');
+  if (!requestTypeId || !Number.isFinite(amount) || amount <= 0 || !travelDate) {
+    throw new ApiError(400, 'A request type, positive amount, and travel date are required.');
   }
   const type = await RequestTypeModel.findById(requestTypeId);
   if (!type || !type.isActive) throw new ApiError(422, 'Request type is inactive or unavailable.');
+  assertFuelTravelDate(type.code, type.name, { travelDate });
   const duplicate = await findDuplicateFuelClaim({
     requesterId: session.userId,
     requestTypeId: type._id.toString(),
     requestTypeCode: type.code,
     requestTypeName: type.name,
-    amount
+    amount,
+    travelDate
   });
-  res.json({ warning: duplicate ? fuelDuplicateWarning(duplicate.requestId) : undefined });
+  res.json({
+    warning: duplicate ? fuelDuplicateWarning() : undefined,
+    duplicateRequestId: duplicate?._id.toString(),
+    duplicateRequestReference: duplicate?.requestId
+  });
 });
 
 export const getRequest = asyncHandler(async (req, res) => {
@@ -222,6 +229,7 @@ export const createRequest = asyncHandler(async (req, res) => {
   const type = await RequestTypeModel.findById(requestType);
   if (!type || !type.isActive) throw new ApiError(422, 'Request type is inactive or unavailable.');
   const preparedClaim = prepareRequestClaim(type, parseRequestData(requestData));
+  if (parseBoolean(submit)) assertFuelTravelDate(type.code, type.name, preparedClaim.requestData);
   const requestAmount = preparedClaim.amount ?? Number(amount);
   if (!Number.isFinite(requestAmount) || requestAmount <= 0) throw new ApiError(400, 'Amount must be positive.');
   const rule = await findMatchingRule(requestType, requestAmount, approvalRule);
@@ -239,7 +247,8 @@ export const createRequest = asyncHandler(async (req, res) => {
     requestTypeId: type._id.toString(),
     requestTypeCode: type.code,
     requestTypeName: type.name,
-    amount: requestAmount
+    amount: requestAmount,
+    travelDate: preparedClaim.requestData.travelDate
   });
   const documents = uploadedDocuments(req);
   const policy = documentPolicy(rule, type);
@@ -256,7 +265,9 @@ export const createRequest = asyncHandler(async (req, res) => {
     amount: requestAmount,
     requestData: preparedClaim.requestData,
     ...claimKeys,
-    duplicateWarning: duplicateFuelClaim ? fuelDuplicateWarning(duplicateFuelClaim.requestId) : undefined,
+    duplicateWarning: duplicateFuelClaim ? fuelDuplicateWarning() : undefined,
+    duplicateWarningRequestId: duplicateFuelClaim?._id.toString(),
+    duplicateWarningReference: duplicateFuelClaim?.requestId,
     documents,
     submit: parseBoolean(submit)
   });
@@ -309,6 +320,7 @@ export const updateRequest = asyncHandler(async (req, res) => {
     requestTypeCode: nextRequestType.code,
     requestTypeName: nextRequestType.name,
     amount: preparedClaim.amount ?? Number(req.body.amount ?? request.amount),
+    travelDate: preparedClaim.requestData.travelDate,
     excludeRequestId: request._id.toString()
   });
   const allowed = ['requestType', 'approvalRule', 'title', 'description', 'amount', 'requestData'];
@@ -319,7 +331,9 @@ export const updateRequest = asyncHandler(async (req, res) => {
   if (preparedClaim.amount !== undefined) request.amount = preparedClaim.amount;
   request.lectureHoursClaimKey = claimKeys.lectureHoursClaimKey;
   request.paperMarkingClaimKey = claimKeys.paperMarkingClaimKey;
-  request.duplicateWarning = duplicateFuelClaim ? fuelDuplicateWarning(duplicateFuelClaim.requestId) : undefined;
+  request.duplicateWarning = duplicateFuelClaim ? fuelDuplicateWarning() : undefined;
+  request.duplicateWarningRequestId = duplicateFuelClaim?._id.toString();
+  request.duplicateWarningReference = duplicateFuelClaim?.requestId;
   await request.save();
   res.json(await request.populate('requestType'));
 });
@@ -334,6 +348,7 @@ export const submitRequest = asyncHandler(async (req, res) => {
   const type = await RequestTypeModel.findById(request.requestType);
   if (!type || !type.isActive) throw new ApiError(422, 'Request type is inactive or unavailable.');
   const preparedClaim = prepareRequestClaim(type, request.requestData);
+  assertFuelTravelDate(type.code, type.name, preparedClaim.requestData);
   request.requestData = preparedClaim.requestData;
   if (preparedClaim.amount !== undefined) request.amount = preparedClaim.amount;
   const claimKeys = await assertNoDuplicateClaims({
@@ -350,9 +365,12 @@ export const submitRequest = asyncHandler(async (req, res) => {
     requestTypeCode: type.code,
     requestTypeName: type.name,
     amount: request.amount,
+    travelDate: preparedClaim.requestData.travelDate,
     excludeRequestId: request._id.toString()
   });
-  request.duplicateWarning = duplicateFuelClaim ? fuelDuplicateWarning(duplicateFuelClaim.requestId) : undefined;
+  request.duplicateWarning = duplicateFuelClaim ? fuelDuplicateWarning() : undefined;
+  request.duplicateWarningRequestId = duplicateFuelClaim?._id.toString();
+  request.duplicateWarningReference = duplicateFuelClaim?.requestId;
 
   request.status = REQUEST_STATUSES.SUBMITTED;
   await initializeWorkflow(request);
@@ -383,6 +401,7 @@ export const resubmitRequest = asyncHandler(async (req, res) => {
   const type = await RequestTypeModel.findById(request.requestType);
   if (!type || !type.isActive) throw new ApiError(422, 'Request type is inactive or unavailable.');
   const preparedClaim = prepareRequestClaim(type, request.requestData);
+  assertFuelTravelDate(type.code, type.name, preparedClaim.requestData);
   request.requestData = preparedClaim.requestData;
   if (preparedClaim.amount !== undefined) request.amount = preparedClaim.amount;
   const claimKeys = await assertNoDuplicateClaims({
@@ -399,9 +418,12 @@ export const resubmitRequest = asyncHandler(async (req, res) => {
     requestTypeCode: type.code,
     requestTypeName: type.name,
     amount: request.amount,
+    travelDate: preparedClaim.requestData.travelDate,
     excludeRequestId: request._id.toString()
   });
-  request.duplicateWarning = duplicateFuelClaim ? fuelDuplicateWarning(duplicateFuelClaim.requestId) : undefined;
+  request.duplicateWarning = duplicateFuelClaim ? fuelDuplicateWarning() : undefined;
+  request.duplicateWarningRequestId = duplicateFuelClaim?._id.toString();
+  request.duplicateWarningReference = duplicateFuelClaim?.requestId;
 
   await restartWorkflowForResubmission(request);
   if (request.currentAssignedRole) {

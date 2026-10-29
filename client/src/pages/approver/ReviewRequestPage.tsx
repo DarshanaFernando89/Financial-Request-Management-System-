@@ -60,7 +60,7 @@ export function ReviewRequestPage() {
 
   return (
     <div className="space-y-5">
-      <RequestDetailsCard request={request} />
+      <RequestDetailsCard request={request} duplicateWarningBase="/approvals/review" />
       <RequestDataCard request={request} />
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-5">
