@@ -1,12 +1,13 @@
 import { PaymentModel } from '../models/Payment.js';
 import { RequestModel } from '../models/Request.js';
-import { APPROVAL_ACTIONS, REQUEST_STATUSES, STEP_STATUSES } from '../utils/constants.js';
+import { APPROVAL_ACTIONS, REQUEST_STATUSES, ROLES, STEP_STATUSES } from '../utils/constants.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { getCurrentStep, rejectRequest, requestMoreInfo } from '../services/workflowService.js';
 import { notifyUser } from '../services/notificationService.js';
 import { writeAuditLog } from '../services/auditService.js';
 import { buildPaymentReceiptPdfBuffer } from '../services/reportService.js';
+import { markRequestNotificationsRead } from '../services/notificationReadService.js';
 
 export const pendingPayments = asyncHandler(async (_req, res) => {
   const items = await RequestModel.find({
@@ -25,15 +26,18 @@ export const paymentHistory = asyncHandler(async (_req, res) => {
 });
 
 export const financeRequestDetails = asyncHandler(async (req, res) => {
+  const openedAt = new Date();
   const requestId = String(req.params.requestId);
   const request = await RequestModel.findOne(
     requestId.match(/^[a-f\d]{24}$/i) ? { _id: requestId } : { requestId }
   ).select('-documents.fileBuffer').populate('requestType requester', '-passwordHash');
   if (!request) throw new ApiError(404, 'Request not found.');
+  await markRequestNotificationsRead((req as any).user, request._id.toString(), openedAt);
   res.json(request);
 });
 
 export const markPaid = asyncHandler(async (req, res) => {
+  const openedAt = new Date();
   const session = (req as any).user;
   const requestId = String(req.params.requestId);
   const request = await RequestModel.findOne(
@@ -100,6 +104,7 @@ export const markPaid = asyncHandler(async (req, res) => {
     entityId: request._id.toString(),
     description: `${request.requestId} marked as paid.`
   });
+  await markRequestNotificationsRead(session, request._id.toString(), openedAt);
   await notifyUser({
     user: request.requester.toString(),
     title: 'Payment processed',
@@ -111,6 +116,7 @@ export const markPaid = asyncHandler(async (req, res) => {
 });
 
 export const financeRequestInfo = asyncHandler(async (req, res) => {
+  const openedAt = new Date();
   const session = (req as any).user;
   const requestId = String(req.params.requestId);
   const request = await RequestModel.findOne(
@@ -123,6 +129,7 @@ export const financeRequestInfo = asyncHandler(async (req, res) => {
     activeRole: session.activeRole,
     remarks: req.body.remarks
   });
+  await markRequestNotificationsRead(session, updated._id.toString(), openedAt);
   await notifyUser({
     user: updated.requester.toString(),
     title: 'Clarification Requested',
@@ -133,6 +140,7 @@ export const financeRequestInfo = asyncHandler(async (req, res) => {
 });
 
 export const financeReject = asyncHandler(async (req, res) => {
+  const openedAt = new Date();
   const session = (req as any).user;
   const requestId = String(req.params.requestId);
   const request = await RequestModel.findOne(
@@ -145,6 +153,7 @@ export const financeReject = asyncHandler(async (req, res) => {
     activeRole: session.activeRole,
     remarks: req.body.remarks || req.body.reason
   });
+  await markRequestNotificationsRead(session, updated._id.toString(), openedAt);
   await notifyUser({
     user: updated.requester.toString(),
     title: 'Request rejected by Finance',
@@ -155,14 +164,23 @@ export const financeReject = asyncHandler(async (req, res) => {
 });
 
 export const exportPaymentReceipt = asyncHandler(async (req, res) => {
+  const session = (req as any).user;
   const requestId = String(req.params.requestId);
   const request = await RequestModel.findOne(
     requestId.match(/^[a-f\d]{24}$/i) ? { _id: requestId } : { requestId }
   ).populate('requestType requester', '-passwordHash');
   if (!request) throw new ApiError(404, 'Request not found.');
 
-  const documents = request.documents || [];
-  const buffer = await buildPaymentReceiptPdfBuffer(request, documents);
+  const participated = request.workflowSteps.some((step) => step.role === session.activeRole)
+    || request.approvalHistory.some((entry) => entry.role === session.activeRole);
+  if (session.activeRole !== ROLES.FINANCE_OFFICER && !participated) {
+    throw new ApiError(403, 'Payment receipts are available only for requests in your approval workflow.');
+  }
+  if (request.status !== REQUEST_STATUSES.PAID || !request.payment?.paidAt) {
+    throw new ApiError(422, 'A payment receipt is available only after the request has been paid.');
+  }
+
+  const buffer = await buildPaymentReceiptPdfBuffer(request);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="payment-receipt-${request.requestId}.pdf"`);
   res.send(buffer);

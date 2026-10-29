@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { notifyNotificationsChanged } from '../hooks/useNotifications';
 import type { Payment } from '../types/finance';
 import type { FinancialRequest } from '../types/request';
 
@@ -13,18 +14,22 @@ export const financeApi = {
   },
   async get(id: string) {
     const { data } = await apiClient.get<FinancialRequest>(`/finance/${id}`);
+    notifyNotificationsChanged();
     return data;
   },
   async markPaid(id: string, payload: Record<string, unknown>) {
     const { data } = await apiClient.post<{ request: FinancialRequest; payment: Payment }>(`/finance/${id}/mark-paid`, payload);
+    notifyNotificationsChanged();
     return data;
   },
   async requestInfo(id: string, remarks: string) {
     const { data } = await apiClient.post<FinancialRequest>(`/finance/${id}/request-info`, { remarks });
+    notifyNotificationsChanged();
     return data;
   },
   async reject(id: string, remarks: string) {
     const { data } = await apiClient.post<FinancialRequest>(`/finance/${id}/reject`, { remarks });
+    notifyNotificationsChanged();
     return data;
   },
   async downloadPaymentReceipt(id: string) {

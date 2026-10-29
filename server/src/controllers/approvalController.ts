@@ -6,6 +6,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { completeCurrentStep, rejectRequest, requestMoreInfo } from '../services/workflowService.js';
 import { notifyRole, notifyUser } from '../services/notificationService.js';
 import { writeAuditLog } from '../services/auditService.js';
+import { markRequestNotificationsRead } from '../services/notificationReadService.js';
 
 const activeReviewStatuses = [
   REQUEST_STATUSES.SUBMITTED,
@@ -59,6 +60,7 @@ async function recordApproval(request: any, action: string, session: any, remark
 }
 
 export const approve = asyncHandler(async (req, res) => {
+  const openedAt = new Date();
   const session = (req as any).user;
   const request = await loadRequest(String(req.params.requestId));
   const updated = await completeCurrentStep({
@@ -69,6 +71,7 @@ export const approve = asyncHandler(async (req, res) => {
     remarks: req.body.remarks
   });
   await recordApproval(updated, APPROVAL_ACTIONS.APPROVE, session, req.body.remarks);
+  await markRequestNotificationsRead(session, updated._id.toString(), openedAt);
   if (updated.currentAssignedRole) {
     await notifyRole({
       role: updated.currentAssignedRole,
@@ -88,6 +91,7 @@ export const approve = asyncHandler(async (req, res) => {
 });
 
 export const verifyForward = asyncHandler(async (req, res) => {
+  const openedAt = new Date();
   const session = (req as any).user;
   const request = await loadRequest(String(req.params.requestId));
   const updated = await completeCurrentStep({
@@ -98,6 +102,7 @@ export const verifyForward = asyncHandler(async (req, res) => {
     remarks: req.body.remarks
   });
   await recordApproval(updated, APPROVAL_ACTIONS.VERIFY_FORWARD, session, req.body.remarks);
+  await markRequestNotificationsRead(session, updated._id.toString(), openedAt);
   if (updated.currentAssignedRole) {
     await notifyRole({
       role: updated.currentAssignedRole,
@@ -110,6 +115,7 @@ export const verifyForward = asyncHandler(async (req, res) => {
 });
 
 export const requestInfo = asyncHandler(async (req, res) => {
+  const openedAt = new Date();
   const session = (req as any).user;
   const request = await loadRequest(String(req.params.requestId));
   const updated = await requestMoreInfo({
@@ -119,6 +125,7 @@ export const requestInfo = asyncHandler(async (req, res) => {
     remarks: req.body.remarks
   });
   await recordApproval(updated, APPROVAL_ACTIONS.REQUEST_INFO, session, req.body.remarks);
+  await markRequestNotificationsRead(session, updated._id.toString(), openedAt);
   await notifyUser({
     user: updated.requester.toString(),
     title: 'Clarification Requested',
@@ -129,6 +136,7 @@ export const requestInfo = asyncHandler(async (req, res) => {
 });
 
 export const reject = asyncHandler(async (req, res) => {
+  const openedAt = new Date();
   const session = (req as any).user;
   const request = await loadRequest(String(req.params.requestId));
   const updated = await rejectRequest({
@@ -138,6 +146,7 @@ export const reject = asyncHandler(async (req, res) => {
     remarks: req.body.remarks || req.body.reason
   });
   await recordApproval(updated, APPROVAL_ACTIONS.REJECT, session, req.body.remarks || req.body.reason);
+  await markRequestNotificationsRead(session, updated._id.toString(), openedAt);
   await notifyUser({
     user: updated.requester.toString(),
     title: 'Request rejected',

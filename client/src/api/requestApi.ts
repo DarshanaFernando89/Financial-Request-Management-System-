@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { notifyNotificationsChanged } from '../hooks/useNotifications';
 import type { FinancialRequest, RequestListResponse, RequestType } from '../types/request';
 import type { RequestRuleOption } from '../types/rule';
 import type { DocumentPolicy } from '../utils/documentPolicy';
@@ -32,6 +33,7 @@ export const requestApi = {
   },
   async get(id: string) {
     const { data } = await apiClient.get<FinancialRequest>(`/requests/${id}`);
+    notifyNotificationsChanged();
     return data;
   },
   async documentPolicy(id: string) {

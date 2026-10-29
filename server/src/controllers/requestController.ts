@@ -22,6 +22,7 @@ import { preparePaperMarkingClaim } from '../utils/paperMarkingClaim.js';
 import { assertFuelTravelDate, findDuplicateFuelClaim, fuelDuplicateWarning } from '../services/fuelDuplicateClaimService.js';
 import { documentPolicy, assertAcceptedDocuments, assertRequiredDocuments } from '../utils/documentPolicy.js';
 import { getDocumentPolicy } from '../services/documentPolicyService.js';
+import { markRequestNotificationsRead } from '../services/notificationReadService.js';
 
 function requestFilterFromQuery(query: any) {
   const filter: any = {};
@@ -198,8 +199,10 @@ export const checkDuplicateFuelClaim = asyncHandler(async (req, res) => {
 });
 
 export const getRequest = asyncHandler(async (req, res) => {
+  const openedAt = new Date();
   const request = await getRequestByIdOrRequestId(String(req.params.id));
   if (!request) throw new ApiError(404, 'Request not found.');
+  await markRequestNotificationsRead((req as any).user, request._id.toString(), openedAt);
   res.json(request);
 });
 

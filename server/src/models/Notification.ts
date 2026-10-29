@@ -10,7 +10,8 @@ const notificationSchema = new Schema(
     relatedRequest: { type: Schema.Types.ObjectId, ref: 'Request' },
     relatedAccountRequest: { type: Schema.Types.ObjectId, ref: 'AccountRequest' },
     relatedUser: { type: Schema.Types.ObjectId, ref: 'User' },
-    isRead: { type: Boolean, default: false }
+    isRead: { type: Boolean, default: false },
+    readBy: [{ type: Schema.Types.ObjectId, ref: 'User' }]
   },
   { timestamps: true }
 );

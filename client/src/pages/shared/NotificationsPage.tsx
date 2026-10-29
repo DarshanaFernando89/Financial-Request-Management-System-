@@ -11,8 +11,12 @@ import { getNotificationAction } from '../../utils/notificationActions';
 import { useAuth } from '../../hooks/useAuth';
 
 export function NotificationsPage() {
-  const { notifications } = useNotifications();
+  const { notifications, unreadCount } = useNotifications();
   const { user } = useAuth();
+  const sortedNotifications = [...notifications].sort((a, b) =>
+    Number(a.isRead) - Number(b.isRead) ||
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
   async function readAll() {
     await notificationApi.readAll();
     notifyNotificationsChanged();
@@ -24,18 +28,22 @@ export function NotificationsPage() {
   }
   return (
     <div className="space-y-5">
-      <PageHeader title="Notifications" actions={
-        <Button variant="outline" icon={<CheckCheck size={16} />} onClick={() => void readAll()}>Mark All Read</Button>
+      <PageHeader title="Notifications" description={unreadCount ? `${unreadCount} unread • Unread notifications appear first` : 'You’re all caught up.'} actions={
+        <Button variant="outline" icon={<CheckCheck size={16} />} disabled={!unreadCount} onClick={() => void readAll()}>Mark All Read</Button>
       } />
       {notifications.length ? (
         <div className="space-y-3">
-          {notifications.map((item) => {
+          {sortedNotifications.map((item) => {
             const action = getNotificationAction(item, user?.activeRole, user?.approvalRoles);
             const notificationTo = action?.openDirectly ? action.to : `/notifications/${item._id}`;
             return (
-              <Card key={item._id} className={item.isRead ? 'shadow-none' : 'border-blue-200 bg-blue-50'}>
+              <Card key={item._id} className={item.isRead ? 'border-l-4 border-l-slate-200 shadow-none [&_h2]:!font-medium' : 'border-l-4 !border-blue-200 !border-l-blue-600 !bg-blue-50'}>
                 <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
                   <Link className="min-w-0 flex-1" to={notificationTo} onClick={() => void readNotification(item._id, item.isRead)}>
+                    <span className={`mb-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${item.isRead ? 'bg-slate-100 text-slate-600' : 'bg-blue-100 text-blue-800'}`}>
+                      {item.isRead ? <CheckCheck size={14} aria-hidden="true" /> : <span className="h-2 w-2 rounded-full bg-blue-600" aria-hidden="true" />}
+                      {item.isRead ? 'Read' : 'Unread'}
+                    </span>
                     <h2 className="font-semibold text-slate-900 hover:text-university-maroon">{item.title}</h2>
                     <p className="mt-1 text-sm text-slate-600">{item.message}</p>
                   </Link>

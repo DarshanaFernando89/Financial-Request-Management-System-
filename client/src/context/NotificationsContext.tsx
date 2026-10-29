@@ -21,13 +21,19 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
     let disposed = false;
     let inFlight = false;
+    let refreshPending = false;
     let timer: number | undefined;
     let retryAt = 0;
     let failures = 0;
     const controller = new AbortController();
 
     async function fetchNotifications() {
-      if (disposed || document.hidden || inFlight || Date.now() < retryAt) return;
+      if (disposed || document.hidden) return;
+      if (inFlight) {
+        refreshPending = true;
+        return;
+      }
+      if (Date.now() < retryAt) return;
       window.clearTimeout(timer);
       inFlight = true;
       setIsLoading(true);
@@ -48,7 +54,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         inFlight = false;
         if (!disposed) {
           setIsLoading(false);
-          timer = window.setTimeout(() => void fetchNotifications(), delay);
+          timer = window.setTimeout(() => void fetchNotifications(), refreshPending && !failures ? 0 : delay);
+          refreshPending = false;
         }
       }
     }

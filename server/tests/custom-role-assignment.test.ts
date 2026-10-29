@@ -24,6 +24,7 @@ vi.mock('../src/services/auditService.js', () => ({ writeAuditLog: async () => {
 vi.mock('../src/models/Request.js', () => ({ RequestModel: { find: () => ({ select: () => ({ populate: () => ({ sort: pending }) }) }), findOne: claimById } }));
 vi.mock('../src/models/Approval.js', () => ({ ApprovalModel: { create: recordApproval } }));
 vi.mock('../src/services/notificationService.js', () => ({ notifyRole: async () => {}, notifyUser: async () => {} }));
+vi.mock('../src/services/notificationReadService.js', () => ({ markRequestNotificationsRead: async () => {} }));
 
 import authRoutes from '../src/routes/authRoutes.js';
 import userRoutes from '../src/routes/userRoutes.js';

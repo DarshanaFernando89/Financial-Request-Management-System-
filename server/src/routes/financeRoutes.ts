@@ -14,11 +14,16 @@ import { ROLES } from '../utils/constants.js';
 
 const router = Router();
 
-router.use(authMiddleware, requireActiveRole, requireRoles(ROLES.FINANCE_OFFICER));
+router.use(authMiddleware, requireActiveRole);
+router.get(
+  '/:requestId/payment-receipt',
+  requireRoles(ROLES.FINANCE_OFFICER, ROLES.HOD, ROLES.DEAN),
+  exportPaymentReceipt
+);
+router.use(requireRoles(ROLES.FINANCE_OFFICER));
 router.get('/pending-payments', pendingPayments);
 router.get('/payment-history', paymentHistory);
 router.get('/:requestId', financeRequestDetails);
-router.get('/:requestId/payment-receipt', exportPaymentReceipt);
 router.post('/:requestId/mark-paid', markPaid);
 router.post('/:requestId/request-info', financeRequestInfo);
 router.post('/:requestId/reject', financeReject);
