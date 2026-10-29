@@ -1,4 +1,4 @@
-import { ArrowRight, CreditCard, UserPlus, Users } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { adminApi } from '../../api/adminApi';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -35,7 +35,6 @@ export function AdminDashboardPage() {
     {
       label: 'Pending account requests',
       tone: 'gold' as const,
-      icon: <UserPlus size={20} />,
       value: data.pendingAccountRequests,
       detail: data.pendingAccountRequests ? 'Review access requests' : 'No requests awaiting review',
       to: '/admin/users'
@@ -43,7 +42,6 @@ export function AdminDashboardPage() {
     {
       label: 'User accounts',
       tone: 'blue' as const,
-      icon: <Users size={20} />,
       value: data.users,
       detail: data.activeUsers === undefined ? 'Manage accounts' : `${data.activeUsers} active`,
       to: '/admin/users'
@@ -51,7 +49,6 @@ export function AdminDashboardPage() {
     {
       label: 'Awaiting payment',
       tone: 'green' as const,
-      icon: <CreditCard size={20} />,
       value: data.pendingPayments,
       detail: data.amountSummary ? formatCurrency(data.amountSummary.pendingPaymentAmount) : 'View claims in reports',
       to: '/admin/reports'
@@ -69,7 +66,7 @@ export function AdminDashboardPage() {
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {summaries.map((summary) => (
-              <StatusCard key={summary.label} to={summary.to} title={summary.label} value={summary.value} caption={summary.detail} icon={summary.icon} tone={summary.tone} />
+              <StatusCard key={summary.label} to={summary.to} title={summary.label} value={summary.value} caption={summary.detail} tone={summary.tone} />
             ))}
           </div>
 
