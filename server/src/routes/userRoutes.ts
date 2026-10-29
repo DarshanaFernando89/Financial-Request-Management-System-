@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   activateUser,
+  changePassword,
   createUser,
   deleteUser,
   deactivateUser,
@@ -15,6 +16,7 @@ import {
 import { authMiddleware, requireActiveRole } from '../middleware/authMiddleware.js';
 import { requireRoles } from '../middleware/roleMiddleware.js';
 import { ROLES } from '../utils/constants.js';
+import { passwordChangeLimiter } from '../middleware/rateLimitMiddleware.js';
 
 const router = Router();
 
@@ -22,6 +24,7 @@ router.use(authMiddleware, requireActiveRole);
 
 router.get('/me/profile', getProfile);
 router.put('/me/profile', updateProfile);
+router.patch('/me/password', passwordChangeLimiter, changePassword);
 
 router.use(requireRoles(ROLES.ADMIN));
 router.get('/', listUsers);

@@ -13,5 +13,6 @@ export type Notification = {
   isRead: boolean;
   relatedRequest?: Pick<FinancialRequest, '_id' | 'requestId' | 'status' | 'currentAssignedRole'>;
   relatedAccountRequest?: AccountRequestNotificationTarget | string;
+  relatedUser?: string | { _id: string };
   createdAt: string;
 };

@@ -7,6 +7,7 @@ const userSchema = new Schema(
     fullName: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true, select: false },
+    sessionVersion: { type: Number, default: 0 },
     employeeNo: { type: String, trim: true },
     indexNo: { type: String, trim: true },
     staffCategory: { type: String, enum: Object.values(STAFF_CATEGORIES), required: true },

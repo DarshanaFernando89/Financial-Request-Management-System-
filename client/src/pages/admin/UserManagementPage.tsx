@@ -56,7 +56,45 @@ export function UserManagementPage() {
   const [isResetting, setIsResetting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isProcessingAccountRequest, setIsProcessingAccountRequest] = useState(false);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [resetError, setResetError] = useState('');
+  const [isLoadingResetUser, setIsLoadingResetUser] = useState(false);
+  const resetUserId = searchParams.get('resetPassword');
+  const resetEmail = searchParams.get('resetPasswordEmail');
+
+  useEffect(() => {
+    if (!resetUserId && !resetEmail) {
+      setIsLoadingResetUser(false);
+      setResetUser(null);
+      return;
+    }
+    let cancelled = false;
+    setIsLoadingResetUser(true);
+    setResetUser(null);
+    setResetError('');
+    setError('');
+    const target = resetUserId ? userApi.get(resetUserId) : userApi.list({ email: resetEmail })
+      .then(({ items }) => items.find((user) => user.email.toLowerCase() === resetEmail?.trim().toLowerCase()));
+    target.then((user) => {
+      if (cancelled) return;
+      if (!user) throw new Error('The account for this password reset request is no longer available.');
+      setResetUser(user);
+    }).catch((failure) => {
+      if (!cancelled) setError(failure instanceof Error ? failure.message : 'Unable to load the account for password reset.');
+    }).finally(() => {
+      if (!cancelled) setIsLoadingResetUser(false);
+    });
+    return () => { cancelled = true; };
+  }, [resetUserId, resetEmail]);
+
+  function clearResetTarget() {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete('resetPassword');
+      next.delete('resetPasswordEmail');
+      return next;
+    }, { replace: true });
+  }
 
   async function load() {
     const data = await userApi.list({ search });
@@ -90,12 +128,14 @@ export function UserManagementPage() {
     setIsResetting(true);
     setMessage('');
     setError('');
+    setResetError('');
     try {
       await userApi.resetPassword(resetUser._id, defaultResetPassword);
       setMessage(`${resetUser.nameWithInitials}'s password was reset to ${defaultResetPassword}.`);
       setResetUser(null);
+      clearResetTarget();
     } catch (resetError) {
-      setError(resetError instanceof Error ? resetError.message : 'Password reset failed.');
+      setResetError(resetError instanceof Error ? resetError.message : 'Password reset failed.');
     } finally {
       setIsResetting(false);
     }
@@ -176,6 +216,7 @@ export function UserManagementPage() {
       } />
       <Toast message={message} tone="green" />
       <Toast message={error} tone="red" />
+      {isLoadingResetUser && <p role="status" className="text-sm text-slate-600">Loading the account for password reset...</p>}
       <Card className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -296,11 +337,13 @@ export function UserManagementPage() {
                       variant="outline"
                       className="h-9 min-h-9 px-2"
                       icon={<KeyRound size={16} />}
+                      disabled={isLoadingResetUser || isResetting}
                       title={`Reset password to ${defaultResetPassword}`}
                       aria-label={`Reset ${row.nameWithInitials}'s password`}
                       onClick={() => {
                         setMessage('');
                         setError('');
+                        setResetError('');
                         setResetUser(row);
                       }}
                     />
@@ -329,14 +372,20 @@ export function UserManagementPage() {
       <ConfirmDialog
         open={Boolean(resetUser)}
         title="Reset Password"
+        confirmLabel={isResetting ? 'Resetting...' : 'Reset Password'}
+        busy={isResetting}
+        error={resetError}
         message={
           resetUser
-            ? `Reset ${resetUser.nameWithInitials}'s password to ${defaultResetPassword}?`
+            ? `Reset the password for ${resetUser.fullName || resetUser.nameWithInitials} (${resetUser.email}) to ${defaultResetPassword}? Confirm the requester's identity before proceeding.`
             : ''
         }
         onConfirm={() => void confirmReset()}
         onClose={() => {
-          if (!isResetting) setResetUser(null);
+          if (!isResetting) {
+            setResetUser(null);
+            clearResetTarget();
+          }
         }}
       />
       <ConfirmDialog

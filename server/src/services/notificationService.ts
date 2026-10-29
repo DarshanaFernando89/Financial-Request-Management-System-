@@ -20,6 +20,7 @@ type AdminNotificationOptions = {
   type?: string;
   relatedRequest?: string;
   relatedAccountRequest?: string;
+  relatedUser?: string;
 };
 
 export async function notifyUser(input: NotificationInput) {
@@ -39,7 +40,8 @@ export async function notifyAdmins(title: string, message: string, options: Admi
       message,
       type: options.type || 'ADMIN',
       relatedRequest: options.relatedRequest,
-      relatedAccountRequest: options.relatedAccountRequest
+      relatedAccountRequest: options.relatedAccountRequest,
+      relatedUser: options.relatedUser
     }))
   );
 }

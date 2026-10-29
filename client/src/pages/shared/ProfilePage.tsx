@@ -12,6 +12,7 @@ import { roleLabel } from '../../utils/roleLabels';
 import type { User } from '../../types/auth';
 import { useAuth } from '../../hooks/useAuth';
 import { visibleAssignedRoles } from '../../utils/constants';
+import { ChangePasswordForm } from '../../components/profile/ChangePasswordForm';
 
 function profileForm(user: User) {
   return { fullName: user.fullName || '', email: user.email || '', contactNo: user.contactNo || '', profileImageUrl: user.profileImageUrl || '' };
@@ -154,6 +155,7 @@ export function ProfilePage() {
           <Button type="submit" icon={<Save size={16} />} disabled={saving}>{saving ? 'Saving...' : 'Save Profile'}</Button>
         </Card>
       </form>
+      <ChangePasswordForm email={profile.email} />
     </div>
   );
 }

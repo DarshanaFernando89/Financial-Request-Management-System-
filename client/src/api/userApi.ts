@@ -38,6 +38,10 @@ export const userApi = {
     const { data } = await apiClient.get<User>('/users/me/profile');
     return data;
   },
+  async changePassword(payload: { currentPassword: string; newPassword: string; confirmPassword: string }) {
+    const { data } = await apiClient.patch<{ message: string }>('/users/me/password', payload);
+    return data;
+  },
   async updateProfile(payload: Record<string, unknown>) {
     const { data } = await apiClient.put<User>('/users/me/profile', payload);
     return data;

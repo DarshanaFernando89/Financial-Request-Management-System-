@@ -52,7 +52,8 @@ export const login = asyncHandler(async (req, res) => {
     userId: user._id.toString(),
     email: user.email,
     roles,
-    activeRole
+    activeRole,
+    sessionVersion: user.sessionVersion || 0
   });
 
   await writeAuditLog({
@@ -91,8 +92,19 @@ export const logout = asyncHandler(async (req, res) => {
 
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
-  if (!email) throw new ApiError(400, 'Email is required.');
-  await notifyAdmins('Password reset requested', `${email} requested a password reset.`);
+  if (typeof email !== 'string' || !email.trim()) throw new ApiError(400, 'Email is required.');
+  const normalizedEmail = email.trim().toLowerCase();
+  if (normalizedEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    throw new ApiError(400, 'Enter a valid email address.');
+  }
+  const user = await UserModel.findOne({ email: normalizedEmail }).select('_id');
+  if (user) {
+    await notifyAdmins('Password reset requested', `${normalizedEmail} requested a password reset.`, {
+      type: 'PASSWORD_RESET',
+      relatedUser: user._id.toString()
+    });
+  }
+  // Keep the public response identical whether the account exists or not.
   res.json({ message: 'Password reset request has been sent to the administrator.' });
 });
 

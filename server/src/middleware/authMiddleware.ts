@@ -10,6 +10,7 @@ export type JwtPayload = {
   email: string;
   roles: string[];
   activeRole?: string;
+  sessionVersion?: number;
 };
 
 export function signAuthToken(payload: JwtPayload) {
@@ -28,6 +29,9 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
       getRoleCatalog()
     ]);
     if (!user || !user.isActive) throw new ApiError(401, 'User account is inactive or unavailable.');
+    if ((decoded.sessionVersion || 0) !== (user.sessionVersion || 0)) {
+      throw new ApiError(401, 'Your password has changed. Please sign in again.');
+    }
     const roles = rolesFromCatalog(user.roles.map(String), catalog);
     // Existing tokens cannot retain an old role after the account assignment changes.
     if (!roles.length || (decoded.activeRole && decoded.activeRole !== roles[0])) {

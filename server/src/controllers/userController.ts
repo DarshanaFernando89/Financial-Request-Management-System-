@@ -20,6 +20,7 @@ async function publicUser(user: any, catalog?: RoleCatalogItem[]) {
 
 function buildUserFilter(query: any) {
   const filter: any = {};
+  if (typeof query.email === 'string') filter.email = query.email.trim().toLowerCase();
   if (query.search) {
     const search = new RegExp(String(query.search), 'i');
     filter.$or = [{ fullName: search }, { nameWithInitials: search }, { email: search }, { department: search }];
@@ -107,7 +108,7 @@ export const createUser = asyncHandler(async (req, res) => {
 });
 
 export const updateUser = asyncHandler(async (req, res) => {
-  const blocked = ['password', 'passwordHash', 'approvalRolePasswords', 'approvalRolePasswordHashes', '_id', 'createdAt', 'updatedAt'];
+  const blocked = ['password', 'passwordHash', 'sessionVersion', 'approvalRolePasswords', 'approvalRolePasswordHashes', '_id', 'createdAt', 'updatedAt'];
   const updates = Object.fromEntries(Object.entries(req.body).filter(([key]) => !blocked.includes(key)));
   const existing = (await UserModel.findById(req.params.id)) as any;
   if (!existing) throw new ApiError(404, 'User not found.');
@@ -196,6 +197,51 @@ export const getProfile = asyncHandler(async (req, res) => {
   const user = await UserModel.findById((req as any).user.userId);
   if (!user) throw new ApiError(404, 'User not found.');
   res.json(await publicUser(user, (req as any).user.roleCatalog));
+});
+
+export const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword, confirmPassword } = req.body;
+  if (typeof currentPassword !== 'string' || !currentPassword || currentPassword.length > 1024) {
+    throw new ApiError(400, 'Enter your current password.');
+  }
+  if (typeof newPassword !== 'string' || [...newPassword].length < 8) {
+    throw new ApiError(400, 'New password must contain at least 8 characters.');
+  }
+  // bcrypt only uses the first 72 bytes. Reject longer inputs instead of truncating.
+  if (Buffer.byteLength(newPassword, 'utf8') > 72) {
+    throw new ApiError(400, 'New password is too long. Use at most 72 bytes (fewer characters for some languages).');
+  }
+  if (typeof confirmPassword !== 'string' || newPassword !== confirmPassword) {
+    throw new ApiError(400, 'New password and confirmation do not match.');
+  }
+
+  const session = (req as any).user;
+  const user = await UserModel.findById(session.userId).select('+passwordHash');
+  if (!user || !user.isActive) throw new ApiError(401, 'User account is inactive or unavailable.');
+  const previousHash = user.passwordHash;
+  if (typeof previousHash !== 'string') throw new ApiError(401, 'Account password is unavailable. Contact an administrator.');
+  if (!await bcrypt.compare(currentPassword, previousHash)) {
+    throw new ApiError(400, 'Current password is incorrect.');
+  }
+  if (await bcrypt.compare(newPassword, previousHash)) {
+    throw new ApiError(400, 'Choose a new password different from your current password.');
+  }
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  // Prevent a simultaneous reset or password change from being overwritten.
+  const updated = await UserModel.findOneAndUpdate(
+    { _id: session.userId, passwordHash: previousHash, isActive: true },
+    { $set: { passwordHash }, $inc: { sessionVersion: 1 } },
+    { new: true }
+  );
+  if (!updated) throw new ApiError(409, 'Your account changed. Please sign in again and retry.');
+  await writeAuditLog({
+    actor: session.userId,
+    actorRole: session.activeRole,
+    action: 'CHANGE_PASSWORD',
+    entityType: 'User',
+    entityId: session.userId
+  });
+  res.json({ message: 'Password changed successfully. Please sign in with your new password.' });
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {

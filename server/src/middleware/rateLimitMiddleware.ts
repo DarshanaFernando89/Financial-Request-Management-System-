@@ -12,6 +12,16 @@ const options = {
 const generalLimiter = rateLimit(options);
 const notificationPollingLimiter = rateLimit(options);
 
+export const passwordChangeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => (req as any).user.userId,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many password change attempts. Please try again in 15 minutes.' }
+});
+
 // Polling has its own bounded budget; it must not lock users out of their profile.
 // Notification writes and detail requests still use the general request budget.
 export const apiRateLimiter: RequestHandler = (req, res, next) => {

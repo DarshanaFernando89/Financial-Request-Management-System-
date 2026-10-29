@@ -1,5 +1,5 @@
 import { PageHeader } from '../../components/layout/PageHeader';
-import { CheckCheck, UserCheck } from 'lucide-react';
+import { CheckCheck, KeyRound, UserCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { notificationApi } from '../../api/notificationApi';
 import { Button } from '../../components/ui/Button';
@@ -43,7 +43,7 @@ export function NotificationsPage() {
                     <span className="text-xs text-slate-500">{formatDate(item.createdAt)}</span>
                     {action && (
                       <Link to={action.to} onClick={() => void readNotification(item._id, item.isRead)}>
-                        <Button className="min-h-9 px-3 py-1.5" variant="outline" icon={<UserCheck size={16} />}>
+                        <Button className="min-h-9 px-3 py-1.5" variant="outline" icon={action.label === 'Reset Password' ? <KeyRound size={16} /> : <UserCheck size={16} />}>
                           {action.label}
                         </Button>
                       </Link>

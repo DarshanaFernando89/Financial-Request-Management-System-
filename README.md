@@ -11,6 +11,8 @@ The written specification is treated as the source of truth. Approval thresholds
 ## Features
 
 - JWT authentication with bcrypt password hashing.
+- Every signed-in role can use **Profile > Change Password** with the current password and matching new-password confirmation (at least 8 characters, at most 72 UTF-8 bytes). The form checks matching passwords whenever either field changes, and the backend checks again before saving. Successful changes require signing in again on all devices. The existing **Admin > Users > Reset Password** option is unchanged.
+- Admin password-reset notifications include a **Reset Password** action that opens the matching account's confirmation in User Management. Opening a notification never changes a password; the admin reviews the name and email and confirms the existing reset action. Older notifications resolve their account by exact email.
 - Single-role accounts: sign in directly to the assigned dashboard. Use separate staff and approving-authority accounts.
 - Role-based dashboards for Lecturers, Approvers, Finance Officer, and Admin.
 - Dynamic request types with custom fields and required documents.
